@@ -1,0 +1,24 @@
+{
+	"/(admin)": [
+		"src/routes/(admin)/+page.ts"
+	],
+	"/": [],
+	"/(admin)/practice/config": [
+		"src/routes/(admin)/practice/config/+page.ts"
+	],
+	"/(admin)/practice/config/[slug]": [
+		"src/routes/(admin)/practice/config/[slug]/+page.ts"
+	],
+	"/(admin)/practice/onboard": [],
+	"/(admin)/practice/settings": [],
+	"/(admin)/profile": [],
+	"/(admin)/profile/options": [
+		"src/routes/(admin)/profile/options/+page.ts"
+	],
+	"/sign-in": [
+		"src/routes/sign-in/+page.server.ts"
+	],
+	"/sign-up": [
+		"src/routes/sign-up/+page.server.ts"
+	]
+}

@@ -1,0 +1,1 @@
+<h2 class="text-2xl uppercase mb-5">User Profile Stub</h2>
