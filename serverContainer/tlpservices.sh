@@ -24,7 +24,7 @@ fi
 # only process the first command
 case $1 in
   start)
-    docker-compose up
+    docker-compose up -d
     ;;
 
   stop)
