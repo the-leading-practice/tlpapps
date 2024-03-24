@@ -3,19 +3,19 @@ version: "3.7"
 # services
 services:
   api-gateway:
-    build: ../tlpservices/api-gateway
+    build: ./tlpservices/api-gateway
     image: api-gateway
     ports:
       - 8080:8080
 
   identity-service:
-    build: ../tlpservices/identity-service
+    build: ./tlpservices/identity-service
     image: identity-service
     ports:
       - 5600:5600
 
   patient-service:
-    build: ../tlpservices/patient-service
+    build: ./tlpservices/patient-service
     image: patient-service
     volumes:
       - ./var/logs:/var/logs
@@ -23,13 +23,13 @@ services:
       - 5610:5610
 
   integration-service:
-    build: ../tlpservices/ghl-service
+    build: ./tlpservices/ghl-service
     image: integration-service
     ports:
       - 5620:5620
 
   webhook-service:
-    build: ../tlpservices/webhook-service
+    build: ./tlpservices/webhook-service
     image: webhook-service
     volumes:
       - ./var/logs:/var/logs
@@ -37,7 +37,7 @@ services:
       - 5670:5670
 
   notification-service:
-    build: ../tlpservices/notification-service
+    build: ./tlpservices/notification-service
     image: notification-service  
     volumes:
       - ./var/logs:/var/logs
@@ -45,7 +45,7 @@ services:
       - 5640:5640
 
   config-service:
-    build: ../tlpservices/config-service
+    build: ./tlpservices/config-service
     image: config-service  
     ports:
       - 5650:5650
