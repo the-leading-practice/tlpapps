@@ -1,0 +1,83 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>API Gateway</title>
+
+    <style>
+      html, body {
+        font-family:Arial, Helvetica, sans-serif;
+        font-size: 1em;
+      }
+
+      .main-container {
+        border: 1px solid darkgray;
+        width: 640px;
+        margin: 20px auto;
+        
+        border-radius: 5px;
+      }
+
+      .main-container__title{
+        padding: 5px 10px;
+        border-bottom: 1px solid darkgray; 
+      }
+
+      .main-container__title h1{
+        color: rgb(0, 150, 90);
+        padding: 0;
+        margin: 0;
+        font-size: 1.5em;
+      }
+
+      .services ul{
+        list-style-type: none;
+        margin: 0;
+        padding: 0;
+      }
+
+      .services li{
+        padding: 5px 20px;
+      }
+
+      .services li:not(:last-child){
+        border-bottom: 1px solid darkgray;
+      }
+
+      .service__title {
+        padding: 5px 0 0 0;
+        margin: 0 0 10px 0;
+      }
+
+      .service__title h2{
+        color: rgb(0, 150, 90);
+        padding: 0;
+        margin: 0;
+        font-size: 1.2em;
+      }
+
+    </style>
+</head>
+<body>
+    <div class="main-container">
+      <div class="main-container__title">
+        <h1>API Gateway Services</h1>
+      </div>
+      <div class="services">
+        <ul>
+          <% services.forEach( service => { %>
+            <li>
+              <div class="service__title"><h2><%= service.name %></h2></div>
+              <div>Endpoint: <%= service.endpoint %></div>
+              <div>Host: <%= service.host %></div>
+              <div>Port: <%= service.port %></div>
+              <div>Enabled: <%= service.enabled %></div>
+              <div>Endpoint URL: <%= service.host %>:<%= service.port %>/<%= service.target %></div>
+            </li>
+          <% }) %>
+        </ul>
+      </div>
+    </div>
+</body>
+</html>

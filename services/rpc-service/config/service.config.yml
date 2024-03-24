@@ -1,0 +1,7 @@
+service:
+  name: "RPC Service"
+  port: 5660
+  wsPort: 5665
+  pingInterval: 60
+
+

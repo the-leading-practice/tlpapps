@@ -1,0 +1,4 @@
+service:
+  name: "GLH Service"
+  port: 5620
+

@@ -1,0 +1,9 @@
+service:
+  name: "Notification Service"
+  port: 5640
+
+logging:
+  logPath: "/home/oorin/Projects/Clients/TheLeadingPractice/logs/notification-service/"
+  fileName: "error.log"
+
+

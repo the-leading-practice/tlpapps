@@ -1,0 +1,68 @@
+protocols:
+  - name: "http"
+    port: 8080
+    enabled: true
+  - name: "https"
+    port: 443
+    enabled: false
+    tls:
+      key: /etc/letsencrypt/live/tlpapps.theleadingpractice.com/privkey.pem
+      cert: /etc/letsencrypt/live/tlpapps.theleadingpractice.com/fullchain.pem
+
+authEndpoint: 
+  service: idm
+  endpoint: login
+
+admin:
+  enabled: true
+  auth: true
+
+services:
+  - name: Identification Service
+    endpoint: idm
+    host: http://localhost
+    target:
+    port: 5600
+    enabled: true
+    auth: false
+  
+  - name: Patient Service
+    endpoint: patient
+    host: http://localhost
+    target:
+    port: 5610
+    enabled: true
+    auth: true
+
+  - name: Appointment Service
+    endpoint: appt
+    host: http://localhost
+    target:
+    port: 5610
+    enabled: true
+    auth: true
+
+  - name: Integration Service
+    endpoint: ghl
+    host: http://localhost
+    target:
+    port: 5620
+    enabled: true
+    auth: true
+
+  - name: Notification Service
+    endpoint: notification
+    host: http://localhost
+    target:
+    port: 5640
+    enabled: true
+    auth: true
+
+  - name: Config Service
+    endpoint: config
+    host: http://localhost
+    target:
+    port: 5650
+    enabled: true
+    auth: true
+

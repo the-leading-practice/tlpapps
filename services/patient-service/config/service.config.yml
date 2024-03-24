@@ -1,0 +1,4 @@
+service:
+  name: "Patient Service"
+  port: 5610
+  

@@ -1,0 +1,4 @@
+service:
+  name: "IDM Service"
+  port: 5600
+

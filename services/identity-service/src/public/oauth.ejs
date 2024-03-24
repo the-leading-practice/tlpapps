@@ -1,0 +1,61 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta http-equiv="X-UA-Compatible" content="IE=edge">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>TLP Services Authorization</title>
+
+  <style>
+    html, body{margin: 0;padding:0;font-family: Arial, Helvetica, sans-serif; font-size: 1.0em;}
+    .main-container{
+      margin: 10% auto 0 auto;
+      height: 600px;
+      width: 550px;
+    }
+
+    .auth-panel {
+      position: relative;
+      border-radius: 5px;
+      padding: 15px;
+      box-shadow: 1px 1px 5px rgba( 0, 0, 0, 0.2 );
+    }
+
+    .auth-panel__logo {
+      text-align: center;
+      margin-bottom: 40px;
+    }
+
+    .auth-panel__title h1 {
+      font-size: 1.8em;
+    }
+
+    .auth-panel__code {
+      margin: 20px 0;
+      border: 1px solid rgb(179, 179, 179);
+      border-radius: 5px;
+      background-color: rgb(218, 218, 218);
+      color:rgb(51, 51, 51);
+      font-family: monospace;
+      padding: 10px;
+    }
+  </style>
+
+</head>
+<body>
+  <div class="main-container">
+    <div class="auth-panel">
+      <div class="auth-panel__logo"><img src="https://media.theleadingpractice.com/images/logo.webp" width="225" alt="tlp logo" /></div>
+      <div class="auth-panel__message">
+        The TLP integration has been authorized for use with the selected location.<br /><br />
+        Use the following values to configure the Practice client:
+        <div class="auth-panel__code">
+          "locationId": "<%= locationId %>",<br>
+          "locationSecret": "<%= locationSecret %>"
+        </div>
+        Record the above values now.  This is the last time they will be displayed.
+      </div>
+    </div>
+  </div>
+</body>
+</html>
