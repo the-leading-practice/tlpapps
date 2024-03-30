@@ -1,0 +1,18 @@
+{
+  "name": "cli-tools",
+  "version": "1.0.0",
+  "description": "",
+  "main": "index.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "dependencies": {
+    "@clack/prompts": "^0.7.0",
+    "columnify": "^1.6.0",
+    "kleur": "^4.1.5",
+    "mri": "^1.2.0"
+  }
+}
