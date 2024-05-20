@@ -15,6 +15,7 @@ export type TLPPatientData = {
   mobile?: string | null;
   work?: string | null;
   email?: string;
+	businessId?: string;
   dob?: string;
   tags?: string[];
 }
