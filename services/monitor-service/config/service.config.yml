@@ -1,0 +1,4 @@
+service:
+  name: "Monitor Service"
+  port: 5680
+
