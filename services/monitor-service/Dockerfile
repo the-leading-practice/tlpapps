@@ -10,7 +10,7 @@ COPY ./dist /usr/src/app
 RUN npm install
 ENV NODE_PATH=/usr/src/app
 
-EXPOSE 5670
+EXPOSE 5680
 
 CMD [ "node", "app.js" ]
 

@@ -7,12 +7,14 @@ services:
     image: api-gateway
     ports:
       - 8080:8080
+    env_file: .env
 
   identity-service:
     build: ./tlpservices/identity-service
     image: identity-service
     ports:
       - 5600:5600
+    env_file: .env
 
   patient-service:
     build: ./tlpservices/patient-service
@@ -21,12 +23,14 @@ services:
       - ./var/logs:/var/logs
     ports:
       - 5610:5610
+    env_file: .env
 
   integration-service:
     build: ./tlpservices/ghl-service
     image: integration-service
     ports:
       - 5620:5620
+    env_file: .env
 
   webhook-service:
     build: ./tlpservices/webhook-service
@@ -35,6 +39,16 @@ services:
       - ./var/logs:/var/logs
     ports:
       - 5670:5670
+    env_file: .env
+
+  monitor-service:
+    build: ./tlpservices/monitor-service
+    image: monitor-service
+    volumes:
+      - ./var/logs:/var/logs
+    ports:
+      - 5680:5680
+    env_file: .env
 
   notification-service:
     build: ./tlpservices/notification-service
@@ -43,12 +57,14 @@ services:
       - ./var/logs:/var/logs
     ports:
       - 5640:5640
+    env_file: .env
 
   config-service:
     build: ./tlpservices/config-service
     image: config-service  
     ports:
       - 5650:5650
+    env_file: .env
 
 # disk volumes
 

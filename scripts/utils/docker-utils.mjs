@@ -78,6 +78,7 @@ export const installDocker = async ( destination='', selectDestDir=false ) => {
 
   if( isCancel( doInstall ) ) {
     cancel( 'deployment cancelled' );
+		
     process.exit( 0 );
   }
 
@@ -95,8 +96,18 @@ export const installDocker = async ( destination='', selectDestDir=false ) => {
     console.log( gray( `building docker-compose.yml` ) );
     buildDocker( destination, password );
 
-    let instructions = bold( cyan( `\nDone! To start the container:\n\n` ) );
-    instructions += bold( cyan( `cd ${destination}\n` ) );
+    let instructions = bold( cyan( `\nDone!\n\n` ) );
+
+		instructions += bold( cyan( `Next steps:\n\n` ) );
+		
+		instructions += bold( cyan( `copy the sample environment file in ${destination}\n` ) );
+		instructions += bold( cyan( `cp ${destination}/sample.env ${destination}/.env\n\n` ) );
+
+		instructions += bold( cyan( `edit the ${destination}/.env file\n` ) );
+		
+		instructions += bold( cyan( `To start the container:\n\n` ) );
+    
+		instructions += bold( cyan( `cd ${destination}\n` ) );
     instructions += bold( cyan( `sudo tlpservices.sh start\n\n` ) )
 
     console.log( instructions );

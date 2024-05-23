@@ -79,7 +79,8 @@ export const installServices = async ( destination, selectDestDir=false ) => {
     {value: 'notification-service', label: 'Notification Service'},
     {value: 'patient-service', label: 'Patient Service'},
     {value: 'rpc-service', label: 'RPC Service'},
-    {value: 'webhook-service', label: 'Webhook Service'}
+    {value: 'webhook-service', label: 'Webhook Service'},
+		{value: 'monitor-service', label: 'Monitor Service'},
   ];
 
   const services = await multiselect( {

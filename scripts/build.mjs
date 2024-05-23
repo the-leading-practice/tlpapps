@@ -15,6 +15,7 @@ import {
 import { installDocker } from './utils/docker-utils.mjs';
 import { installServices } from './utils/service-utils.mjs';
 import { getFullPath } from './utils/utils.mjs';
+import { cyan, gray, bold } from 'kleur/colors';
 
 let dockerDir = '';
 
