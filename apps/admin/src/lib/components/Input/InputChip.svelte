@@ -149,9 +149,9 @@
 
 	// Local
 	let inputValid = true;
-	let chipValues: Array<{ val: (typeof value)[0]; id: number }> =
-		value?.map((val) => {
-			return { val: val, id: Math.random() };
+	let chipValues: Array<{ label: string, val: (typeof value)[0]; id: number }> =
+		value?.map((label, val) => {
+			return { label: label,val: val, id: Math.random() };
 		}) || [];
 
   let dataList: DataList;
@@ -178,6 +178,26 @@
 		};
 	});
 
+  const removeClickOutside = () => {
+    removeEventListener( 'click', handleClickOutside );
+  }
+
+  const handleClickOutside = ( event: MouseEvent ) => {
+    const elem = document.getElementsByClassName( 'input-chip' )[0];
+    const inBounds = event.composedPath().includes( elem );
+
+    if( !inBounds && showDataList ) {
+      showDataList = false;
+      removeClickOutside();
+    }
+  }
+
+  const onFocusHandler = () => {
+    showDataList = true;
+
+    document.addEventListener( 'click', handleClickOutside );
+  }
+
 	function onInputHandler(): void {
 		inputValid = true;
     showDataList = true;
@@ -189,8 +209,8 @@
 
   function listSelectHandler( event: CustomEvent ) {
     showDataList = false;
-
-    addToChipvalues( event.detail.item.label, event.detail.event );
+    console.log( event.detail.item );
+    addToChipvalues( event.detail.item, event.detail.event );
   }
 
 	function validate(): boolean {
@@ -214,6 +234,7 @@
 	}
 
 	function addChip(event: SvelteEvent<SubmitEvent, HTMLFormElement>): void {
+    console.log( `addChip `, input );
 		event.preventDefault();
 		// Validate
 		inputValid = validate();
@@ -224,27 +245,21 @@
 			return;
 		}
 
-    addToChipvalues( input, event )
-		// // Format: to lowercase (if enabled)
-		// input = allowUpperCase ? input : input.toLowerCase();
-		// // Append value to array
-		// value.push(input);
-		// value = value;
-		// chipValues.push({ val: input, id: Math.random() });
-		// chipValues = chipValues;
-		// /** @event {{ event: Event, chipIndex: number, chipValue: string }} add - Fires when a chip is added. */
-		// dispatch('add', { event, chipIndex: value.length - 1, chipValue: input });
-		// // Clear input value
-		// input = '';
+    const selItem = itemList.filter( ( a ) => a.label === input );
+
+    if( selItem ) addToChipvalues( selItem[0], event )
 	}
 
-  const addToChipvalues = ( val: (typeof value)[0], event: SubmitEvent | MouseEvent ) => {
-    input = allowUpperCase ? val : val.toLowerCase();
-    value.push( input );
-    chipValues.push( { val: input, id: Math.random() } );
+  const addToChipvalues = ( val: DataListItem, event: SubmitEvent | MouseEvent ) => {
+    input = allowUpperCase ? val.label : val.label.toLowerCase();
+    value.push( val.value );
+    chipValues.push( { label: input, val: val.value, id: Math.random() } );
     chipValues = chipValues;
-    /** @event {{ event: Event, chipIndex: number, chipValue: string }} add - Fires when a chip is added. */
-		dispatch('add', { event, chipIndex: value.length - 1, chipValue: input });
+		dispatch('add', { 
+      event, 
+      chipIndex: value.length - 1, 
+      chipValue: val.value
+    } );
 		// Clear input value
 		input = '';
   }
@@ -283,7 +298,11 @@
 	$: chipValues =
 		value?.map((val, i) => {
 			if (chipValues[i]?.val === val) return chipValues[i];
-			return { id: Math.random(), val: val };
+      const item = itemList.find( (a) => a.value === val );
+      if( item )
+			  return { id: Math.random(), val: val, label:item.label };
+
+      return { id: Math.random(), val: val, label:'' }
 		}) || [];
 </script>
 
@@ -308,7 +327,7 @@
           on:change={onChangeHandler}
           on:input={onInputHandler}
           on:input
-          on:focus={() => showDataList = true}
+          on:focus={onFocusHandler}
           on:blur
           on:keyup
           disabled={$$restProps.disabled}
@@ -329,7 +348,7 @@
           in:DynamicTransition|local={{ transition: listTransitionIn, params: listTransitionInParams, enabled: transitions }}
           out:DynamicTransition|local={{ transition: listTransitionOut, params: listTransitionOutParams, enabled: transitions }}
         >
-          {#each chipValues as { id, val }, i (id)}
+          {#each chipValues as { id, val, label }, i (id)}
             <!-- Wrapping div required for FLIP animation -->
             <div animate:flip={{ duration }}>
               <button
@@ -345,7 +364,7 @@
                 in:DynamicTransition|local={{ transition: chipTransitionIn, params: chipTransitionInParams, enabled: transitions }}
                 out:DynamicTransition|local={{ transition: chipTransitionOut, params: chipTransitionOutParams, enabled: transitions }}
               >
-                <span>{val}</span>
+                <span>{label}</span>
                 <span>✕</span>
               </button>
             </div>

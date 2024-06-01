@@ -15,18 +15,18 @@
 	
 </script>
 
-<div class="floating">
+<div class="floating-label">
   <div class="w-full {$$slots.combo && "join"}">
     <div class="w-full">
       <input 
         type={type}
         name={name} 
-        class="input input-bordered floating__input {width} {$$slots.combo && "join-item"}" 
+        class="input input-bordered floating-label__input {width} {$$slots.combo && "join-item"}" 
         placeholder={placeholder}
         on:input={handleInput} 
         {value}
         {required} />
-      <label for={name} class="floating__label" data-content={label}>
+      <label for={name} class="floating-label__label" data-content={label}>
         <span class="hidden--visually">{label}</span>
       </label>
     </div>
@@ -39,31 +39,31 @@
 
 <style>
   /*TODO convert to TailwindCSS*/
-  .floating {
+  .floating-label {
     margin-bottom: 1rem;
     transition: background-color 0.2s ease;
     border-top-left-radius: 4px;
     border-top-right-radius: 4px;
   }
 
-  .floating:hover,
-  .floating:focus-within {
+  .floating-label:hover,
+  .floating-label:focus-within {
   }
 
-  .floating__input {
+  .floating-label__input {
     padding: 1.8rem 1rem 0.6rem;
     font-size: 1rem;
     transition: border-color 0.2s ease;
   }
 
-  .floating:hover .floating__input {
+  .floating-label:hover .floating-label__input {
   }
 
-  .floating__input::placeholder {
+  .floating-label__input::placeholder {
     color: rgba(0, 0, 0, 0);
   }
 
-  .floating__label {
+  .floating-label__label {
     display: block;
     position: relative;
     max-height: 0;
@@ -71,7 +71,7 @@
     pointer-events: none;
   }
 
-  .floating__label::before {
+  .floating-label__label::before {
     content: attr(data-content);
     display: inline-block;
     filter: blur(0);
@@ -82,7 +82,7 @@
     position: relative;
   }
 
-  .floating__label::after {
+  .floating-label__label::after {
     bottom: 1rem;
     content: "";
     height: 0.1rem;
@@ -98,21 +98,21 @@
     
   }
 
-  .floating__input:focus + .floating__label::after {
+  .floating-label__input:focus + .floating-label__label::after {
     transform: scale3d(1, 1, 1);
     opacity: 1;
   }
 
-  .floating__input:placeholder-shown + .floating__label::before {
+  .floating-label__input:placeholder-shown + .floating-label__label::before {
     transform: translate3d(0, -2.2rem, 0) scale3d(1, 1, 1);
   }
 
-  .floating__label::before,
-  .floating__input:focus + .floating__label::before {
+  .floating-label__label::before,
+  .floating-label__input:focus + .floating-label__label::before {
     transform: translate3d(0, -2.8rem, 0) scale3d(0.82, 0.82, 1);
   }
 
-  .floating__input:focus + .floating__label::before {
+  .floating-label__input:focus + .floating-label__label::before {
     color: #08ee00;
   }
 

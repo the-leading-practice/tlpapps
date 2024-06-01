@@ -66,3 +66,18 @@ services:
     enabled: true
     auth: true
 
+  - name: Webhook Service
+    endpoint: webhook
+    host: http://localhost
+    target:
+    port: 5670
+    enabled: true
+    auth: false
+
+  - name: Monitor Service
+    endpoint: monitor
+    host: http://localhost
+    target:
+    port: 5680
+    enabled: true
+    auth: false

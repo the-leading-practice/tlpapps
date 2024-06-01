@@ -74,3 +74,11 @@ services:
     enabled: true
     auth: false
 
+  - name: Monitor Service
+    endpoint: monitor
+    host: http://monitor-service
+    target:
+    port: 5680
+    enabled: true
+    auth: false
+

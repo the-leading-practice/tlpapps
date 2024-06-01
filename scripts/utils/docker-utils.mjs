@@ -60,7 +60,7 @@ export const installDocker = async ( destination='', selectDestDir=false ) => {
 
   //--[ SUDO password ]----------------------------------------------------------
   const password = await text( {
-    message: "root password for docker-compose:",
+    message: "sudo password for docker-compose:",
     placeholder: "password",
     validate( value ) {
       if( value.length === 0 ) return 'error: password is required to build docker';
@@ -100,8 +100,8 @@ export const installDocker = async ( destination='', selectDestDir=false ) => {
 
 		instructions += bold( cyan( `Next steps:\n\n` ) );
 		
-		instructions += bold( cyan( `copy the sample environment file in ${destination}\n` ) );
-		instructions += bold( cyan( `cp ${destination}/sample.env ${destination}/.env\n\n` ) );
+		instructions += bold( cyan( `copy the sample environment file to ${destination}\n` ) );
+		instructions += bold( cyan( `cp serverContainer/sample.env ${destination}/.env\n\n` ) );
 
 		instructions += bold( cyan( `edit the ${destination}/.env file\n` ) );
 		

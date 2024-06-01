@@ -4,8 +4,8 @@
   "description": "GHL monitor service",
   "main": "app.ts",
   "scripts": {
-    "dev": "NODE_PATH=./src nodemon --exec 'ts-node-esm' src/app.ts",
-    "build": "tsc && cp -R config/ ./dist && cp .env ./dist",
+    "dev": "NODE_PATH=./src nodemon --exec 'npx tsx' src/app.ts",
+    "build": "tsc && cp -R config/ ./dist",
     "lint": "eslint --ext .ts src",
     "lint:fix": "eslint -ext .ts src --fix",
     "test": "echo \"Error: no test specified\" && exit 1"
@@ -13,8 +13,11 @@
   "author": "",
   "license": "ISC",
   "dependencies": {
+    "@types/cors": "^2.8.13",
+    "cors": "^2.8.5",
     "express": "^4.18.2",
-    "js-yaml": "^4.1.0"
+    "js-yaml": "^4.1.0",
+    "tsx": "^4.11.0"
   },
   "devDependencies": {
     "@types/express": "^4.17.17",

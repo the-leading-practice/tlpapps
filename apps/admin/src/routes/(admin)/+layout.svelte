@@ -57,6 +57,13 @@
               <li class="text-lg"><a href="/profile/options"><Icon icon="mdi:cog-outline" /> Options</a></li>
             </ul>
         </li>
+				<li>
+					<details>
+						<summary class="text-lg"><Icon icon="mdi:server" /> Server</summary>
+						<ul>
+							<li class="text-lg"><a href="/server/monitor"><Icon icon="mdi:monitor" /> Monitor</a></li>
+						</ul>
+				</li>
       </ul>
     </svelte:fragment> 
 

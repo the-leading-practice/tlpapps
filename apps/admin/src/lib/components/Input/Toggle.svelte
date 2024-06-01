@@ -13,7 +13,7 @@
   let baseClass = 'form-control';
   let labelBaseClass = 'label cursor-pointer';
   let textBaseClass = 'label-text';
-  let toggleBaseClass = 'toggle'
+  let toggleBaseClass = 'toggle';
 
   $: classesContainer = `${baseClass} ${$$props.class ?? ''}`;
   $: classesLabel = `${labelBaseClass} ${labelClass}`;

@@ -15,10 +15,10 @@
 	"/(admin)/profile/options": [
 		"src/routes/(admin)/profile/options/+page.ts"
 	],
-	"/sign-in": [
-		"src/routes/sign-in/+page.server.ts"
-	],
-	"/sign-up": [
-		"src/routes/sign-up/+page.server.ts"
-	]
+	"/(admin)/server": [],
+	"/(admin)/server/monitor": [],
+	"/sign-in": [],
+	"/sign-up": [],
+	"/sign-up/confirm": [],
+	"/welcome": []
 }

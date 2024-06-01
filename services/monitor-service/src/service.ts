@@ -1,4 +1,5 @@
 import express from 'express';
+import cors from 'cors';
 import type { Config } from 'types/config';
 import { routes } from 'api/routes';
 
@@ -13,6 +14,14 @@ export const createService = ( config: Config ) => {
     // load up middleware here
     app.use( express.json() );
     app.use( express.urlencoded( { extended: true } ) ); 
+
+		// cors
+    var corsOptions = {
+      origin: "http://localhost:3000",
+      optionsSuccessStatus: 200
+    };
+
+		app.use( cors( corsOptions ) );
     
     // load routes
     routes( app );

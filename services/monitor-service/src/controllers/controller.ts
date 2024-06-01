@@ -8,25 +8,32 @@ const createController = () => {
     res.status( 200 ).json( req.body );
   }
 
-  const info = async ( req: express.Request, res: express.Response ) => {
-    console.log( req.body );
+	const list = async ( req: express.Request, res: express.Response ) => {
+		console.log( req.body );
     console.log( req.headers );
 
-		const data = dockerService.info();
-		console.log( data );
-
-    res.sendStatus( 200 );
+		const resp = await dockerService.list();
+		res.status( resp.status ).send( resp.data );
   }
 
-	const stats = ( req: express.Request, res: express.Response ) => {
-		console.log( req.body );
+  const info = async ( req: express.Request, res: express.Response ) => {
+    console.log( req.headers );
+
+		const resp = await dockerService.info();
+		res.status( resp.status ).send( resp.data );
+  }
+
+	const stats = async ( req: express.Request, res: express.Response ) => {
+		const id = req.params.id;
 		console.log( req.headers );
 
-		res.sendStatus( 200 );
+		const resp = await dockerService.stats( id );
+		res.status( resp.status ).send( resp.data );
 	}
 
   return {
     index,
+		list,
     info,
 		stats
   };

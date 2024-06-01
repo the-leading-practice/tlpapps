@@ -2,7 +2,7 @@ import { writable } from 'svelte/store';
 
 export type ToastType = 'info' | 'success' | 'error';
 export interface ToastInfo {
-  id: number;
+  id?: number;
   type: ToastType;
   dismissible: boolean;
   timeout?: number;

@@ -13,5 +13,10 @@ export default defineConfig({
       "@codemirror/lang-sql",
       "@codemirror/theme-one-dark" 
     ]
-  }
+  },
+	server:{
+		port: 3000,
+		host: true,
+		open: true
+	}
 });

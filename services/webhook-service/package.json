@@ -5,7 +5,7 @@
   "main": "app.ts",
   "scripts": {
     "dev": "NODE_PATH=./src nodemon --exec 'ts-node-esm' src/app.ts",
-    "build": "tsc && cp -R config/ ./dist && cp .env ./dist",
+    "build": "tsc && cp -R config/ ./dist",
     "lint": "eslint --ext .ts src",
     "lint:fix": "eslint -ext .ts src --fix",
     "test": "echo \"Error: no test specified\" && exit 1"

@@ -1,18 +1,9 @@
+import type { TLPUser } from "$lib/types";
+import type { Session } from "@supabase/supabase-js";
 import { writable } from "svelte/store";
-import type { LoginData } from "$lib/types/common";
 
-const createUserStore = () => {
-  const { subscribe, set, update } = writable<LoginData>( {
-    email: "",
-    password: "",
-    verified: false
-  } );
+export const userSession = writable<Session | null>();
 
-  return {
-    subscribe,
-    set,
-    update,
-  }
-}
+export const profile = writable<TLPUser | null>();
 
-export const userStore = createUserStore();
+export const allUsers = writable<TLPUser[]>();
