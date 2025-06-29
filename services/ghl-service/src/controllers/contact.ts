@@ -70,8 +70,10 @@ const createContactController = () => {
     const patient = {...req.body};
 
     console.log( `PUT updateContact contactid[${ghlContactId}]` );
-
-    if( !patient.email || !patient.firstName || !patient.lastName || !patient.phone ) return res.sendStatus( 400 );
+    if( !patient.email || !patient.firstName || !patient.lastName || !patient.phone ) {
+			console.log( 'missing some data' );
+			return res.sendStatus( 400 );
+		}
 
     if( !loc.location || !loc.token  ){
       return res.sendStatus( 401 );
@@ -86,7 +88,8 @@ const createContactController = () => {
     const ghlPatient = translateTLPtoGHL( patient, loc.location );
 
     // push the patient info to ghl as contact data
-    const resp = await contactService.upsertContact( ghlPatient, loc.token );
+    // const resp = await contactService.upsertContact( ghlPatient, loc.token );
+		const resp = await contactService.updateContact( ghlPatient, loc.token );
 
     // return status from ghl
     return res.status( resp.status ).json( resp );

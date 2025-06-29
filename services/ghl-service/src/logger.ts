@@ -2,7 +2,7 @@ import fs from 'fs';
 import path from 'path';
 import bunyan from 'bunyan';
 import RotatingFileStream from 'bunyan-rotating-file-stream';
-import { LOG_PATH, LOG_LEVEL, LOG_FILE_NAME, LOG_TO_CONSOLE, LOG_KEEP_FILES } from 'constants/constants'
+import { LOG_PATH, LOG_LEVEL, LOG_FILE_NAME, LOG_TO_CONSOLE } from 'constants/constants'
 
 const createLogger = () => {
   // create logger
@@ -19,34 +19,39 @@ const createLogger = () => {
   }
   
   const log = bunyan.createLogger( {
-    name: "patient-service",
+    name: "ghl-service",
     streams: [
       {
         level: LOG_LEVEL as bunyan.LogLevel,
         stream: new RotatingFileStream( {
           path: fullLogPath,
           period: '1d',
-          totalFiles: LOG_KEEP_FILES,
+          totalFiles: 15,
           gzip: true
         } ) as NodeJS.WritableStream
       }
     ]
   } );
   
-  const writeLog = ( level: bunyan.LogLevel, message: string ) => {
+  const writeLog = ( level: bunyan.LogLevel, method: string, message: string, data?: {} ) => {
     if( !log ) return;
 
+		const logHeader = {
+			method: method,
+			data: data || null
+		}
+
     switch( level ) {
-      case "trace": log.trace( message ); break;
-      case "debug": log.debug( message ); break;
-      case "info": log.info( message ); break;
-      case "warn": log.warn( message ); break;
-      case "error": log.error( message ); break;
-      case "fatal": log.fatal( message ); break;
+      case "trace": log.trace( logHeader, message ); break;
+      case "debug": log.debug( logHeader, message ); break;
+      case "info": log.info( logHeader, message ); break;
+      case "warn": log.warn( logHeader, message ); break;
+      case "error": log.error( logHeader, message ); break;
+      case "fatal": log.fatal( logHeader, message ); break;
     }
 
     if( LOG_TO_CONSOLE ) {
-      console.log( `[${level}] ${message}` );
+      console.log( level, logHeader, message );
     }
   }
 

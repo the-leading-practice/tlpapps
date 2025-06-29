@@ -1,5 +1,6 @@
 import { GHLContactData, TLPPatientData } from 'types/common';
 import { safeStringCompare } from './common';
+import { GHL_CUSTOM_FIELD_ID } from 'constants/constants';
 
 export const verifyPatient = ( patient: TLPPatientData, contact: GHLContactData ) => {
   // our main points of verification are email, name, and mobile phone
@@ -37,7 +38,7 @@ export const getPatientPhone = ( patient: TLPPatientData ): string => {
 
 export const translateTLPtoGHL = ( patient: TLPPatientData, location: string ): GHLContactData => {
   console.log( patient );
-  const phone = getPatientPhone( patient );
+  // const phone = getPatientPhone( patient );
 
   const contact: GHLContactData = {
     locationId: location,
@@ -51,15 +52,25 @@ export const translateTLPtoGHL = ( patient: TLPPatientData, location: string ): 
     timezone: patient.timezone,
     companyName: `${patient.patientId}`,
     tags: ["API", "Existing Patient"],
-    dnd: false
+    dnd: false,
+		customFields: [
+			{
+				id: GHL_CUSTOM_FIELD_ID,
+				field_value: `${patient.patientId}`
+			}
+		]
   }
+
+	if( patient.contactId ) {
+		contact.id = patient.contactId;
+	}
 
   if( patient.email && patient.email.trim().length > 0 ) {
     contact.email = patient.email;
   }
 
-  if( phone.length > 0 ) {
-    contact.phone = phone;
+  if( patient.phone && patient.phone.length > 0 ) {
+    contact.phone = patient.phone;
   }
 
   return contact;
@@ -85,6 +96,10 @@ export const translateGHLtoTLP = ( contact: GHLContactData ): TLPPatientData => 
     dob: contact.dateOfBirth,
     tags: contact.tags
   }
+
+	if( contact.customFields ) {
+		tlpPatient.customFields = contact.customFields;
+	}
 
   // TODO - may move to this procedural solution - we will be deliberate for now
   // assign common properties

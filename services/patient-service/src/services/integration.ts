@@ -1,5 +1,6 @@
 import { TLP_API_URL } from "constants/constants";
 import { TLPAppointmentData } from "types/common";
+import { safeJsonParse } from "utils/common";
 
 const createIntegrationService = () => {
 
@@ -14,11 +15,14 @@ const createIntegrationService = () => {
 
     const resp = await fetch( `${TLP_API_URL}ghl/contact/${contactId}`, opts );
 
+    const dataStr = await resp.text();
+    
     if( resp.status >= 200 && resp.status < 300 ) {
-      const data = await resp.json();
-      return {status: resp.status, data: data};
+      const json = safeJsonParse( dataStr );
+      return {status: resp.status, data: json};
     }
-    return {status: resp.status, data: resp.statusText};
+
+    return {status: resp.status, data: dataStr};
   }
 
   const findContact = async( patient: any, jwt: string ) => {
@@ -39,10 +43,13 @@ const createIntegrationService = () => {
 
     const resp = await fetch( `${TLP_API_URL}ghl/contacts/${query}`, opts );
 
+    const dataStr = await resp.text();
+    
     if( resp.status >= 200 && resp.status < 300 ) {
-      const data = await resp.json();
-      return {status: resp.status, data: data};
+      const json = safeJsonParse( dataStr );
+      return {status: resp.status, data: json};
     }
+
     return {status: resp.status, data: resp.statusText};
   }
 
@@ -58,10 +65,13 @@ const createIntegrationService = () => {
 
     const resp = await fetch( `${TLP_API_URL}ghl/contact`, opts );
 
+    const dataStr = await resp.text();
+    
     if( resp.status >= 200 && resp.status < 300 ) {
-      const data = await resp.json();
-      return {status: resp.status, data: data};
+      const json = safeJsonParse( dataStr );
+      return {status: resp.status, data: json};
     }
+
     return {status: resp.status, data: resp.statusText};
   }
 
@@ -77,10 +87,13 @@ const createIntegrationService = () => {
 
     const resp = await fetch( `${TLP_API_URL}ghl/contact`, opts );
 
+    const dataStr = await resp.text();
+    
     if( resp.status >= 200 && resp.status < 300 ) {
-      const data = await resp.json();
-      return {status: resp.status, data: data};
+      const json = safeJsonParse( dataStr );
+      return {status: resp.status, data: json};
     }
+
     return {status: resp.status, data: resp.statusText};
   }
 
@@ -101,10 +114,13 @@ const createIntegrationService = () => {
 
     const resp = await fetch( `${TLP_API_URL}ghl/contact/${contactId}`, opts );
 
+    const dataStr = await resp.text();
+    
     if( resp.status >= 200 && resp.status < 300 ) {
-      const data = await resp.json();
-      return {status: resp.status, data: data};
+      const json = safeJsonParse( dataStr );
+      return {status: resp.status, data: json};
     }
+
     return {status: resp.status, data: resp.statusText};
   }
 
@@ -120,10 +136,13 @@ const createIntegrationService = () => {
     // query for contact based on email, name, phone - which-ever is first
     const resp = await fetch( `${TLP_API_URL}ghl/contacts/${appt}`, opts );
 
+    const dataStr = await resp.text();
+    
     if( resp.status >= 200 && resp.status < 300 ) {
-      const data = await resp.json();
-      return {status: resp.status, data: data};
+      const json = safeJsonParse( dataStr );
+      return {status: resp.status, data: json};
     }
+
     return {status: resp.status, data: resp.statusText};
   }
 
@@ -138,9 +157,11 @@ const createIntegrationService = () => {
 
     const resp = await fetch( `${TLP_API_URL}ghl/contact/appointments/${contactId}`, opts );
 
+    const dataStr = await resp.text();
+    
     if( resp.status >= 200 && resp.status < 300 ) {
-      const data = await resp.json();
-      return {status: resp.status, data: data};
+      const json = safeJsonParse( dataStr );
+      return {status: resp.status, data: json};
     }
 
     return {status: resp.status, data: resp.statusText};
@@ -157,9 +178,11 @@ const createIntegrationService = () => {
     }
 
     const resp = await fetch( `${TLP_API_URL}ghl/appointment`, opts );
+    const dataStr = await resp.text();
+    
     if( resp.status >= 200 && resp.status < 300 ) {
-      const data = await resp.json();
-      return {status: resp.status, data: data};
+      const json = safeJsonParse( dataStr );
+      return {status: resp.status, data: json};
     }
 
     return {status: resp.status, data: resp.statusText};
@@ -176,9 +199,11 @@ const createIntegrationService = () => {
     }
 
     const resp = await fetch( `${TLP_API_URL}ghl/appointment`, opts );
+    const dataStr = await resp.text();
+    
     if( resp.status >= 200 && resp.status < 300 ) {
-      const data = await resp.json();
-      return {status: resp.status, data: data};
+      const json = safeJsonParse( dataStr );
+      return {status: resp.status, data: json};
     }
 
     return {status: resp.status, data: resp.statusText};

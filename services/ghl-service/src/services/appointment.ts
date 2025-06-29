@@ -1,5 +1,6 @@
 import { GHL_API_VERSION, GHL_API_URL } from "constants/constants";
 import { GHLAppointmentData } from "types/common";
+import { safeJsonParse } from "utils/common";
 
 const createAppointmentService = () => {
 
@@ -14,9 +15,15 @@ const createAppointmentService = () => {
     }
 
     const resp = await fetch( `${GHL_API_URL}/calendars/events/appointments/${eventId}`, opts );
-    const json = await resp.json();
+
+		const dataStr = await resp.text();
     
-    return {status: resp.status, data: json};
+    if( resp.status >= 200 && resp.status < 300 ) {
+      const json = safeJsonParse( dataStr );
+      return {status: resp.status, data: json};
+    }
+
+    return {status: resp.status, data: dataStr};
   }
 
   const getAppointmentsForContact = async ( contactId: string, token: string ) => {
@@ -30,9 +37,15 @@ const createAppointmentService = () => {
     }
 
     const resp = await fetch( `${GHL_API_URL}/contacts/${contactId}/appointments`, opts );
-    const json = await resp.json();
     
-    return {status: resp.status, data: json};
+		const dataStr = await resp.text();
+    
+    if( resp.status >= 200 && resp.status < 300 ) {
+      const json = safeJsonParse( dataStr );
+      return {status: resp.status, data: json};
+    }
+
+    return {status: resp.status, data: dataStr};
   }
 
   const createAppointment = async ( appt: GHLAppointmentData, token: string ) => {
@@ -48,13 +61,14 @@ const createAppointmentService = () => {
 
     const resp = await fetch( `${GHL_API_URL}/calendars/events/appointments/`, opts );
 
+		const dataStr = await resp.text();
+    
     if( resp.status >= 200 && resp.status < 300 ) {
-      const json = await resp.json();
+      const json = safeJsonParse( dataStr );
       return {status: resp.status, data: json};
     }
 
-    const text = await resp.text();
-    return {status: resp.status, data: text};
+    return {status: resp.status, data: dataStr};
   }
 
   const updateAppointment = async ( appt: GHLAppointmentData, token: string ) => {
@@ -70,14 +84,14 @@ const createAppointmentService = () => {
 
     const resp = await fetch( `${GHL_API_URL}/calendars/events/appointments/${appt.id}`, opts );
     
+    const dataStr = await resp.text();
+    
     if( resp.status >= 200 && resp.status < 300 ) {
-      const json = await resp.json();
-      console.log( json );
+      const json = safeJsonParse( dataStr );
       return {status: resp.status, data: json};
     }
 
-    const text = await resp.text();
-    return {status: resp.status, data: text};
+    return {status: resp.status, data: dataStr};
   }
 
   const deleteAppointment = async () => {

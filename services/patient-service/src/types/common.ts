@@ -31,7 +31,7 @@
   mobile: string;
   work: string;
   email: string;
-	businessId: string;
+	businessId?: string;
   dob: string;
  }
 

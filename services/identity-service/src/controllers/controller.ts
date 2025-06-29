@@ -43,19 +43,28 @@ const createController = () => {
         return;
       }
 
-      // check for timezone
-      if( !token.timezone || token.timezone.length === 0 ) {
-        token.timezone = '';
+			let encToken = '';
+			if( refToken.status > -1 ) {
+				// check for timezone
+				if( !token.timezone || token.timezone.length === 0 ) {
+					token.timezone = '';
 
-        console.log( "grabbing location data" );
-        const locationData = await ghlTokenService.getLocationData( token.location, refToken.data.access_token );
-        token.timezone = locationData.location.timezone;
-      }
+					console.log( "grabbing location data" );
+					const locationData = await ghlTokenService.getLocationData( token.location, refToken.data.access_token );
+					token.timezone = locationData.data.location.timezone;
+				}
 
 
-      // encrypt the new token and store it
-      console.log( `renew successfull - encrypting and storing` );
-      const encToken = cryptoService.encrypt( JSON.stringify( refToken.data ) );
+				// encrypt the new token and store it
+				console.log( `renew successfull - encrypting and storing` );
+				encToken = cryptoService.encrypt( JSON.stringify( refToken.data ) );
+			}
+			else {
+				// we had a network communication error with GHL
+				// recycle the current token 
+				console.log( `communication error with GHL - recycling existing token` );
+				encToken = token.token;
+			}
 
       const updateToken: AccessToken = {
         location: location,
@@ -69,7 +78,10 @@ const createController = () => {
         pushPat: token.pushPat || false,
         software: token.software
       }
-      accessTokenService.updateToken( updateToken );
+
+			if( refToken.status > -1 ) {
+      	accessTokenService.updateToken( updateToken );
+			}
 
       // generate jwt
       console.log( `generating jwt` );
@@ -78,7 +90,7 @@ const createController = () => {
         calendar: token.calendar,
         timezone: token.timezone,
         name: token.name, 
-        token: accessToken.access_token,
+        token: refToken.data.access_token,
         pushGHL: token.pushGHL,
         pushAppt: token.pushAppt,
         pushPat: token.pushPat,
@@ -136,7 +148,7 @@ const createController = () => {
 
         console.log( "grabbing location data" );
         const locationData = await ghlTokenService.getLocationData( token.location, accessToken.access_token );
-        token.timezone = locationData.location.timezone;
+        token.timezone = locationData.data.location.timezone;
       }
 
       // generate jwt
@@ -194,7 +206,7 @@ const createController = () => {
       // encrypt token for long term storage
       const encToken = cryptoService.encrypt( JSON.stringify( msg ) );
       const secret = cryptoService.getNewSecret();
-      const locationId = msg.locationId;
+      const locationId = msg.data.locationId;
 
       // TODO - hash the secret for storage in the database
       const existingToken = await accessTokenService.getTokenByLocation( locationId );
@@ -209,15 +221,15 @@ const createController = () => {
 
       if( !existingToken ) { // we need to get the data for this practice
         // get location data from ghl
-        const locationData = await ghlTokenService.getLocationData( locationId, msg.access_token );
+        const locationData = await ghlTokenService.getLocationData( locationId, msg.data.access_token );
         
-        name = locationData.location.name;
-        timezone = locationData.location.timezone;
+        name = locationData.data.location.name;
+        timezone = locationData.data.location.timezone;
       }
 
       if( timezone.length === 0 ) {
-        const locationData = await ghlTokenService.getLocationData( locationId, msg.access_token );
-        timezone = locationData.location.timezone;
+        const locationData = await ghlTokenService.getLocationData( locationId, msg.data.access_token );
+        timezone = locationData.data.location.timezone;
       }
 
       const updateToken: AccessToken = {

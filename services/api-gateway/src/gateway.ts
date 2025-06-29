@@ -71,7 +71,7 @@ export const gateway = ( appConfig: Config ) => {
     app.use( morgan( 
       `:req[x-forwarded-for] - :remote-user [:date[clf]] ":method :url HTTP/:http-version" :status :res[content-length]`
      ) );
-     
+
     app.use( helmet() );
 
     // load up middleware here

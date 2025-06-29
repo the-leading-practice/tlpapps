@@ -7,6 +7,18 @@ export const safeStringCompare = ( left: string, right: string ) : boolean => {
   return false;
 }
 
+export const safeJsonParse = ( data: string ) => {
+	let parsed;
+
+	try {
+		parsed = JSON.parse( data );
+	} catch( e ) {
+		console.log( (e as Error).message )
+	}
+
+	return parsed;
+}
+
 export const getLocation = ( header: string ) => {
   if( header.length === 0 ) return {};
 
