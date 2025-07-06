@@ -6,8 +6,15 @@
 
 Method POST
 
-```json
+Headers
 
+```
+Authorization: Bearer authtoken
+```
+
+Post Body
+
+```json
 {
 	requestDate: string,
 	rquid: string, // optional

@@ -13,7 +13,7 @@ Method POST
 }
 ```
 
-Successful Login Response
+### Successful Login Response
 
 Status: `200`
 
@@ -45,7 +45,9 @@ Body:
 }
 ```
 
-Failed Login or Auth Response
+The auth token will expire. The client should use the `config.TokenRefreshMilliseconds` parameter to determine when a new login request should be sent to refresh the token.
+
+### Failed Login or Auth Response
 
 Status: `400, 401, 403`
 

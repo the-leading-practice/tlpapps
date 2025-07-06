@@ -6,6 +6,14 @@
 
 Method POST
 
+Headers
+
+```
+Authorization: Bearer authtoken
+```
+
+Post Body
+
 ```json
 {
   requestDate: string;
@@ -23,7 +31,7 @@ Method POST
 }
 ```
 
-Successful Upsert Response
+### Successful Upsert Response
 
 The service will respond with a 200 code if **any** patient is successfully added or updated. If any patients fail, the failed ids will be sent back to the client.
 
@@ -50,7 +58,7 @@ Body
 }
 ```
 
-Failed Upsert Response
+### Failed Upsert Response
 
 Returned when no appointments are able to be processed. In the event there was an error passing appointments to GHL or a connection error - those errors will be passed back to the client.
 
