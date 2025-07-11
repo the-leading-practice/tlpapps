@@ -20,8 +20,9 @@ After authentication each call to the TLP Apps Services must contain the `Author
 
 As stated all endpoints assume the message body to be valid JSON. If the body fails JSON validation a http status `400` error will be returned with a reason string identifying the issue.
 
-## Endpoint Documentation
+## Client Endpoint Documentation
 
 - [Auth](./auth.md)
 - [Patients](./patient.md)
 - [Appointments](./appointments.md)
+- [Notifications](./notification.md)

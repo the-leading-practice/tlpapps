@@ -1,5 +1,7 @@
 # Patient Endpoint
 
+Add or update patients.
+
 **Endpoint Url:** https://tlpapps.theleadingpractice.com/api/patient
 
 ## Patient Upsert Request
@@ -20,22 +22,22 @@ Post Body
 	rquid: string, // optional
 	patients: [
 		{
-		  patientId: number;
-		  firstName: string;
-		  lastName: string;
-		  address: string;
-		  address2: string;
-		  city: string;
-		  state: string;
-		  postalCode: string;
-		  country: string;
-		  timezone: string;
-		  phone: string;
-		  home: string;
-		  mobile: string;
-		  work: string;
-		  email: string;
-		  dob: string;
+		  patientId: number,
+		  firstName: string,
+		  lastName: string,
+		  address: string, // optional
+		  address2: string, // optional
+		  city: string, // optional
+		  state: string, // optional
+		  postalCode: string, // optional
+		  country: string, // optional
+		  timezone: string,
+		  phone: string,
+		  home: string,
+		  mobile: string,
+		  work: string, // one phone number must be provided
+		  email: string,
+		  dob: string //optional
 		}
 	]
 }
@@ -51,17 +53,17 @@ Body
 
 ```json
 {
-	message: string;
+	message: string,
 	success: [
 		{
-			id: string; // patient id
+			id: string // patient id
 		}
 	]
 	failed: [
 		{
-			id: string; // patient id
-			status: number; // status code for this failure
-			message: string;
+			id: string, // patient id
+			status: number, // status code for this failure
+			message: string
 		}
 	]
 }
@@ -77,6 +79,6 @@ Body
 
 ```json
 {
-	message: string;
+	message: string
 }
 ```

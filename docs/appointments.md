@@ -1,5 +1,7 @@
 # Appointment Endpoint
 
+Add or update appointments.
+
 **Endpoint URL:** https://tlpapps.theleadingpractice.com/api/appt
 
 ## Appointment Upsert
@@ -16,16 +18,16 @@ Post Body
 
 ```json
 {
-  requestDate: string;
-  rquid?: string; //optional
+  requestDate: string,
+  rquid?: string, //optional
   appointments:[
 	  {
-	  	patientId: number;
-	   	apptId: number
-	    appointmentTime: string;
-	    title?: string;
-	    appointmentStatus: string;
-	    address?: string;
+	  	patientId: number,
+	   	apptId: number,
+	    appointmentTime: string,
+	    title: string, // optional
+	    appointmentStatus: string,
+	    address: string // optional
 	  }
   ]
 }
@@ -41,18 +43,18 @@ Body
 
 ```json
 {
-	status: string;
-	message: string;
+	status: string,
+	message: string,
 	success: [
 		{
-			apptId: string; // patient id
+			apptId: string // patient id
 		}
 	]
 	failed: [
 		{
-			apptId: string; // appointment id
-			status: number; // status code for this failure
-			message: string;
+			apptId: string, // appointment id
+			status: number, // status code for this failure
+			message: string
 		}
 	]
 }
@@ -68,7 +70,6 @@ Body
 
 ```json
 {
-	status: string;
-	message: string;
+	message: string
 }
 ```

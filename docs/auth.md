@@ -1,5 +1,7 @@
 # App Authentication
 
+Authorize the calling client app with the TLP Services.
+
 **Endpoint** URL: https://tlpapps.theleadingpractice.com/api/auth
 
 ## Login Procedure
