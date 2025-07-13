@@ -2,12 +2,11 @@
 node_modules
 dist
 test-results/
-package-lock.json
-yarn.lock
 vite.config.js.timestamp-*
 /packages/create-svelte/template/CHANGELOG.md
 /packages/package/test/**/package
 /documentation/types.js
+*.env
 .env
 .env.*
 .vercel_build_output
@@ -20,3 +19,5 @@ vite.config.js.timestamp-*
 .test-tmp
 symlink-from
 .idea/
+tlpservices/
+var/

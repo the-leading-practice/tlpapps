@@ -64,7 +64,7 @@ Body
 
 Returned when no appointments are able to be processed. In the event there was an error passing appointments to GHL or a connection error - those errors will be passed back to the client.
 
-Status `400, 500, 502, 503, 504`
+Status: `400-405, 500-504`
 
 Body
 

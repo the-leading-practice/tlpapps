@@ -26,8 +26,8 @@ Post Body
 
 ### Successful Response
 
-Status: 200
+Status: `200`
 
 ### Failure Response
 
-Status: 400-405
+Status: `400-405, 500-504`

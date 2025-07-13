@@ -1,5 +1,3 @@
-version: "3.7"
-
 # services
 services:
   api-gateway:
@@ -52,7 +50,7 @@ services:
 
   notification-service:
     build: ./tlpservices/notification-service
-    image: notification-service  
+    image: notification-service
     volumes:
       - ./var/logs:/var/logs
     ports:
@@ -61,10 +59,8 @@ services:
 
   config-service:
     build: ./tlpservices/config-service
-    image: config-service  
+    image: config-service
     ports:
       - 5650:5650
     env_file: .env
-
 # disk volumes
-
