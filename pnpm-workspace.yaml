@@ -1,5 +1,6 @@
 packages:
   - "apps/*"
+  - "common/*"
   - "clients/*"
   - "services/*"
   - "serverContainer"

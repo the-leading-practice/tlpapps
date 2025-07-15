@@ -1,3 +1,10 @@
+
+export type CustomField = {
+	id?: string;
+	key?: string;
+	field_value: string;
+ }
+
 export type TLPPatientData = {
   contactId?: string;
   patientId: number;
@@ -15,9 +22,9 @@ export type TLPPatientData = {
   mobile?: string | null;
   work?: string | null;
   email?: string;
-	businessId?: string;
   dob?: string;
   tags?: string[];
+	customFields?: CustomField[];
 }
 
 export type GHLContactData = {
@@ -46,7 +53,7 @@ export type GHLContactData = {
   timezone?: string;
   additionalEmails?: string[];
   attributions?: [];
-  customFields?: [];
+  customFields?: CustomField[];
 }
 
 export type TLPAppointmentData = {

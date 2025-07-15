@@ -1,4 +1,5 @@
 import { CLIENT_ID, CLIENT_SECRET, GHL_API_URL, GHL_API_VERSION, REDIRECT_URL } from "constants/constants";
+import { fetchJson, safeJsonParse } from "utils/common";
 
 
 const createGHLTokenService = () => {
@@ -30,10 +31,28 @@ const createGHLTokenService = () => {
       body: formBody.join( "&" )
     }
     
-    const resp = await fetch( 'https://services.leadconnectorhq.com/oauth/token', options );
-    const json = await resp.json();
+		// TODO - abstract this out further
+		// try {
+    // 	const resp = await fetch( 'https://services.leadconnectorhq.com/oauth/token', options );
+    // 	const dataStr = await resp.text();
+    
+		// 	if( resp.status >= 200 && resp.status < 300 ) {
+		// 		const json = safeJsonParse( dataStr );
+		// 		return {status: resp.status, data: json};
+		// 	}
 
-    return json;
+		// 	return {status: resp.status, data: dataStr};
+		// } catch( error: unknown ) {
+		// 	if( error instanceof Error ) {
+		// 		return {status: -1, data: error.message}
+		// 	}
+		// 	else {
+		// 		return {status: -1, data: "unknown error type"}
+		// 	}
+		// }
+
+		const resp = await fetchJson( `${GHL_API_URL}/oauth/token`, options );
+		return resp;
   }
 
   const renewAuthToken = async( code: string ) => {
@@ -65,15 +84,27 @@ const createGHLTokenService = () => {
       body: formBody.join( "&" )
     }
     
-    const resp = await fetch( `${GHL_API_URL}/oauth/token`, options );
+		// try{
+		// 	const resp = await fetch( `${GHL_API_URL}/oauth/token`, options );
 
-    if( resp.status >= 200 && resp.status < 300 ) {
-      const json = await resp.json();
-      return {status: resp.status, data: json};
-    }
+		// 	const dataStr = await resp.text();
+			
+		// 	if( resp.status >= 200 && resp.status < 300 ) {
+		// 		const json = safeJsonParse( dataStr );
+		// 		return {status: resp.status, data: json};
+		// 	}
 
-    const text = await resp.text();
-    return {status: resp.status, data: text};
+		// 	return {status: resp.status, data: dataStr};
+		// } catch( error: unknown ) {
+		// 	if( error instanceof Error ) {
+		// 		return {status: -1, data: error.message}
+		// 	}
+		// 	else {
+		// 		return {status: -1, data: "unknown error type"}
+		// 	}
+		// }
+		const resp = await fetchJson( `${GHL_API_URL}/oauth/token`, options );
+		return resp;
   }
 
   const getLocationData = async( locationId: string, token: string ) => {
@@ -87,10 +118,26 @@ const createGHLTokenService = () => {
 
     console.log( `GET: ${GHL_API_URL}/locations/${locationId}` );
 
-    const resp = await fetch( `${GHL_API_URL}/locations/${locationId}`, options );
-    const json = await resp.json();
+		// try {
+		// 	const resp = await fetch( `${GHL_API_URL}/locations/${locationId}`, options );
+		// 	const dataStr = await resp.text();
+			
+		// 	if( resp.status >= 200 && resp.status < 300 ) {
+		// 		const json = safeJsonParse( dataStr );
+		// 		return {status: resp.status, data: json};
+		// 	}
 
-    return json;
+		// 	return {status: resp.status, data: dataStr};
+		// } catch( error: unknown ) {
+		// 	if( error instanceof Error ) {
+		// 		return {status: -1, data: error.message}
+		// 	}
+		// 	else {
+		// 		return {status: -1, data: "unknown error type"}
+		// 	}
+		// }
+		const resp = await fetchJson( `${GHL_API_URL}/locations/${locationId}`, options );
+		return resp;
   }
 
   return {

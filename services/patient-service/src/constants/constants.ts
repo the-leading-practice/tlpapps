@@ -12,5 +12,6 @@ export const TLP_API_URL = process.env.TLP_API_URL || '';
 // logging
 export const LOG_PATH = process.env.LOG_PATH || '/var/logs/patient-service';
 export const LOG_LEVEL: string | number = process.env.LOG_LEVEL || 40;
+export const LOG_KEEP_FILES: number = parseInt( process.env.LOG_KEEP_FILES ? process.env.LOG_KEEP_FILES : '15' );
 export const LOG_FILE_NAME = process.env.LOG_FILE_NAME || 'patient-service.log';
 export const LOG_TO_CONSOLE = process.env.LOG_TO_CONSOLE === 'true' || false;

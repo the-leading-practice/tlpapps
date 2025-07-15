@@ -2,6 +2,7 @@ import express from 'express';
 import getConfig from './config';
 import type { Config } from 'types/config';
 import { routes } from 'api/routes';
+import { logger } from './logger';
 
 const createService = () => {
   const app = express();
@@ -20,6 +21,8 @@ const createService = () => {
     app.listen( port, () => {
       return console.log( `${config.service.name} is listening at http://localhost:${port}` );
     } );
+
+		logger.writeLog( 'info', 'createService()', `starting ghl-service` );
   }
 
   const shutdown = () => {

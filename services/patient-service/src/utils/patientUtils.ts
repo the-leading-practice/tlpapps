@@ -8,8 +8,12 @@ export const verifyPatient = ( patient: TLPPatientData, contact: TLPPatientData 
   if( safeStringCompare( contact.email, patient.email ) && 
       safeStringCompare( contact.firstName, patient.firstName ) &&
       safeStringCompare( contact.lastName, patient.lastName ) &&
-      safeStringCompare( contact.phone, patient.mobile ) &&
-			safeStringCompare( contact.businessId, patient.patientId.toString() ) ) {
+      safeStringCompare( contact.phone, patient.mobile ) ) {
+
+			if( contact.businessId ) {
+				return safeStringCompare( contact.businessId, patient.patientId.toString() );
+			}
+
       return true;
   }
 

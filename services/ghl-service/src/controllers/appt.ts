@@ -3,6 +3,7 @@ import { formatTime, getLocation } from 'utils/common';
 import { appointmentService } from 'services/appointment';
 import { GHLAppointmentData, TLPAppointmentData } from 'types/common';
 import { translateApptGHLtoTLP, translateApptTLPtoGHL } from 'utils/apptUtils';
+import { logger } from 'logger';
 
 const createApptController = () => {
   const getAppointment = async ( req: express.Request, res: express.Response ) => {
@@ -12,7 +13,7 @@ const createApptController = () => {
     const loc = getLocation( locHeader );
     const eventId = req.params.id;
 
-    console.log( `GET appt ${eventId}` );
+		logger.writeLog( 'info', 'getAppointment()', `request to get appointment ${eventId}` );
 
     if( loc.location && loc.token ) {
       const resp = await appointmentService.getAppointment( eventId, loc.token );
@@ -22,11 +23,13 @@ const createApptController = () => {
         const newTime = formatTime( appointment.startTime, timezone );
 
         if( newTime === null ) {
-          console.log( `unable to format time ${appointment.startTime} - sending original` );
+					logger.writeLog( 'warn', 'getAppointment()', `unable to format time for appointment ${eventId} time:${appointment.startTime} - sending original` );
+          // console.log( `unable to format time ${appointment.startTime} - sending original` );
         }
         appointment.startTime = newTime || appointment.startTime;
 
-        console.log( appointment );
+        // console.log( appointment );
+				logger.writeLog( 'info', 'getAppointment()', `found appointment for ${eventId}`, appointment );
         
         return res.status( resp.status ).json( appointment );
       }
@@ -44,7 +47,8 @@ const createApptController = () => {
     const loc = getLocation( locHeader );
     const contactId = req.params.id;
 
-    console.log( `GET appt for contact ${contactId}` );
+    // console.log( `GET appt for contact ${contactId}` );
+		logger.writeLog( 'info', 'getAppointmentsForContact()', `get appt for contact ${contactId}` );
 
     if( !loc.token ) {
       return res.sendStatus( 401 );
@@ -75,7 +79,8 @@ const createApptController = () => {
         appointments.push( tlpAppt );
       } );
 
-      console.log( appointments );
+      // console.log( appointments );
+			logger.writeLog( 'info', 'getAppointment()', `found appointments for contact:${contactId}`, appointments );
 
       return res.status( resp.status ).json( appointments );
     }
