@@ -2,14 +2,11 @@ import express from 'express';
 // import { GHLService } from 'services/ghl';
 
 const createLocationController = () => {
+	const getLocation = (req: express.Request, res: express.Response) => {};
 
-  const getLocation = ( req: express.Request, res: express.Response ) => {
-
-  }
-
-  return {
-    getLocation
-  }
-}
+	return {
+		getLocation,
+	};
+};
 
 export const locationController = createLocationController();

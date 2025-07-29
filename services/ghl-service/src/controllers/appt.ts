@@ -6,150 +6,162 @@ import { translateApptGHLtoTLP, translateApptTLPtoGHL } from 'utils/apptUtils';
 import { logger } from 'logger';
 
 const createApptController = () => {
-  const getAppointment = async ( req: express.Request, res: express.Response ) => {
-    const locHeader = req.headers['x-tlp-app-location'] as string || "";
-    const timezone = req.headers['x-tlp-app-timezone'] as string || "";
-    const calendarId = req.headers['x-tlp-app-calendar'] as string || "";
-    const loc = getLocation( locHeader );
-    const eventId = req.params.id;
+	const getAppointment = async (req: express.Request, res: express.Response) => {
+		const locHeader = (req.headers['x-tlp-app-location'] as string) || '';
+		const timezone = (req.headers['x-tlp-app-timezone'] as string) || '';
+		const calendarId = (req.headers['x-tlp-app-calendar'] as string) || '';
+		const loc = getLocation(locHeader);
+		const eventId = req.params.id;
 
-		logger.writeLog( 'info', 'getAppointment()', `request to get appointment ${eventId}` );
+		logger.writeLog('info', 'getAppointment()', `request to get appointment ${eventId}`);
 
-    if( loc.location && loc.token ) {
-      const resp = await appointmentService.getAppointment( eventId, loc.token );
+		if (loc.location && loc.token) {
+			const resp = await appointmentService.getAppointment(eventId, loc.token);
 
-      if( resp.status === 200 ) {
-        const appointment = translateApptGHLtoTLP( resp.data );
-        const newTime = formatTime( appointment.startTime, timezone );
+			if (resp.status === 200) {
+				const appointment = translateApptGHLtoTLP(resp.data);
+				const newTime = formatTime(appointment.startTime, timezone);
 
-        if( newTime === null ) {
-					logger.writeLog( 'warn', 'getAppointment()', `unable to format time for appointment ${eventId} time:${appointment.startTime} - sending original` );
-          // console.log( `unable to format time ${appointment.startTime} - sending original` );
-        }
-        appointment.startTime = newTime || appointment.startTime;
+				if (newTime === null) {
+					logger.writeLog(
+						'warn',
+						'getAppointment()',
+						`unable to format time for appointment ${eventId} time:${appointment.startTime} - sending original`,
+					);
+					// console.log( `unable to format time ${appointment.startTime} - sending original` );
+				}
+				appointment.startTime = newTime || appointment.startTime;
 
-        // console.log( appointment );
-				logger.writeLog( 'info', 'getAppointment()', `found appointment for ${eventId}`, appointment );
-        
-        return res.status( resp.status ).json( appointment );
-      }
+				// console.log( appointment );
+				logger.writeLog(
+					'info',
+					'getAppointment()',
+					`found appointment for ${eventId}`,
+					appointment,
+				);
 
-      return res.status( resp.status ).json( resp.data );
-    }
+				return res.status(resp.status).json(appointment);
+			}
 
-    return res.sendStatus( 401 );
+			return res.status(resp.status).json(resp.data);
+		}
 
-  }
+		return res.sendStatus(401);
+	};
 
-  const getAppointmentsForContact = async ( req: express.Request, res: express.Response ) => {
-    const locHeader = req.headers['x-tlp-app-location'] as string || "";
-    const timezone = req.headers['x-tlp-app-timezone'] as string || "";
-    const loc = getLocation( locHeader );
-    const contactId = req.params.id;
+	const getAppointmentsForContact = async (req: express.Request, res: express.Response) => {
+		const locHeader = (req.headers['x-tlp-app-location'] as string) || '';
+		const timezone = (req.headers['x-tlp-app-timezone'] as string) || '';
+		const loc = getLocation(locHeader);
+		const contactId = req.params.id;
 
-    // console.log( `GET appt for contact ${contactId}` );
-		logger.writeLog( 'info', 'getAppointmentsForContact()', `get appt for contact ${contactId}` );
+		// console.log( `GET appt for contact ${contactId}` );
+		logger.writeLog('info', 'getAppointmentsForContact()', `get appt for contact ${contactId}`);
 
-    if( !loc.token ) {
-      return res.sendStatus( 401 );
-    }
+		if (!loc.token) {
+			return res.sendStatus(401);
+		}
 
-    if( !contactId || contactId.length === 0 ) {
-      return res.sendStatus( 400 );
-    }
+		if (!contactId || contactId.length === 0) {
+			return res.sendStatus(400);
+		}
 
-    const resp = await appointmentService.getAppointmentsForContact( contactId, loc.token );
+		const resp = await appointmentService.getAppointmentsForContact(contactId, loc.token);
 
-    if( resp.status === 200 ) {
-      let appointments: TLPAppointmentData[] = [];
-      resp.data.events.forEach( async ( appt: any ) => {
-        const found: GHLAppointmentData = {...appt};
-        const newTime = formatTime( found.startTime, timezone );
-        
-        if( newTime === null ) {
-          console.log( `unable to format time ${found.startTime} - sending original` );
-        }
+		if (resp.status === 200) {
+			const appointments: TLPAppointmentData[] = [];
+			resp.data.events.forEach(async (appt: any) => {
+				const found: GHLAppointmentData = { ...appt };
+				const newTime = formatTime(found.startTime, timezone);
 
-        found.contactId = contactId;
-        found.locationId = loc.location;
-        found.startTime = newTime || found.startTime;
-        // const ghlAppt = await appointmentService.getAppointment( appt.id, loc.token );
+				if (newTime === null) {
+					console.log(`unable to format time ${found.startTime} - sending original`);
+				}
 
-        const tlpAppt = translateApptGHLtoTLP( found );
-        appointments.push( tlpAppt );
-      } );
+				found.contactId = contactId;
+				found.locationId = loc.location;
+				found.startTime = newTime || found.startTime;
+				// const ghlAppt = await appointmentService.getAppointment( appt.id, loc.token );
 
-      // console.log( appointments );
-			logger.writeLog( 'info', 'getAppointment()', `found appointments for contact:${contactId}`, appointments );
+				const tlpAppt = translateApptGHLtoTLP(found);
+				appointments.push(tlpAppt);
+			});
 
-      return res.status( resp.status ).json( appointments );
-    }
+			// console.log( appointments );
+			logger.writeLog(
+				'info',
+				'getAppointment()',
+				`found appointments for contact:${contactId}`,
+				appointments,
+			);
 
-    return res.status( resp.status ).json( resp.data );
-  }
+			return res.status(resp.status).json(appointments);
+		}
 
-  const createAppointment = async ( req: express.Request, res: express.Response ) => {
-    const locHeader = req.headers['x-tlp-app-location'] as string || "";
-    const calendarId = req.headers['x-tlp-app-calendar'] as string || "";
-    const loc = getLocation( locHeader );
+		return res.status(resp.status).json(resp.data);
+	};
 
-    console.log( `post create appointment` );
+	const createAppointment = async (req: express.Request, res: express.Response) => {
+		const locHeader = (req.headers['x-tlp-app-location'] as string) || '';
+		const calendarId = (req.headers['x-tlp-app-calendar'] as string) || '';
+		const loc = getLocation(locHeader);
 
-    const tlpAppt = {...req.body};
-    const appt = translateApptTLPtoGHL( tlpAppt, loc.location, calendarId );
+		console.log(`post create appointment`);
 
-    if( !appt ) {
-      console.log( `appointment undefined returning 400` );
-      return res.sendStatus( 400 );
-    }
+		const tlpAppt = { ...req.body };
+		const appt = translateApptTLPtoGHL(tlpAppt, loc.location, calendarId);
 
-    if( loc.location && loc.token ) {
-      console.log( `creating appointment at GHL` );
-      const resp = await appointmentService.createAppointment( appt, loc.token );
+		if (!appt) {
+			console.log(`appointment undefined returning 400`);
+			return res.sendStatus(400);
+		}
 
-      if( resp.status >= 200 && resp.status < 300 ) {
-        // convert returned data to tlp
-        tlpAppt.ghlApptId = resp.data.id;
-        return res.status( resp.status ).json( tlpAppt );
-      }
+		if (loc.location && loc.token) {
+			console.log(`creating appointment at GHL`);
+			const resp = await appointmentService.createAppointment(appt, loc.token);
 
-      return res.status( resp.status ).json( resp.data );
-    }
+			if (resp.status >= 200 && resp.status < 300) {
+				// convert returned data to tlp
+				tlpAppt.ghlApptId = resp.data.id;
+				return res.status(resp.status).json(tlpAppt);
+			}
 
-    return res.sendStatus( 401 );
-  }
+			return res.status(resp.status).json(resp.data);
+		}
 
-  const updateAppointment = async ( req: express.Request, res: express.Response ) => {
-    const locHeader = req.headers['x-tlp-app-location'] as string || "";
-    const calendarId = req.headers['x-tlp-app-calendar'] as string || "";
-    const loc = getLocation( locHeader );
+		return res.sendStatus(401);
+	};
 
-    console.log( `post update appointment` );
+	const updateAppointment = async (req: express.Request, res: express.Response) => {
+		const locHeader = (req.headers['x-tlp-app-location'] as string) || '';
+		const calendarId = (req.headers['x-tlp-app-calendar'] as string) || '';
+		const loc = getLocation(locHeader);
 
-    const tlpAppt = {...req.body};
-    const appt = translateApptTLPtoGHL( tlpAppt, loc.location, calendarId );
+		console.log(`post update appointment`);
 
-    if( !appt ) {
-      return res.sendStatus( 400 );
-    }
+		const tlpAppt = { ...req.body };
+		const appt = translateApptTLPtoGHL(tlpAppt, loc.location, calendarId);
 
-    if( loc.location && loc.token ) {
-      const resp = await appointmentService.updateAppointment( appt, loc.token );
-      const tlpAppt = translateApptGHLtoTLP( resp.data );
+		if (!appt) {
+			return res.sendStatus(400);
+		}
 
-      return res.status( resp.status ).json( tlpAppt );
-    }
+		if (loc.location && loc.token) {
+			const resp = await appointmentService.updateAppointment(appt, loc.token);
+			const tlpAppt = translateApptGHLtoTLP(resp.data);
 
+			return res.status(resp.status).json(tlpAppt);
+		}
 
-    return res.sendStatus( 401 );
-  }
+		return res.sendStatus(401);
+	};
 
-  return{
-    getAppointment,
-    getAppointmentsForContact,
-    createAppointment,
-    updateAppointment
-  }
-}
+	return {
+		getAppointment,
+		getAppointmentsForContact,
+		createAppointment,
+		updateAppointment,
+	};
+};
 
 export const apptController = createApptController();

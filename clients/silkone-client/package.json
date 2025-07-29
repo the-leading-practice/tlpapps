@@ -1,34 +1,55 @@
 {
-  "name": "silkone-client",
-  "version": "1.0.0",
-  "description": "",
-  "main": "src/app.ts",
-  "scripts": {
-    "dev": "NODE_ENV=development NODE_PATH=./src nodemon --exec 'ts-node-esm' src/app.ts",
-    "build": "tsc && cp -R config/ ./dist && cp .env ./dist",
-    "lint": "eslint --ext .ts src",
-    "lint:fix": "eslint -ext .ts src --fix",
-    "test": "echo \"Error: no test specified\" && exit 1"
-  },
-  "author": "",
-  "license": "ISC",
-  "dependencies": {
-    "date-and-time": "^3.1.1",
-    "express": "^4.18.2",
-    "js-yaml": "^4.1.0",
-    "mongoose": "^7.0.2",
-    "ws": "^8.16.0"
-  },
-  "devDependencies": {
-    "@types/express": "^4.17.17",
-    "@types/js-yaml": "^4.0.5",
-    "@types/node": "^18.14.1",
-    "@types/ws": "^8.5.10",
-    "dotenv": "^16.0.3",
-    "eslint": "^8.34.0",
-    "nodemon": "^2.0.20",
-    "ts-node": "^10.9.1",
-    "tsconfig-paths": "^4.1.2",
-    "typescript": "^4.9.5"
-  }
+	"name": "silkone-client",
+	"version": "1.0.0",
+	"description": "",
+	"main": "src/app.ts",
+	"type": "module",
+	"scripts": {
+		"dev": "NODE_ENV=development NODE_PATH=./src nodemon --exec 'ts-node-esm' src/app.ts",
+		"build": "tsc && cp -R config/ ./dist && cp .env ./dist",
+		"format": "prettier --write .",
+		"lint:fix": "npm run lint:fix:eslint && npm run lint:fix:prettier",
+		"lint:eslint": "eslint --cache \"src/**/*.{js,ts}\"",
+		"lint:prettier": "prettier --check \"src/**/*.{js,ts}\"",
+		"lint:fix:eslint": "npm run lint:eslint -- --fix",
+		"lint:fix:prettier": "prettier --write \"src/**/*.{ts}\"",
+		"pre-commit": "lint-staged --no-stash",
+		"test": "echo \"Error: no test specified\" && exit 1"
+	},
+	"lint-staged": {
+		"*.{js,ts,json}": [
+			"pnpm run lint:fix"
+		]
+	},
+	"author": "",
+	"license": "ISC",
+	"dependencies": {
+		"date-and-time": "^3.1.1",
+		"express": "^4.18.2",
+		"js-yaml": "^4.1.0",
+		"mongoose": "^7.0.2",
+		"ws": "^8.16.0",
+		"eslint": "^9.18.0",
+		"@eslint/compat": "^1.2.5",
+		"@eslint/js": "^9.18.0",
+		"eslint-config-prettier": "^10.0.1",
+		"eslint-plugin-svelte": "^3.0.0",
+		"globals": "^16.0.0",
+		"typescript-eslint": "^8.20.0",
+		"lint-staged": "^15.5.0",
+		"prettier": "^3.4.2",
+		"prettier-plugin-svelte": "^3.3.3"
+	},
+	"devDependencies": {
+		"@types/express": "^4.17.17",
+		"@types/js-yaml": "^4.0.5",
+		"@types/node": "^18.14.1",
+		"@types/ws": "^8.5.10",
+		"dotenv": "^16.0.3",
+		"eslint": "^8.34.0",
+		"nodemon": "^2.0.20",
+		"ts-node": "^10.9.1",
+		"tsconfig-paths": "^4.1.2",
+		"typescript": "^4.9.5"
+	}
 }

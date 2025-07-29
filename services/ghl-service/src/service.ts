@@ -5,34 +5,32 @@ import { routes } from 'api/routes';
 import { logger } from './logger';
 
 const createService = () => {
-  const app = express();
-  const config: Config = getConfig();
-  const port = config.service.port;
+	const app = express();
+	const config: Config = getConfig();
+	const port = config.service.port;
 
-  const start = () => {
-    // load up middleware here
-    app.use( express.json() );
-    app.use( express.urlencoded( { extended: true } ) ); 
+	const start = () => {
+		// load up middleware here
+		app.use(express.json());
+		app.use(express.urlencoded({ extended: true }));
 
-    // load routes
-    routes( app );
+		// load routes
+		routes(app);
 
-    // start the service
-    app.listen( port, () => {
-      return console.log( `${config.service.name} is listening at http://localhost:${port}` );
-    } );
+		// start the service
+		app.listen(port, () => {
+			return console.log(`${config.service.name} is listening at http://localhost:${port}`);
+		});
 
-		logger.writeLog( 'info', 'createService()', `starting ghl-service` );
-  }
+		logger.writeLog('info', 'createService()', `starting ghl-service`);
+	};
 
-  const shutdown = () => {
+	const shutdown = () => {};
 
-  }
-
-  return {
-    start,
-    shutdown
-  };
-}
+	return {
+		start,
+		shutdown,
+	};
+};
 
 export const service = createService();

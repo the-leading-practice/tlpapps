@@ -3,8 +3,7 @@ import { createService } from './service';
 import { dbConnector } from './services/mongodb';
 
 const config = getConfig();
-const service = createService( config );
+const service = createService(config);
 
 dbConnector.connect();
 service.start();
-

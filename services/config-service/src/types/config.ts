@@ -1,8 +1,8 @@
 export type Config = {
-  service: Service;
-}
+	service: Service;
+};
 
 export type Service = {
-  name: string;
-  port: number;
-}
+	name: string;
+	port: number;
+};
