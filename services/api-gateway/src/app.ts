@@ -4,6 +4,5 @@ import type { Config } from 'types/config';
 
 const config: Config = getConfig();
 
-const gw = gateway( config );
+const gw = gateway(config);
 gw.start();
-

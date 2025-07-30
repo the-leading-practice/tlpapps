@@ -5,29 +5,29 @@ import https from 'https';
 import { routes } from 'api/routes';
 import { Config } from 'types/config';
 
-export const service = ( config: Config) => {
-  const app = express();
-  const port = config.service.port;
+export const service = (config: Config) => {
+	const app = express();
+	const port = config.service.port;
 
-  const start = () => {
-    // load up middleware here
-    app.set( 'view engine', 'ejs' );
-    app.set( 'views', path.join( __dirname, 'public' ) );
+	const start = () => {
+		// load up middleware here
+		app.set('view engine', 'ejs');
+		app.set('views', path.join(__dirname, 'public'));
 
-    // TODO: add auth 
+		// TODO: add auth
 
-    app.use( express.json() );
-    app.use( express.urlencoded( { extended: true } ) ); 
-    
-    // load routes
-    routes( app );
+		app.use(express.json());
+		app.use(express.urlencoded({ extended: true }));
 
-    app.listen( port, () => {
-      return console.log( `${config.service.name} is listening at http://localhost:${port}` );
-    } );
-  }
+		// load routes
+		routes(app);
 
-  return{
-    start
-  }
-}
+		app.listen(port, () => {
+			return console.log(`${config.service.name} is listening at http://localhost:${port}`);
+		});
+	};
+
+	return {
+		start,
+	};
+};

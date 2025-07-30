@@ -7,5 +7,5 @@ const config: Config = getConfig();
 
 dbConnector.connect();
 
-const idm = service( config );
+const idm = service(config);
 idm.start();

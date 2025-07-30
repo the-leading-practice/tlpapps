@@ -1,12 +1,9 @@
-
 const createCalendarControler = () => {
-  const getCalendars = () => {
+	const getCalendars = () => {};
 
-  }
-
-  return {
-    getCalendars
-  }
-}
+	return {
+		getCalendars,
+	};
+};
 
 export const calendarController = createCalendarControler();

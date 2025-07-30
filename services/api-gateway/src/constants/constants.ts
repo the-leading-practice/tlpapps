@@ -7,7 +7,8 @@ const MONGO_PASS = process.env.MONGO_PASS || '';
 export const ENV = process.env.NODE_ENV || 'production';
 
 export const MONGO_DB = process.env.MONGO_DB || '';
-export const MONGO_DB_CONN_STRING = process.env.MONGO_CONN_STRING 
-  ? `${process.env.MONGO_CONN_STRING.replace( /%USER%/g, MONGO_USER ).replace( /%PW%/g, MONGO_PASS )}/${MONGO_DB}` : "";
+export const MONGO_DB_CONN_STRING = process.env.MONGO_CONN_STRING
+	? `${process.env.MONGO_CONN_STRING.replace(/%USER%/g, MONGO_USER).replace(/%PW%/g, MONGO_PASS)}/${MONGO_DB}`
+	: '';
 
-export const TOKEN_KEY = process.env.TOKEN_KEY || "";
+export const TOKEN_KEY = process.env.TOKEN_KEY || '';

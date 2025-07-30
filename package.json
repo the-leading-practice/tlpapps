@@ -8,7 +8,8 @@
     "dev": "echo \"run all services in dev for testing\"",
     "build": "node scripts/build.mjs",
     "build-services": "node scripts/build-services.mjs",
-    "build-docker": "node scripts/build-docker.mjs"
+    "build-docker": "node scripts/build-docker.mjs",
+    "pre-commit": "pnpm run --filter \"./services/*\" --filter \"./clients/\" pre-commit"
   },
   "author": "",
   "license": "ISC",
