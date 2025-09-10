@@ -1,5 +1,4 @@
 packages:
-  - "apps/*"
   - "common/*"
   - "clients/*"
   - "services/*"
