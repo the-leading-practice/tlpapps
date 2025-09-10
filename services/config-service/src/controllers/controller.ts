@@ -1,5 +1,5 @@
 import express from 'express';
-import { configMongoService } from 'services/config/configService';
+import { configMongoService } from '../services/config/configService.js';
 
 const createController = () => {
 	const index = (req: express.Request, res: express.Response) => {

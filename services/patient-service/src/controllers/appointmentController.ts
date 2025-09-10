@@ -1,19 +1,16 @@
 import express from 'express';
-import { get } from 'https';
-import { appointmentService } from 'services/appointment';
-import { integrationService } from 'services/integration';
-import { patientService } from 'services/patient';
-import { TLPAppointmentData } from 'types/common';
-import { generateAppointment, getAppointmentStatus } from 'utils/appointmentUtils';
-import { getCurrentOffset, getLocation, getLocationSettings } from 'utils/common';
-import { logger } from '../logger';
+import { appointmentService } from '../services/appointment.js';
+import { integrationService } from '../services/integration.js';
+import { generateAppointment } from '../utils/appointmentUtils.js';
+import { getLocation, getLocationSettings } from '../utils/common.js';
+import { logger } from '../logger.js';
 
 const createController = () => {
 	const appointments = async (req: express.Request, res: express.Response) => {
 		const locHeader = (req.headers['x-tlp-app-location'] as string) || '';
 		const loc = getLocation(locHeader);
 
-		let ret = await appointmentService.getAppointments(loc.location);
+		const ret = await appointmentService.getAppointments(loc.location);
 
 		res.status(200).json(ret);
 	};
@@ -23,7 +20,7 @@ const createController = () => {
 		const loc = getLocation(locHeader);
 
 		const eventId = req.params.id;
-		let ret = await appointmentService.getAppointment(loc.location, parseInt(eventId));
+		const ret = await appointmentService.getAppointment(loc.location, parseInt(eventId));
 
 		res.status(200).json(ret);
 	};
@@ -31,12 +28,12 @@ const createController = () => {
 	// TODO - refactor this whole thing
 	const createAppointments = async (req: express.Request, res: express.Response) => {
 		const settings = getLocationSettings(req.headers);
-		const { locHeader, calendarId, timezone, jwt, pushGHL, pushAppt, software } = settings;
+		const { locHeader, jwt, pushGHL, pushAppt, software } = settings;
 		const loc = getLocation(locHeader);
 
 		const reqData = { ...req.body };
 
-		let resp: any = {};
+		const resp: any = {};
 		resp.success = [];
 		resp.fail = [];
 
@@ -50,10 +47,10 @@ const createController = () => {
 			`${loc.location} processing ${reqData.appointments.length} appointments...`,
 		);
 		if (reqData && reqData.appointments.length > 0) {
-			let idx = 0;
+			//let idx = 0;
 			const currDate = new Date().getTime();
 
-			for (let appt of reqData.appointments) {
+			for (const appt of reqData.appointments) {
 				logger.writeLog(
 					'debug',
 					`processing ${appt.apptId} status: ${appt.apptStatus} start time: ${appt.apptTime}`,
@@ -123,7 +120,7 @@ const createController = () => {
 					logger.writeLog('debug', `pushing mapping for ${appt.apptId}`);
 					tlpAppt.ghlApptId = apptResp.data.ghlApptId;
 
-					const mappingResp = appointmentService.upsertAppointment(tlpAppt);
+					await appointmentService.upsertAppointment(tlpAppt);
 					resp.success.push({ apptId: appt.apptId });
 				} else if (apptResp) {
 					logger.writeLog('warn', `error saving appointment ${apptResp.status}: ${apptResp.data}`);
@@ -132,7 +129,7 @@ const createController = () => {
 					// resp.success.push( {apptId: appt.apptId} );
 				}
 
-				idx++;
+				//idx++;
 			}
 		}
 
@@ -161,19 +158,19 @@ const createController = () => {
 	};
 
 	const updateAppointments = async (req: express.Request, res: express.Response) => {
+		console.log(req.params.id);
 		// let ret = await appointmentService.getAppointment( parseInt( req.params.id ) );
-		// res.status( 200 ).json( ret );
+		res.status(200);
 	};
 
 	const deleteAppt = async (req: express.Request, res: express.Response) => {
 		const id = req.params.id;
 		const ids = id.split(',');
 
-		// if( ids.length > 1 ) {
-		//   console.log( `id array from query: ` );
-		//   ids.forEach( (i) => console.log( `  id: ${i}` ) );
-		// }
-		// else console.log( `id from query: ${id}` );
+		if (ids.length > 1) {
+			console.log(`id array from query: `);
+			ids.forEach((i) => console.log(`  id: ${i}`));
+		} else console.log(`id from query: ${id}`);
 
 		// TODO - mark the record as inactive here
 

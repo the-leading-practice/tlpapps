@@ -1,4 +1,4 @@
-import { appConfigModel } from './model';
+import { appConfigModel } from './model.js';
 
 const createConfigMongoService = () => {
 	const getAllConfigs = async () => {

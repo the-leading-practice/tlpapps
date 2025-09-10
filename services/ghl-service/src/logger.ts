@@ -2,7 +2,7 @@ import fs from 'fs';
 import path from 'path';
 import bunyan from 'bunyan';
 import RotatingFileStream from 'bunyan-rotating-file-stream';
-import { LOG_PATH, LOG_LEVEL, LOG_FILE_NAME, LOG_TO_CONSOLE } from 'constants/constants';
+import { LOG_PATH, LOG_LEVEL, LOG_FILE_NAME, LOG_TO_CONSOLE } from './constants/constants.js';
 
 const createLogger = () => {
 	// create logger

@@ -1,5 +1,5 @@
 import mongoose from 'mongoose';
-import { MONGO_DB_CONN_STRING, MONGO_DB } from 'constants/constants';
+import { MONGO_DB_CONN_STRING, MONGO_DB } from '../constants/constants.js';
 
 const createDbConnector = () => {
 	const connect = () => {

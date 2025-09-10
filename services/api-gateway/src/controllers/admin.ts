@@ -1,7 +1,7 @@
 import express from 'express';
-import getConfig from 'config';
-import type { Config } from 'types/config';
-import { idmService } from 'services/idmService';
+import getConfig from '../config.js';
+import type { Config } from '../types/config.js';
+import { idmService } from '../services/idmService.js';
 
 export const admin = (config: Config) => {
 	const app = async (req: express.Request, res: express.Response) => {

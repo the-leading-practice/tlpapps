@@ -1,5 +1,5 @@
 import jwt from 'jsonwebtoken';
-import { TOKEN_KEY } from 'constants/constants';
+import { TOKEN_KEY } from '../constants/constants.js';
 
 // TODO - lockdown the services using the JWT aud claim
 // TODO - research positives of using asymmetric keys for encryption

@@ -80,3 +80,10 @@ export type GHLAppointmentData = {
 	toNotify?: boolean;
 	address?: string;
 };
+
+export type GHLCalendarBlock = {
+	calendarId: string;
+	locationId: string;
+	startTime: string;
+	endTime: string;
+};

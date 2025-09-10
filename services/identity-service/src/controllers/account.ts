@@ -1,7 +1,7 @@
 import express from 'express';
-import { cryptoService } from 'services/crypto';
-import type { LoginData } from 'types/types';
-import { accountService } from 'services/account/service';
+import { cryptoService } from '../services/crypto.js';
+import type { LoginData } from '../types/types.js';
+import { accountService } from '../services/account/service.js';
 
 const createAccountController = () => {
 	const signin = async (req: express.Request, res: express.Response) => {

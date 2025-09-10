@@ -1,6 +1,6 @@
-import { GHL_API_VERSION, GHL_API_URL } from 'constants/constants';
-import { GHLAppointmentData, GHLContactData, TLPPatientData } from 'types/common';
-import { safeJsonParse } from 'utils/common';
+import { GHL_API_VERSION, GHL_API_URL } from '../constants/constants.js';
+import { GHLAppointmentData, GHLContactData, TLPPatientData } from '../types/common.js';
+import { safeJsonParse } from '../utils/common.js';
 
 const createContactService = () => {
 	const getContact = async (id: string, token: string) => {

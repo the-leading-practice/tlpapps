@@ -1,42 +1,41 @@
 import express from 'express';
-import { dockerService } from 'services/docker';
+import { dockerService } from '../services/docker.js';
 
 const createController = () => {
+	const index = (req: express.Request, res: express.Response) => {
+		console.log(req.body);
+		res.status(200).json(req.body);
+	};
 
-  const index = ( req: express.Request, res: express.Response ) => {
-    console.log( req.body );
-    res.status( 200 ).json( req.body );
-  }
-
-	const list = async ( req: express.Request, res: express.Response ) => {
-		console.log( req.body );
-    console.log( req.headers );
+	const list = async (req: express.Request, res: express.Response) => {
+		console.log(req.body);
+		console.log(req.headers);
 
 		const resp = await dockerService.list();
-		res.status( resp.status ).send( resp.data );
-  }
+		res.status(resp.status).send(resp.data);
+	};
 
-  const info = async ( req: express.Request, res: express.Response ) => {
-    console.log( req.headers );
+	const info = async (req: express.Request, res: express.Response) => {
+		console.log(req.headers);
 
 		const resp = await dockerService.info();
-		res.status( resp.status ).send( resp.data );
-  }
+		res.status(resp.status).send(resp.data);
+	};
 
-	const stats = async ( req: express.Request, res: express.Response ) => {
+	const stats = async (req: express.Request, res: express.Response) => {
 		const id = req.params.id;
-		console.log( req.headers );
+		console.log(req.headers);
 
-		const resp = await dockerService.stats( id );
-		res.status( resp.status ).send( resp.data );
-	}
+		const resp = await dockerService.stats(id);
+		res.status(resp.status).send(resp.data);
+	};
 
-  return {
-    index,
+	return {
+		index,
 		list,
-    info,
-		stats
-  };
-}
+		info,
+		stats,
+	};
+};
 
 export const controller = createController();

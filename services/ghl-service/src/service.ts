@@ -1,8 +1,8 @@
 import express from 'express';
-import getConfig from './config';
-import type { Config } from 'types/config';
-import { routes } from 'api/routes';
-import { logger } from './logger';
+import getConfig from './config.js';
+import type { Config } from 'types/config.js';
+import { routes } from 'api/routes.js';
+import { logger } from './logger.js';
 
 const createService = () => {
 	const app = express();

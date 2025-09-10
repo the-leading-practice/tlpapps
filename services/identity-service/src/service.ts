@@ -2,8 +2,8 @@ import express from 'express';
 import fs from 'fs';
 import path from 'path';
 import https from 'https';
-import { routes } from 'api/routes';
-import { Config } from 'types/config';
+import { routes } from './api/routes.js';
+import { Config } from './types/config.js';
 
 export const service = (config: Config) => {
 	const app = express();

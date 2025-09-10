@@ -1,11 +1,11 @@
 import express from 'express';
-import { integrationService } from 'services/integration';
-import { patientService } from 'services/patient';
-import { PatientMapping } from 'types/common';
-import { getLocation } from 'utils/common';
-import { verifyPatient } from 'utils/patientUtils';
-import { deepEqual } from 'utils/common';
-import { logger } from '../logger';
+import { integrationService } from '../services/integration.js';
+import { patientService } from '../services/patient.js';
+import { PatientMapping } from '../types/common.js';
+import { getLocation } from '../utils/common.js';
+import { verifyPatient } from '../utils/patientUtils.js';
+import { deepEqual } from '../utils/common.js';
+import { logger } from '../logger.js';
 
 const createController = () => {
 	const index = async (req: express.Request, res: express.Response) => {
@@ -19,7 +19,7 @@ const createController = () => {
 		const loc = getLocation(locHeader);
 
 		if (loc.location) {
-			let ret = await patientService.getPatients(loc.location);
+			const ret = await patientService.getPatients(loc.location);
 			res.type('json');
 			return res.status(200).json(ret);
 		}
@@ -34,7 +34,7 @@ const createController = () => {
 		const loc = getLocation(locHeader);
 
 		if (loc.location) {
-			let ret = await patientService.getPatient(loc.location, parseInt(req.params.id));
+			const ret = await patientService.getPatient(loc.location, parseInt(req.params.id));
 			res.type('json');
 			return res.status(200).json(ret);
 		}
@@ -79,7 +79,7 @@ const createController = () => {
 		let idx = 0;
 
 		console.log(`${loc.location} processing ${reqData.patients.length} patients...`);
-		for (let patient of reqData.patients) {
+		for (const patient of reqData.patients) {
 			logger.writeLog(
 				'debug',
 				`processing ${patient.patientId} ${patient.firstName} ${patient.lastName} ${patient.email}`,
@@ -253,7 +253,7 @@ const createController = () => {
 					'debug',
 					`adding new patient mapping ${mapping.contactId} ${mapping.patientId}`,
 				);
-				const patientResp = await patientService.upsertPatient(loc.location, mapping);
+				await patientService.upsertPatient(loc.location, mapping);
 			}
 
 			idx++;
@@ -304,7 +304,7 @@ const createController = () => {
 			return;
 		}
 
-		let ret = await patientService.getPatient(loc.location, parseInt(req.params.id));
+		const ret = await patientService.getPatient(loc.location, parseInt(req.params.id));
 
 		if (!ret) {
 			res.status(404).json({ status: 'not found' });
@@ -319,11 +319,10 @@ const createController = () => {
 		const id = req.params.id;
 		const ids = id.split(',');
 
-		// if( ids.length > 1 ) {
-		//   console.log( `id array from query: ` );
-		//   ids.forEach( (i) => console.log( `  id: ${i}` ) );
-		// }
-		// else console.log( `id from query: ${id}` );
+		if (ids.length > 1) {
+			console.log(`id array from query: `);
+			ids.forEach((i) => console.log(`  id: ${i}`));
+		} else console.log(`id from query: ${id}`);
 
 		// TODO - mark the record as inactive here
 

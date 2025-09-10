@@ -1,5 +1,5 @@
-import { LoginData, UserData } from 'types/types';
-import { accountModel } from './model';
+import { LoginData, UserData } from '../../types/types.js';
+import { accountModel } from './model.js';
 
 const createAccountService = () => {
 	const getAccount = async (email: string) => {

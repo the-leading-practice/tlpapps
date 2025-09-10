@@ -1,5 +1,5 @@
-import { AccessToken } from 'types/types';
-import { accessTokenModel } from './model';
+import { AccessToken } from '../../types/types.js';
+import { accessTokenModel } from './model.js';
 
 const createAccessTokenService = () => {
 	const getTokenByLocation = async (location: string) => {

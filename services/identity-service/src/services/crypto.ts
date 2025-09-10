@@ -1,5 +1,5 @@
 import crypto from 'crypto';
-import { TOKEN_KEY } from 'constants/constants';
+import { TOKEN_KEY } from '../constants/constants.js';
 
 const createCryptoService = () => {
 	const algorithm = 'aes-256-gcm';

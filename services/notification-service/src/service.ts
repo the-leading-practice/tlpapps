@@ -5,66 +5,64 @@ import bunyan from 'bunyan';
 import RotatingFileStream from 'bunyan-rotating-file-stream';
 // import cors from 'cors';
 
-import type { Config } from 'types/config';
-import { routes } from 'api/routes';
+import type { Config } from './types/config.js';
+import { routes } from './api/routes.js';
 
-export const createService = ( config: Config ) => {
-  const app = express();
-  const port = config.service.port;
-  const name = config.service.name;
+export const createService = (config: Config) => {
+	const app = express();
+	const port = config.service.port;
+	const name = config.service.name;
 
-  const start = () => {
-    // create logger
-    const fullLogPath = path.join( config.logging.logPath, config.logging.fileName );
-    if( config.logging ) {
-      if( !fs.existsSync( config.logging.logPath ) ) {
-        fs.mkdirSync( config.logging.logPath, { recursive: true } );
-      }
+	const start = () => {
+		// create logger
+		const fullLogPath = path.join(config.logging.logPath, config.logging.fileName);
+		if (config.logging) {
+			if (!fs.existsSync(config.logging.logPath)) {
+				fs.mkdirSync(config.logging.logPath, { recursive: true });
+			}
 
-      if( !fs.existsSync( fullLogPath ) ) {
-        console.log( `need to create file` );
-        fs.writeFileSync( fullLogPath, "" );
-      }
-    }
-    
-    console.log( fullLogPath );
+			if (!fs.existsSync(fullLogPath)) {
+				console.log(`need to create file`);
+				fs.writeFileSync(fullLogPath, '');
+			}
+		}
 
-    const log = bunyan.createLogger( {
-      name: "notification-service",
-      streams: [
-        {
-          level: 'warn',
-          stream: new RotatingFileStream( {
-            path: fullLogPath,
-            period: '1d',
-            totalFiles: 15,
-            gzip: true
-          } ) as NodeJS.WritableStream
-        }
-      ]
-    } );
+		console.log(fullLogPath);
 
-    // load up middleware here
-    app.use( express.json( {type:['application/json', 'text/plain']} ) );
-    app.use( express.urlencoded( { extended: true } ) );  
-    
-    // app.use( cors( corsOptions ) );
+		const log = bunyan.createLogger({
+			name: 'notification-service',
+			streams: [
+				{
+					level: 'warn',
+					stream: new RotatingFileStream({
+						path: fullLogPath,
+						period: '1d',
+						totalFiles: 15,
+						gzip: true,
+					}) as NodeJS.WritableStream,
+				},
+			],
+		});
 
-    // load routes
-    routes( app, log );
+		// load up middleware here
+		app.use(express.json({ type: ['application/json', 'text/plain'] }));
+		app.use(express.urlencoded({ extended: true }));
 
-    // start the service
-    app.listen( port, () => {
-      return console.log( `${name} is listening at http://localhost:${port}` );
-    } );
-  }
+		// app.use( cors( corsOptions ) );
 
-  const shutdown = () => {
+		// load routes
+		routes(app, log);
 
-  }
+		// start the service
+		app.listen(port, () => {
+			return console.log(`${name} is listening at http://localhost:${port}`);
+		});
+	};
 
-  return {
-    start,
-    shutdown
-  };
-}
+	const shutdown = () => {};
+
+	return {
+		start,
+		shutdown,
+	};
+};

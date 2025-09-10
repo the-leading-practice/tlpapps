@@ -1,225 +1,225 @@
-import { TLP_API_URL } from "constants/constants";
-import { TLPAppointmentData } from "types/common";
-import { safeJsonParse } from "utils/common";
+import { TLP_API_URL } from '../constants/constants.js';
+import { TLPAppointmentData } from '../types/common.js';
+import { safeJsonParse } from '../utils/common.js';
 
 const createIntegrationService = () => {
+	const getContact = async (contactId: string, jwt: string) => {
+		const opts = {
+			method: 'GET',
+			headers: {
+				'Content-Type': 'application/json',
+				Authorization: `Bearer ${jwt}`,
+			},
+		};
 
-  const getContact = async( contactId: string, jwt: string ) => {
-    const opts = {
-      method: 'GET',
-      headers: {
-        'Content-Type': "application/json",
-        'Authorization': `Bearer ${jwt}`
-      }
-    }
+		const resp = await fetch(`${TLP_API_URL}ghl/contact/${contactId}`, opts);
 
-    const resp = await fetch( `${TLP_API_URL}ghl/contact/${contactId}`, opts );
+		const dataStr = await resp.text();
 
-    const dataStr = await resp.text();
-    
-    if( resp.status >= 200 && resp.status < 300 ) {
-      const json = safeJsonParse( dataStr );
-      return {status: resp.status, data: json};
-    }
+		if (resp.status >= 200 && resp.status < 300) {
+			const json = safeJsonParse(dataStr);
+			return { status: resp.status, data: json };
+		}
 
-    return {status: resp.status, data: dataStr};
-  }
+		return { status: resp.status, data: dataStr };
+	};
 
-  const findContact = async( patient: any, jwt: string ) => {
-    const opts = {
-      method: 'get',
-      headers: {
-        'Content-Type': "application/json",
-        'Authorization': `Bearer ${jwt}`
-      }
-    }
+	const findContact = async (patient: any, jwt: string) => {
+		const opts = {
+			method: 'get',
+			headers: {
+				'Content-Type': 'application/json',
+				Authorization: `Bearer ${jwt}`,
+			},
+		};
 
-    let query = '';
+		let query = '';
 
-    // query for contact based on email, name, phone - which-ever is first
-    if( patient.email ) query = patient.email;
-    else if( patient.firstName && patient.lastName ) query = `${patient.firstName} ${patient.lastName}`;
-    else if( patient.phone ) query = patient.mobile;
+		// query for contact based on email, name, phone - which-ever is first
+		if (patient.email) query = patient.email;
+		else if (patient.firstName && patient.lastName)
+			query = `${patient.firstName} ${patient.lastName}`;
+		else if (patient.phone) query = patient.mobile;
 
-    const resp = await fetch( `${TLP_API_URL}ghl/contacts/${query}`, opts );
+		const resp = await fetch(`${TLP_API_URL}ghl/contacts/${query}`, opts);
 
-    const dataStr = await resp.text();
-    
-    if( resp.status >= 200 && resp.status < 300 ) {
-      const json = safeJsonParse( dataStr );
-      return {status: resp.status, data: json};
-    }
+		const dataStr = await resp.text();
 
-    return {status: resp.status, data: resp.statusText};
-  }
+		if (resp.status >= 200 && resp.status < 300) {
+			const json = safeJsonParse(dataStr);
+			return { status: resp.status, data: json };
+		}
 
-  const createContact = async( patient: any, jwt: string ) => {
-    const opts = {
-      method: 'POST',
-      headers: {
-        'Content-Type': "application/json",
-        'Authorization': `Bearer ${jwt}`
-      },
-      body: JSON.stringify( patient )
-    }
+		return { status: resp.status, data: resp.statusText };
+	};
 
-    const resp = await fetch( `${TLP_API_URL}ghl/contact`, opts );
+	const createContact = async (patient: any, jwt: string) => {
+		const opts = {
+			method: 'POST',
+			headers: {
+				'Content-Type': 'application/json',
+				Authorization: `Bearer ${jwt}`,
+			},
+			body: JSON.stringify(patient),
+		};
 
-    const dataStr = await resp.text();
-    
-    if( resp.status >= 200 && resp.status < 300 ) {
-      const json = safeJsonParse( dataStr );
-      return {status: resp.status, data: json};
-    }
+		const resp = await fetch(`${TLP_API_URL}ghl/contact`, opts);
 
-    return {status: resp.status, data: resp.statusText};
-  }
+		const dataStr = await resp.text();
 
-  const upsertContact = async( patient: any, jwt: string ) => {
-    const opts = {
-      method: 'POST',
-      headers: {
-        'Content-Type': "application/json",
-        'Authorization': `Bearer ${jwt}`
-      },
-      body: JSON.stringify( patient )
-    }
+		if (resp.status >= 200 && resp.status < 300) {
+			const json = safeJsonParse(dataStr);
+			return { status: resp.status, data: json };
+		}
 
-    const resp = await fetch( `${TLP_API_URL}ghl/contact`, opts );
+		return { status: resp.status, data: resp.statusText };
+	};
 
-    const dataStr = await resp.text();
-    
-    if( resp.status >= 200 && resp.status < 300 ) {
-      const json = safeJsonParse( dataStr );
-      return {status: resp.status, data: json};
-    }
+	const upsertContact = async (patient: any, jwt: string) => {
+		const opts = {
+			method: 'POST',
+			headers: {
+				'Content-Type': 'application/json',
+				Authorization: `Bearer ${jwt}`,
+			},
+			body: JSON.stringify(patient),
+		};
 
-    return {status: resp.status, data: resp.statusText};
-  }
+		const resp = await fetch(`${TLP_API_URL}ghl/contact`, opts);
 
-  const updateContact = async( patient: any, contactId: string, jwt: string ) => {
-    const modPatient = patient;
+		const dataStr = await resp.text();
 
-    modPatient.name = modPatient.contactName;
-    delete modPatient.contactName;
+		if (resp.status >= 200 && resp.status < 300) {
+			const json = safeJsonParse(dataStr);
+			return { status: resp.status, data: json };
+		}
 
-    const opts = {
-      method: 'PUT',
-      headers: {
-        'Content-Type': "application/json",
-        'Authorization': `Bearer ${jwt}`
-      },
-      body: JSON.stringify( modPatient )
-    }
+		return { status: resp.status, data: resp.statusText };
+	};
 
-    const resp = await fetch( `${TLP_API_URL}ghl/contact/${contactId}`, opts );
+	const updateContact = async (patient: any, contactId: string, jwt: string) => {
+		const modPatient = patient;
 
-    const dataStr = await resp.text();
-    
-    if( resp.status >= 200 && resp.status < 300 ) {
-      const json = safeJsonParse( dataStr );
-      return {status: resp.status, data: json};
-    }
+		modPatient.name = modPatient.contactName;
+		delete modPatient.contactName;
 
-    return {status: resp.status, data: resp.statusText};
-  }
+		const opts = {
+			method: 'PUT',
+			headers: {
+				'Content-Type': 'application/json',
+				Authorization: `Bearer ${jwt}`,
+			},
+			body: JSON.stringify(modPatient),
+		};
 
-  const getAppointment = async( appt: string, jwt: string ) => {
-    const opts = {
-      method: 'get',
-      headers: {
-        'Content-Type': "application/json",
-        'Authorization': `Bearer ${jwt}`
-      }
-    }
+		const resp = await fetch(`${TLP_API_URL}ghl/contact/${contactId}`, opts);
 
-    // query for contact based on email, name, phone - which-ever is first
-    const resp = await fetch( `${TLP_API_URL}ghl/contacts/${appt}`, opts );
+		const dataStr = await resp.text();
 
-    const dataStr = await resp.text();
-    
-    if( resp.status >= 200 && resp.status < 300 ) {
-      const json = safeJsonParse( dataStr );
-      return {status: resp.status, data: json};
-    }
+		if (resp.status >= 200 && resp.status < 300) {
+			const json = safeJsonParse(dataStr);
+			return { status: resp.status, data: json };
+		}
 
-    return {status: resp.status, data: resp.statusText};
-  }
+		return { status: resp.status, data: resp.statusText };
+	};
 
-  const getAppointmentsForContact = async( contactId: string, jwt: string ) => {
-    const opts = {
-      method: 'GET',
-      headers: {
-        'Content-Type': "application/json",
-        'Authorization': `Bearer ${jwt}`
-      }
-    }
+	const getAppointment = async (appt: string, jwt: string) => {
+		const opts = {
+			method: 'get',
+			headers: {
+				'Content-Type': 'application/json',
+				Authorization: `Bearer ${jwt}`,
+			},
+		};
 
-    const resp = await fetch( `${TLP_API_URL}ghl/contact/appointments/${contactId}`, opts );
+		// query for contact based on email, name, phone - which-ever is first
+		const resp = await fetch(`${TLP_API_URL}ghl/contacts/${appt}`, opts);
 
-    const dataStr = await resp.text();
-    
-    if( resp.status >= 200 && resp.status < 300 ) {
-      const json = safeJsonParse( dataStr );
-      return {status: resp.status, data: json};
-    }
+		const dataStr = await resp.text();
 
-    return {status: resp.status, data: resp.statusText};
-  }
+		if (resp.status >= 200 && resp.status < 300) {
+			const json = safeJsonParse(dataStr);
+			return { status: resp.status, data: json };
+		}
 
-  const createAppointment = async( appt: TLPAppointmentData, jwt: string ) => {
-    const opts = {
-      method: 'POST',
-      headers: {
-        'Content-Type': "application/json",
-        'Authorization': `Bearer ${jwt}`
-      },
-      body: JSON.stringify( appt )
-    }
+		return { status: resp.status, data: resp.statusText };
+	};
 
-    const resp = await fetch( `${TLP_API_URL}ghl/appointment`, opts );
-    const dataStr = await resp.text();
-    
-    if( resp.status >= 200 && resp.status < 300 ) {
-      const json = safeJsonParse( dataStr );
-      return {status: resp.status, data: json};
-    }
+	const getAppointmentsForContact = async (contactId: string, jwt: string) => {
+		const opts = {
+			method: 'GET',
+			headers: {
+				'Content-Type': 'application/json',
+				Authorization: `Bearer ${jwt}`,
+			},
+		};
 
-    return {status: resp.status, data: resp.statusText};
-  }
+		const resp = await fetch(`${TLP_API_URL}ghl/contact/appointments/${contactId}`, opts);
 
-  const updateAppointment = async( appt: TLPAppointmentData, jwt: string ) => {
-    const opts = {
-      method: 'PUT',
-      headers: {
-        'Content-Type': "application/json",
-        'Authorization': `Bearer ${jwt}`
-      },
-      body: JSON.stringify( appt ) 
-    }
+		const dataStr = await resp.text();
 
-    const resp = await fetch( `${TLP_API_URL}ghl/appointment`, opts );
-    const dataStr = await resp.text();
-    
-    if( resp.status >= 200 && resp.status < 300 ) {
-      const json = safeJsonParse( dataStr );
-      return {status: resp.status, data: json};
-    }
+		if (resp.status >= 200 && resp.status < 300) {
+			const json = safeJsonParse(dataStr);
+			return { status: resp.status, data: json };
+		}
 
-    return {status: resp.status, data: resp.statusText};
-  }
+		return { status: resp.status, data: resp.statusText };
+	};
 
-  return {
-    getContact,
-    findContact,
-    getAppointment,
-    createContact,
-    upsertContact,
-    updateContact,
-    getAppointmentsForContact,
-    createAppointment,
-    updateAppointment
-  }
-}
+	const createAppointment = async (appt: TLPAppointmentData, jwt: string) => {
+		const opts = {
+			method: 'POST',
+			headers: {
+				'Content-Type': 'application/json',
+				Authorization: `Bearer ${jwt}`,
+			},
+			body: JSON.stringify(appt),
+		};
+
+		const resp = await fetch(`${TLP_API_URL}ghl/appointment`, opts);
+		const dataStr = await resp.text();
+
+		if (resp.status >= 200 && resp.status < 300) {
+			const json = safeJsonParse(dataStr);
+			return { status: resp.status, data: json };
+		}
+
+		return { status: resp.status, data: resp.statusText };
+	};
+
+	const updateAppointment = async (appt: TLPAppointmentData, jwt: string) => {
+		const opts = {
+			method: 'PUT',
+			headers: {
+				'Content-Type': 'application/json',
+				Authorization: `Bearer ${jwt}`,
+			},
+			body: JSON.stringify(appt),
+		};
+
+		const resp = await fetch(`${TLP_API_URL}ghl/appointment`, opts);
+		const dataStr = await resp.text();
+
+		if (resp.status >= 200 && resp.status < 300) {
+			const json = safeJsonParse(dataStr);
+			return { status: resp.status, data: json };
+		}
+
+		return { status: resp.status, data: resp.statusText };
+	};
+
+	return {
+		getContact,
+		findContact,
+		getAppointment,
+		createContact,
+		upsertContact,
+		updateContact,
+		getAppointmentsForContact,
+		createAppointment,
+		updateAppointment,
+	};
+};
 
 export const integrationService = createIntegrationService();

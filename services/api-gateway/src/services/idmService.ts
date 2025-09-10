@@ -1,4 +1,4 @@
-import type { Service, AuthInfo, AuthEndpoint } from 'types/config';
+import type { Service, AuthInfo, AuthEndpoint } from '../types/config.js';
 
 const createIdmService = () => {
 	const login = async (login: AuthInfo, idm: Service, auth: AuthEndpoint) => {
