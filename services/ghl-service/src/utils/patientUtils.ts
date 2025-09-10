@@ -1,6 +1,6 @@
-import { GHLContactData, TLPPatientData } from 'types/common';
-import { safeStringCompare } from './common';
-import { GHL_CUSTOM_FIELD_ID } from 'constants/constants';
+import { GHLContactData, TLPPatientData } from '../types/common.js';
+import { safeStringCompare } from './common.js';
+import { GHL_CUSTOM_FIELD_ID } from '../constants/constants.js';
 
 export const verifyPatient = (patient: TLPPatientData, contact: GHLContactData) => {
 	// our main points of verification are email, name, and mobile phone

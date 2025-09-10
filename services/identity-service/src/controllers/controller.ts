@@ -1,11 +1,11 @@
 import express from 'express';
-import { ghlTokenService } from 'services/ghltoken';
-import { cryptoService } from 'services/crypto';
-import { accessTokenService } from 'services/accessToken/service';
-import { appConfigService } from 'services/appConfig/service';
+import { ghlTokenService } from '../services/ghltoken.js';
+import { cryptoService } from '../services/crypto.js';
+import { accessTokenService } from '../services/accessToken/service.js';
+import { appConfigService } from '../services/appConfig/service.js';
 import jwt from 'jsonwebtoken';
-import { TOKEN_KEY } from 'constants/constants';
-import type { AccessToken, LoginData, Token } from 'types/types';
+import { TOKEN_KEY } from '../constants/constants.js';
+import type { AccessToken, LoginData, Token } from '../types/types.js';
 import { access } from 'fs';
 
 const createController = () => {

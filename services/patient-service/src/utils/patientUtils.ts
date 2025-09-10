@@ -1,24 +1,25 @@
-import { TLPPatientData } from 'types/common';
-import { safeStringCompare } from './common';
+import { TLPPatientData } from '../types/common.js';
+import { safeStringCompare } from './common.js';
 
-export const verifyPatient = ( patient: TLPPatientData, contact: TLPPatientData ) => {
-  // our main points of verification are email, name, and mobile phone
-  // we will use these to determine if the patient we have from the practice
-  // is the same as the one from GHL
-  if( safeStringCompare( contact.email, patient.email ) && 
-      safeStringCompare( contact.firstName, patient.firstName ) &&
-      safeStringCompare( contact.lastName, patient.lastName ) &&
-      safeStringCompare( contact.phone, patient.mobile ) ) {
+export const verifyPatient = (patient: TLPPatientData, contact: TLPPatientData) => {
+	// our main points of verification are email, name, and mobile phone
+	// we will use these to determine if the patient we have from the practice
+	// is the same as the one from GHL
+	if (
+		safeStringCompare(contact.email, patient.email) &&
+		safeStringCompare(contact.firstName, patient.firstName) &&
+		safeStringCompare(contact.lastName, patient.lastName) &&
+		safeStringCompare(contact.phone, patient.mobile)
+	) {
+		if (contact.businessId) {
+			return safeStringCompare(contact.businessId, patient.patientId.toString());
+		}
 
-			if( contact.businessId ) {
-				return safeStringCompare( contact.businessId, patient.patientId.toString() );
-			}
+		return true;
+	}
 
-      return true;
-  }
-
-  return false;
-}
+	return false;
+};
 
 // export const mergePatient = ( contact: GHLContactData, patient: TLPPatientData ) => {
 //   const newContact: GHLContactData = {

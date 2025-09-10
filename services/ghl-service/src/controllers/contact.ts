@@ -1,8 +1,8 @@
 import express from 'express';
-import { contactService } from 'services/contact';
-import { GHLAppointmentData, GHLContactData, TLPPatientData } from 'types/common';
-import { getLocation } from 'utils/common';
-import { translateGHLtoTLP, translateTLPtoGHL } from 'utils/patientUtils';
+import { contactService } from '../services/contact.js';
+import { GHLAppointmentData, GHLContactData, TLPPatientData } from '../types/common.js';
+import { getLocation } from '../utils/common.js';
+import { translateGHLtoTLP, translateTLPtoGHL } from '../utils/patientUtils.js';
 
 const createContactController = () => {
 	const findContact = async (req: express.Request, res: express.Response) => {

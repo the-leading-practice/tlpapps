@@ -1,6 +1,6 @@
-import getConfig from './config';
-import { createService } from './service';
-import { dbConnector } from './services/mongodb';
+import getConfig from './config.js';
+import { createService } from './service.js';
+import { dbConnector } from './services/mongodb.js';
 
 const config = getConfig();
 const service = createService(config);

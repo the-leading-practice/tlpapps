@@ -1,10 +1,10 @@
 import express from 'express';
 import path from 'path';
-import type { Config } from 'types/config';
+import type { Config } from './types/config.js';
 import { createProxyMiddleware } from 'http-proxy-middleware';
 import morgan from 'morgan';
-import { routes } from 'api/routes';
-import { authToken } from 'middleware/auth';
+import { routes } from './api/routes.js';
+import { authToken } from './middleware/auth.js';
 import helmet from 'helmet';
 
 export const gateway = (appConfig: Config) => {
@@ -32,33 +32,35 @@ export const gateway = (appConfig: Config) => {
 							pathRewrite: (path) => {
 								return path.replace('/api/', '/');
 							},
-							onProxyReq: (proxyReq, req, res) => {
-								const r: any = req;
-								// const tkn = JSON.parse( r.payload.token );
-								proxyReq.setHeader(
-									'x-tlp-app-location',
-									`${r.payload.location} ${r.payload.token}`,
-								);
-								proxyReq.setHeader('x-tlp-app-calendar', `${r.payload.calendar}`);
-								proxyReq.setHeader('x-tlp-app-timezone', `${r.payload.timezone}`);
-								proxyReq.setHeader('x-tlp-app-name', `${r.payload.name}`);
-								proxyReq.setHeader('x-tlp-app-software', `${r.payload.software}`);
-								proxyReq.setHeader('x-tlp-app-jwt', `${r.jwt}`);
+							on: {
+								proxyReq: (proxyReq, req, res) => {
+									const r: any = req;
+									// const tkn = JSON.parse( r.payload.token );
+									proxyReq.setHeader(
+										'x-tlp-app-location',
+										`${r.payload.location} ${r.payload.token}`,
+									);
+									proxyReq.setHeader('x-tlp-app-calendar', `${r.payload.calendar}`);
+									proxyReq.setHeader('x-tlp-app-timezone', `${r.payload.timezone}`);
+									proxyReq.setHeader('x-tlp-app-name', `${r.payload.name}`);
+									proxyReq.setHeader('x-tlp-app-software', `${r.payload.software}`);
+									proxyReq.setHeader('x-tlp-app-jwt', `${r.jwt}`);
 
-								if (r.payload.pushGHL) {
-									// if header exists push data to GHL
-									proxyReq.setHeader('x-tlp-app-pushghl', `yes`);
-								}
+									if (r.payload.pushGHL) {
+										// if header exists push data to GHL
+										proxyReq.setHeader('x-tlp-app-pushghl', `yes`);
+									}
 
-								if (r.payload.pushAppt) {
-									// if header exists push data to GHL
-									proxyReq.setHeader('x-tlp-app-pushappt', `yes`);
-								}
+									if (r.payload.pushAppt) {
+										// if header exists push data to GHL
+										proxyReq.setHeader('x-tlp-app-pushappt', `yes`);
+									}
 
-								if (r.payload.pushPat) {
-									// if header exists push data to GHL
-									proxyReq.setHeader('x-tlp-app-pushpat', `yes`);
-								}
+									if (r.payload.pushPat) {
+										// if header exists push data to GHL
+										proxyReq.setHeader('x-tlp-app-pushpat', `yes`);
+									}
+								},
 							},
 						}),
 					);

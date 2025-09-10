@@ -1,8 +1,8 @@
 import { Application } from 'express';
-import { admin } from '../controllers/admin';
-import type { Config } from '../types/config';
+import { admin } from '../controllers/admin.js';
+import type { Config } from '../types/config.js';
 import express from 'express';
-import { authToken } from 'middleware/auth';
+import { authToken } from '../middleware/auth.js';
 
 export const routes = (app: Application, config: Config) => {
 	const adm = admin(config);

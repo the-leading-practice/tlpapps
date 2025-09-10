@@ -4,8 +4,8 @@ import {
 	GHL_API_URL,
 	GHL_API_VERSION,
 	REDIRECT_URL,
-} from 'constants/constants';
-import { fetchJson, safeJsonParse } from 'utils/common';
+} from '../constants/constants.js';
+import { fetchJson, safeJsonParse } from '../utils/common.js';
 
 const createGHLTokenService = () => {
 	const getAccessToken = async (code: string) => {

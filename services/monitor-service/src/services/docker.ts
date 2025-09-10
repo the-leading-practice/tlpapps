@@ -1,4 +1,4 @@
-import { requestSync } from "lib/unixSocketSync";
+import { requestSync } from '../lib/unixSocketSync.js';
 
 const createDockerService = () => {
 	const unixSocket = '/var/run/docker.sock';
@@ -11,69 +11,66 @@ const createDockerService = () => {
 		const options = {
 			socketPath: unixSocket,
 			method: 'GET',
-			path: '/containers/json'
-		}
+			path: '/containers/json',
+		};
 
-		const resp = await requestSync( options );
-		
+		const resp = await requestSync(options);
+
 		return {
 			status: resp.response?.statusCode || 500,
-			data: resp.data
+			data: resp.data,
 		};
-	}
+	};
 
 	const info = async () => {
 		const options = {
 			socketPath: unixSocket,
 			method: 'GET',
-			path: '/info'
-		}
+			path: '/info',
+		};
 
 		// get info from docker service
-		const resp = await requestSync( options )
-			.catch( ( error ) => {
-				console.log( error ) 
-				return {
-					response: null,
-					data: error
-				}
-			} );
-		
+		const resp = await requestSync(options).catch((error) => {
+			console.log(error);
+			return {
+				response: null,
+				data: error,
+			};
+		});
+
 		return {
 			status: resp.response?.statusCode || 500,
-			data: resp.data
+			data: resp.data,
 		};
-	}
+	};
 
-	const stats = async ( id: string ) => {
+	const stats = async (id: string) => {
 		const options = {
 			socketPath: unixSocket,
 			method: 'GET',
-			path: `/containers/${id}/stats?stream=false&one-shot=true`
-		}
+			path: `/containers/${id}/stats?stream=false&one-shot=true`,
+		};
 
 		// get stats for provided container
-		const resp = await requestSync( options )
-			.catch( ( error ) => {
-				console.log( error ) 
-				return {
-					response: null,
-					data: error
-				}
-			} );
+		const resp = await requestSync(options).catch((error) => {
+			console.log(error);
+			return {
+				response: null,
+				data: error,
+			};
+		});
 
 		return {
 			status: resp.response?.statusCode || 500,
-			data: resp.data
+			data: resp.data,
 		};
-	}
+	};
 
 	return {
 		list,
-		info, 
-		stats
-	}
-
-}
+		info,
+		stats,
+	};
+};
 
 export const dockerService = createDockerService();

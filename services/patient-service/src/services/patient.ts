@@ -1,44 +1,43 @@
-import { Patient } from "models/patient";
-import { PatientMapping } from "types/common";
+import { Patient } from '../models/patient.js';
+import { PatientMapping } from '../types/common.js';
 
 const createPatientService = () => {
+	const getPatients = async (locationId: string) => {
+		const patients = await Patient.find({ LocationId: locationId });
+		return patients;
+	};
 
-  const getPatients = async ( locationId: string ) => {
-    const patients = await Patient.find( {LocationId: locationId} );
-    return patients;
-  }
+	const getPatient = async (locationId: string, id: number): Promise<PatientMapping | null> => {
+		const patient = await Patient.findOne({ locationId: locationId, patientId: id });
 
-  const getPatient = async ( locationId: string, id: number ): Promise<PatientMapping | null> => {
-    const patient = await Patient.findOne( {locationId: locationId, patientId:id} );
-    
-    if( patient ) {
-      console.log( `patient found ${patient.patientId}` );
-      const mapping = {
-        locationId: patient.locationId,
-        patientId: patient.patientId,
-        contactId: patient.contactId
-      }
+		if (patient) {
+			console.log(`patient found ${patient.patientId}`);
+			const mapping = {
+				locationId: patient.locationId,
+				patientId: patient.patientId,
+				contactId: patient.contactId,
+			};
 
-      return mapping;
-    }
-    console.log( `no patient found` );
+			return mapping;
+		}
+		console.log(`no patient found`);
 
-    return null;
-  }
+		return null;
+	};
 
-  const upsertPatient = async ( locationId: string, patient: any ) => {
-    const query = {locationId: locationId, patientId: patient.patientId};
-    const newPatient = {...patient};
+	const upsertPatient = async (locationId: string, patient: any) => {
+		const query = { locationId: locationId, patientId: patient.patientId };
+		const newPatient = { ...patient };
 
-    const newDoc = await Patient.findOneAndUpdate( query, newPatient, {upsert: true, new: true} );
-    return newDoc;
-  }
+		const newDoc = await Patient.findOneAndUpdate(query, newPatient, { upsert: true, new: true });
+		return newDoc;
+	};
 
-  return {
-    getPatients,
-    getPatient,
-    upsertPatient
-  }
-}
+	return {
+		getPatients,
+		getPatient,
+		upsertPatient,
+	};
+};
 
 export const patientService = createPatientService();

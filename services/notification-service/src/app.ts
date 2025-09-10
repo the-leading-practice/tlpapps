@@ -1,7 +1,6 @@
-import getConfig from './config';
-import { createService } from './service';
+import getConfig from './config.js';
+import { createService } from './service.js';
 
 const config = getConfig();
-const service = createService( config );
+const service = createService(config);
 service.start();
-

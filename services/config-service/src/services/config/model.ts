@@ -15,6 +15,7 @@ const appConfigSchema = new mongoose.Schema(
 			ConnectionString: { type: String, required: true },
 			RepeatMilliseconds: { type: Number, required: true },
 			MaxBatchSize: { type: Number, required: true },
+			Software: { type: String, required: false },
 			Tables: [
 				{
 					Name: { type: String, required: true },

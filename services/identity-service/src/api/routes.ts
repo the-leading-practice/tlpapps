@@ -1,6 +1,6 @@
 import { Application } from 'express';
-import { controller } from 'controllers/controller';
-import { accountController } from 'controllers/account';
+import { controller } from '../controllers/controller.js';
+import { accountController } from '../controllers/account.js';
 
 export const routes = (app: Application) => {
 	// default

@@ -1,9 +1,9 @@
 import express from 'express';
-import { formatTime, getLocation } from 'utils/common';
-import { appointmentService } from 'services/appointment';
-import { GHLAppointmentData, TLPAppointmentData } from 'types/common';
-import { translateApptGHLtoTLP, translateApptTLPtoGHL } from 'utils/apptUtils';
-import { logger } from 'logger';
+import { formatTime, getLocation } from '../utils/common.js';
+import { appointmentService } from '../services/appointment.js';
+import { GHLAppointmentData, TLPAppointmentData } from '../types/common.js';
+import { translateApptGHLtoTLP, translateApptTLPtoGHL } from '../utils/apptUtils.js';
+import { logger } from '../logger.js';
 
 const createApptController = () => {
 	const getAppointment = async (req: express.Request, res: express.Response) => {

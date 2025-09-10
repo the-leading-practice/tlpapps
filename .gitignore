@@ -21,3 +21,4 @@ symlink-from
 .idea/
 tlpservices/
 var/
+.husky/_

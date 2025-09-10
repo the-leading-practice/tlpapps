@@ -1,7 +1,7 @@
 import { load } from 'js-yaml';
 import * as fs from 'fs';
-import type { Config } from 'types/config';
-import { ENV } from 'constants/constants';
+import type { Config } from './types/config.js';
+import { ENV } from './constants/constants.js';
 
 const getConfig = (): Config => {
 	const configFile = ENV === 'development' ? 'dev.service.config.yml' : 'service.config.yml';

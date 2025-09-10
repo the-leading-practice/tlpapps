@@ -1,7 +1,7 @@
-import { service } from 'service';
-import { dbConnector } from 'services/mongodb';
-import getConfig from 'config';
-import type { Config } from 'types/config';
+import { service } from './service.js';
+import { dbConnector } from './services/mongodb.js';
+import getConfig from './config.js';
+import type { Config } from './types/config.js';
 
 const config: Config = getConfig();
 

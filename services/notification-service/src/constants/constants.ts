@@ -7,9 +7,14 @@ const MONGO_PASS = process.env.MONGO_PASS || '';
 
 export const MONGO_DB = process.env.MONGO_DB || '';
 
-export const MONGO_DB_CONN_STRING = process.env.MONGO_CONN_STRING 
-  ? `${process.env.MONGO_CONN_STRING.replace( /%USER%/g, MONGO_USER ).replace( /%PW%/g, encodeURIComponent( MONGO_PASS ) )}/${MONGO_DB}` : "";
+export const MONGO_DB_CONN_STRING = process.env.MONGO_CONN_STRING
+	? `${process.env.MONGO_CONN_STRING.replace(/%USER%/g, MONGO_USER).replace(/%PW%/g, encodeURIComponent(MONGO_PASS))}/${MONGO_DB}`
+	: '';
 
 export const TELEGRAM_BOT_KEY = process.env.TELEGRAM_BOT_KEY || '';
 export const TELEGRAM_BOT_GROUP_ID = process.env.TELEGRAM_BOT_GROUP_ID || '';
 export const TELEGRAM_BOT_LEVEL = process.env.TELEGRAM_BOT_LEVEL || 'error';
+
+export const CLICKUP_API_KEY = process.env.CLICKUP_API_KEY || '';
+export const CLICKUP_TEAM_ID = process.env.CLICKUP_TEAM_ID || '8555762';
+export const CLICKUP_CHANNEL_ID = process.env.CLICKUP_CHANNEL_ID || '8537j-130837';
