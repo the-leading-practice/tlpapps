@@ -63,4 +63,13 @@ services:
     ports:
       - 5650:5650
     env_file: .env
+
+  embodi-client:
+    build: ./tlpservices/embodi-client
+    image: embodi-client
+    volumes:
+      - ./var/logs:/var/logs
+    ports:
+      - 5690:5690
+    env_file: .env
 # disk volumes

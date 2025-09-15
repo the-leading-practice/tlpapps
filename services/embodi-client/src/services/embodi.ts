@@ -53,6 +53,8 @@ const createEmbodiService = () => {
 		let json: any = undefined;
 		try {
 			const res = await fetch(`${endpoint}${query}`, options);
+
+			if (!res.ok) return undefined;
 			json = await res.json();
 		} catch (error) {
 			if (error instanceof SyntaxError) {
@@ -80,8 +82,9 @@ const createEmbodiService = () => {
 		};
 
 		let json: any = undefined;
+		let res;
 		try {
-			const res = await fetch(`${endpoint}${query}`, options);
+			res = await fetch(`${endpoint}${query}`, options);
 			json = await res.json();
 		} catch (error) {
 			if (error instanceof SyntaxError) {
@@ -91,7 +94,7 @@ const createEmbodiService = () => {
 			}
 		}
 
-		if (json) return json;
+		if (json) return { status: res?.status, data: json };
 
 		return undefined;
 	};

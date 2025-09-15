@@ -3,7 +3,7 @@ import compression from 'compression';
 import getConfig from './config.js';
 import type { Config } from './types/config.js';
 import { routes } from './api/routes.js';
-import { logger } from './logger.js';
+import logger from './logger.js';
 
 const createService = () => {
 	const app = express();
@@ -27,7 +27,7 @@ const createService = () => {
 			return console.log(`${config.service.name} is listening at http://localhost:${port}`);
 		});
 
-		logger.writeLog('info', `starting patient-service`);
+		logger.writeLog('info', `starting embodi-client`);
 	};
 
 	const shutdown = () => {};

@@ -1,6 +1,6 @@
 const createConfigService = () => {
 	const getConfig = async (location: string) => {
-		const url = `http://localhost:5650/config/${location}`;
+		const url = `http://config-service:5650/config/${location}`;
 
 		const options = {
 			method: 'get',

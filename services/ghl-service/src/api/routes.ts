@@ -2,7 +2,7 @@ import { Application } from 'express';
 import { contactController } from '../controllers/contact.js';
 import { locationController } from '../controllers/location.js';
 import { apptController } from '../controllers/appt.js';
-import { calendarController } from 'controllers/calendar.js';
+import { calendarController } from '../controllers/calendar.js';
 
 export const routes = (app: Application) => {
 	app.route('/ghl/contact/').post(contactController.createContact);

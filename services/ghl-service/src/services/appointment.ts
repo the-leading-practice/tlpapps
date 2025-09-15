@@ -107,7 +107,7 @@ const createAppointmentService = () => {
 			body: JSON.stringify(block),
 		};
 
-		const resp = await fetch(`${GHL_API_URL}/calendars/calendars/events/block-slots`, opts);
+		const resp = await fetch(`${GHL_API_URL}/calendars/events/block-slots`, opts);
 
 		const dataStr = await resp.text();
 

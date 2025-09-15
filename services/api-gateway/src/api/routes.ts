@@ -8,7 +8,7 @@ export const routes = (app: Application, config: Config) => {
 	const adm = admin(config);
 
 	app.route('/a').all(adm.app);
-	app.route('/a/*').all(adm.app);
+	// app.route('/a/*').all(adm.app);
 
 	app.route('/api/auth').post(adm.auth);
 

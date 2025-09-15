@@ -1,0 +1,62 @@
+import { embodiSync } from './embodiSync.js';
+import { tlpService } from './services/tlp.js';
+import { service } from './service.js';
+import getConfig from './config.js';
+import registry from './registry.js';
+import type { Config } from './types/config.js';
+import { defaultAppConfig, LocationSetting } from './types/types.js';
+import { CRONTAB } from './constants.js';
+import { Cron } from 'croner';
+import logger from './logger.js';
+
+const config: Config = getConfig();
+
+logger.writeLog('info', '---Embodi Client Starting---');
+
+const fullSync = async () => {
+	const today = new Date();
+	const nextweek = new Date(today.getFullYear(), today.getMonth(), today.getDate() + 7);
+
+	await embodiSync.login();
+
+	locations.forEach(async (loc) => {
+		await embodiSync.sync(today, loc);
+		await embodiSync.sync(nextweek, loc);
+	});
+};
+
+// load up locations and save to registry
+const locations: LocationSetting[] = [];
+config.locations.forEach((loc) => {
+	locations.push({
+		locationId: loc.locationId,
+		secret: loc.secret,
+		token: '',
+		updated: new Date(),
+		config: defaultAppConfig,
+	});
+});
+registry.set('locations', locations);
+
+// login to the tlp services for each location
+for (const location of locations) {
+	const srvConfig = await tlpService.login(location.locationId, location.secret);
+
+	if (srvConfig) {
+		location.token = srvConfig.token;
+		location.config = { ...srvConfig.config };
+		location.updated = new Date();
+	}
+}
+// console.log(registry.get('locations'));
+//
+// do a startup sync
+// fullSync();
+
+// schedule the cron job to run at 8am every morning
+const syncJob = new Cron(CRONTAB);
+
+syncJob.schedule(fullSync);
+
+// start up the hooks listener
+service.start();
