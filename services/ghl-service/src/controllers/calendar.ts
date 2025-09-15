@@ -1,8 +1,8 @@
 import express from 'express';
 import { logger } from '../logger.js';
 import { formatTime, getLocation } from '../utils/common.js';
-import { GHLCalendarBlock } from 'types/common.js';
-import { appointmentService } from 'services/appointment.js';
+import { GHLCalendarBlock } from '../types/common.js';
+import { appointmentService } from '../services/appointment.js';
 
 const createCalendarControler = () => {
 	const getCalendars = () => {};
@@ -21,17 +21,16 @@ const createCalendarControler = () => {
 				calendarId: calendarId,
 				locationId: loc.location,
 				startTime: formatTime(slot.start, timezone) || slot.start,
-				endTime: formatTime(slot.start, timezone) || slot.end,
+				endTime: formatTime(slot.end, timezone) || slot.end,
 			};
 
 			const resp = await appointmentService.createCalendarBlock(block, loc.token);
-
+			console.log(resp);
 			if (resp.status >= 200 && resp.status < 300) {
-				// convert returned data to tlp
 				logger.writeLog('info', 'createBlock()', `successfully created block ${resp.data.id}`);
 			}
 
-			return res.status(resp.status).json(resp.data);
+			return res.status(resp.status).json({ data: resp.data });
 		}
 
 		return res.sendStatus(401);

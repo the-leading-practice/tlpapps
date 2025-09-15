@@ -1,5 +1,6 @@
 import express from 'express';
-import { configService } from 'service/config.js';
+import { configService } from '../service/config.js';
+import { embodiClient } from '../service/embodiClient.js';
 
 const createController = () => {
 	const index = (req: express.Request, res: express.Response) => {
@@ -17,15 +18,15 @@ const createController = () => {
 	};
 
 	const appointmentCreate = async (req: express.Request, res: express.Response) => {
-		console.log(req.body);
-		console.log(req.headers);
+		// console.log(req.body);
+		// console.log(req.headers);
+		res.sendStatus(200);
 
 		const config = await configService.getConfig(req.body.locationId);
-		if (config && config.software === 'Embodi') {
-			// foward hook to embodi client
+		if (config && config.config.Software === 'Embodi') {
+			console.log('forwarding to embodi-client');
+			await embodiClient.createAppointment(req.body);
 		}
-
-		res.sendStatus(200);
 	};
 
 	const sample = (req: express.Request, res: express.Response) => {

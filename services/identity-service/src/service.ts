@@ -4,6 +4,7 @@ import path from 'path';
 import https from 'https';
 import { routes } from './api/routes.js';
 import { Config } from './types/config.js';
+import { __dirname } from './config.js';
 
 export const service = (config: Config) => {
 	const app = express();

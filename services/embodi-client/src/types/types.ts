@@ -40,7 +40,25 @@ export type AppConfig = {
 	AppointmentEndpoint: string;
 	ConnectionString: string;
 	RepeatMilliseconds: number;
+	MaxBatchSize: number;
+	Software: string;
 	Tables: TableSQL[];
+};
+
+export const defaultAppConfig: AppConfig = {
+	LastRun: '',
+	DBProvider: '',
+	UseCacheTable: false,
+	TokenRefreshMilliseconds: 30000,
+	AuthEndpoint: '',
+	NotificationEndpoint: '',
+	PatientEndpoint: '',
+	AppointmentEndpoint: '',
+	ConnectionString: '',
+	RepeatMilliseconds: 900000,
+	MaxBatchSize: 50,
+	Software: '',
+	Tables: [],
 };
 
 export type UserData = {
@@ -63,5 +81,6 @@ export type LocationSetting = {
 	locationId: string;
 	secret: string;
 	token: string;
-	ttl: number;
+	config: AppConfig;
+	updated: Date;
 };

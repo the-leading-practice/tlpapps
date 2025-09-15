@@ -5,7 +5,8 @@ import { idmService } from '../services/idmService.js';
 
 export const admin = (config: Config) => {
 	const app = async (req: express.Request, res: express.Response) => {
-		res.render('status', { services: config.services });
+		// res.render('status', { services: config.services });
+		res.sendStatus(200);
 	};
 
 	const auth = async (req: any, res: express.Response) => {

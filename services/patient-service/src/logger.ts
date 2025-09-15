@@ -34,7 +34,7 @@ const createLogger = () => {
 					period: '1d',
 					totalFiles: LOG_KEEP_FILES,
 					gzip: true,
-				}) as WritableStream,
+				}) as NodeJS.WritableStream,
 			},
 		],
 	});

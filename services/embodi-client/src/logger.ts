@@ -84,4 +84,5 @@ const createLogger = () => {
 	};
 };
 
-export const logger = createLogger();
+const logger = createLogger();
+export default logger;
