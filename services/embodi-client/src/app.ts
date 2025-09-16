@@ -5,7 +5,6 @@ import getConfig from './config.js';
 import registry from './registry.js';
 import type { Config } from './types/config.js';
 import { defaultAppConfig, LocationSetting } from './types/types.js';
-import { CRONTAB } from './constants.js';
 import { Cron } from 'croner';
 import logger from './logger.js';
 
@@ -51,12 +50,17 @@ for (const location of locations) {
 // console.log(registry.get('locations'));
 //
 // do a startup sync
-// fullSync();
+fullSync();
 
 // schedule the cron job to run at 8am every morning
-const syncJob = new Cron(CRONTAB);
+const syncJob = new Cron(config.crontab);
 
-syncJob.schedule(fullSync);
+syncJob.schedule(() => {
+	fullSync();
+	logger.writeLog('info', `next sync at ${syncJob.nextRun()?.toString()}`);
+});
+
+logger.writeLog('info', `next sync at ${syncJob.nextRun()?.toString()}`);
 
 // start up the hooks listener
 service.start();

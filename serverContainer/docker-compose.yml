@@ -9,6 +9,9 @@ services:
 
   identity-service:
     build: ./tlpservices/identity-service
+    depends_on:
+      api-gateway:
+        condition: service_started
     image: identity-service
     ports:
       - 5600:5600
@@ -16,6 +19,9 @@ services:
 
   patient-service:
     build: ./tlpservices/patient-service
+    depends_on:
+      api-gateway:
+        condition: service_started
     image: patient-service
     volumes:
       - ./var/logs:/var/logs
@@ -25,6 +31,9 @@ services:
 
   integration-service:
     build: ./tlpservices/ghl-service
+    depends_on:
+      api-gateway:
+        condition: service_started
     image: integration-service
     ports:
       - 5620:5620
@@ -32,6 +41,9 @@ services:
 
   webhook-service:
     build: ./tlpservices/webhook-service
+    depends_on:
+      api-gateway:
+        condition: service_started
     image: webhook-service
     volumes:
       - ./var/logs:/var/logs
@@ -41,6 +53,9 @@ services:
 
   monitor-service:
     build: ./tlpservices/monitor-service
+    depends_on:
+      api-gateway:
+        condition: service_started
     image: monitor-service
     volumes:
       - ./var/logs:/var/logs
@@ -50,6 +65,9 @@ services:
 
   notification-service:
     build: ./tlpservices/notification-service
+    depends_on:
+      api-gateway:
+        condition: service_started
     image: notification-service
     volumes:
       - ./var/logs:/var/logs
@@ -59,6 +77,9 @@ services:
 
   config-service:
     build: ./tlpservices/config-service
+    depends_on:
+      api-gateway:
+        condition: service_started
     image: config-service
     ports:
       - 5650:5650
@@ -66,6 +87,14 @@ services:
 
   embodi-client:
     build: ./tlpservices/embodi-client
+    depends_on:
+      api-gateway:
+        condition: service_started
+      identity-service:
+        condition: service_started
+      integration-service:
+        condition: service_started
+
     image: embodi-client
     volumes:
       - ./var/logs:/var/logs

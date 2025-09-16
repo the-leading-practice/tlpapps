@@ -1,6 +1,7 @@
 export type Config = {
 	service: Service;
 	locations: Location[];
+	crontab: string;
 };
 
 export type Location = {

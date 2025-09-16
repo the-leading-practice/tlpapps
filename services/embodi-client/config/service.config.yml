@@ -2,6 +2,8 @@ service:
   name: 'Embodi Integration'
   port: 5690
 
+crontab: '* 0 8 * * *'
+
 locations:
   - locationId: 'hyKdI9e7r3RFvFcLEtj7'
     secret: 'ErmHdJiDDouOUN41qXLRVjpG5tWQDaMC'

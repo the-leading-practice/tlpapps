@@ -9,9 +9,6 @@ export const GHL_API_VERSION = process.env.GHL_API_VERSION || '2021-07-28';
 export const USER = process.env.EMBODI_USER || '';
 export const PASS = process.env.EMBODI_PASS || '';
 
-// cron time - assume UTC - default 8:00 AM EST 12:00 PM UTC
-export const CRONTAB = process.env.CRONTAB || '0 12 * * * *';
-
 // logging
 export const LOG_PATH = process.env.LOG_PATH || './var/logs/embodi-client';
 export const LOG_LEVEL: string | number = process.env.LOG_LEVEL || 40;
