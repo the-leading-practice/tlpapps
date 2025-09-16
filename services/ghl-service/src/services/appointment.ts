@@ -119,6 +119,35 @@ const createAppointmentService = () => {
 		return { status: resp.status, data: dataStr };
 	};
 
+	const getCalendarBlocks = async (
+		startTime: string,
+		endTime: string,
+		locationId: string,
+		calendarId: string,
+		token: string,
+	) => {
+		const query = `?locationId=${locationId}&calendarId=${calendarId}&startTime=${startTime}&endTime=${endTime}`;
+
+		const opts = {
+			method: 'GET',
+			headers: {
+				'Content-Type': 'application/json',
+				authorization: `Bearer ${token}`,
+				version: GHL_API_VERSION,
+			},
+		};
+
+		const resp = await fetch(`${GHL_API_URL}/calendars/blocked-slots/${query}`, opts);
+		const dataStr = await resp.text();
+
+		if (resp.status >= 200 && resp.status < 300) {
+			const json = safeJsonParse(dataStr);
+			return { status: resp.status, data: json };
+		}
+
+		return { status: resp.status, data: dataStr };
+	};
+
 	return {
 		getAppointment,
 		getAppointmentsForContact,
@@ -126,6 +155,7 @@ const createAppointmentService = () => {
 		updateAppointment,
 		deleteAppointment,
 		createCalendarBlock,
+		getCalendarBlocks,
 	};
 };
 

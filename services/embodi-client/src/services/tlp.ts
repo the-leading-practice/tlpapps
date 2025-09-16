@@ -30,8 +30,8 @@ const createTLPService = () => {
 
 	const addBlock = async (start: Date, end: Date, location: LocationSetting) => {
 		const blockData = {
-			start: start.toISOString(),
-			end: end.toISOString(),
+			start: start.toISOString().replace('Z', ''),
+			end: end.toISOString().replace('Z', ''),
 		};
 
 		const options = {
@@ -47,12 +47,35 @@ const createTLPService = () => {
 		const resp = await fetch(`${TLP_API_URL}ghl/calendar/block`, options);
 		const json = await resp.json();
 
-		return { status: resp.status, data: json.data };
+		return { status: resp.status, data: json };
+	};
+
+	const getBlock = async (start: Date, end: Date, location: LocationSetting) => {
+		const query = `?startTime=${start.getTime()}&endTime=${end.getTime()}`;
+
+		const options = {
+			method: 'GET',
+			headers: {
+				'Content-Type': 'application/json',
+				Authorization: `Bearer ${location.token}`,
+			},
+		};
+
+		const resp = await fetch(`${TLP_API_URL}/ghl/calendar/block${query}`, options);
+		const text = await resp.text();
+		let json: any;
+
+		if (resp.status === 200) {
+			json = await resp.json();
+		}
+
+		return { status: resp.status, data: resp.status === 200 ? json : text };
 	};
 
 	return {
 		login,
 		addBlock,
+		getBlock,
 	};
 };
 

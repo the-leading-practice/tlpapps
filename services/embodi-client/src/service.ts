@@ -24,7 +24,10 @@ const createService = () => {
 
 		// start the service
 		app.listen(port, () => {
-			return console.log(`${config.service.name} is listening at http://localhost:${port}`);
+			return logger.writeLog(
+				'info',
+				`${config.service.name} is listening at http://localhost:${port}`,
+			);
 		});
 
 		logger.writeLog('info', `starting embodi-client`);

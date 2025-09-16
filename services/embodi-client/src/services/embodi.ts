@@ -1,3 +1,5 @@
+import logger from '../logger.js';
+
 const createEmbodiService = () => {
 	const commonHeaders = {
 		'Content-Type': 'application/json',
@@ -25,9 +27,9 @@ const createEmbodiService = () => {
 			json = await res.json();
 		} catch (error) {
 			if (error instanceof SyntaxError) {
-				console.log('syntax error', error);
+				logger.writeLog('error', `syntax error: ${error}`);
 			} else {
-				console.log('error', error);
+				logger.writeLog('error', `error: ${error}`);
 			}
 		}
 
@@ -40,7 +42,7 @@ const createEmbodiService = () => {
 
 	const checkAvailability = async (start: number, end: number, id: string) => {
 		const endpoint = 'https://staging.portal.embodihealth.com/ghl/appointment/get-availabilities';
-		const query = `?contact_id=${id}&start_time=${start}&end_time=${end}`;
+		const query = `?location_id=${id}&start_time=${start}&end_time=${end}`;
 
 		const options = {
 			method: 'GET',
@@ -58,9 +60,9 @@ const createEmbodiService = () => {
 			json = await res.json();
 		} catch (error) {
 			if (error instanceof SyntaxError) {
-				console.log('syntax error', error);
+				logger.writeLog('error', `syntax error: ${error}`);
 			} else {
-				console.log('error', error);
+				logger.writeLog('error', `error: ${error}`);
 			}
 		}
 
@@ -88,9 +90,9 @@ const createEmbodiService = () => {
 			json = await res.json();
 		} catch (error) {
 			if (error instanceof SyntaxError) {
-				console.log('syntax error', error);
+				logger.writeLog('error', `syntax error: ${error}`);
 			} else {
-				console.log('error', error);
+				logger.writeLog('error', `error: ${error}`);
 			}
 		}
 

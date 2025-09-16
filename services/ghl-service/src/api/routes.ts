@@ -19,6 +19,8 @@ export const routes = (app: Application) => {
 
 	app.route('/ghl/calendar/block').post(calendarController.createBlock);
 
+	app.route('/ghl/calendar/blocks').get(calendarController.getBlockedSlots);
+
 	app
 		.route('/ghl/appointment/')
 		.put(apptController.updateAppointment)

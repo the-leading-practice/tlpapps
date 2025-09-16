@@ -36,9 +36,32 @@ const createCalendarControler = () => {
 		return res.sendStatus(401);
 	};
 
+	const getBlockedSlots = async (req: express.Request, res: express.Response) => {
+		const locHeader = (req.headers['x-tlp-app-location'] as string) || '';
+		const calendarId = (req.headers['x-tlp-app-calendar'] as string) || '';
+		const loc = getLocation(locHeader);
+
+		const startTime = req.params.startTime;
+		const endTime = req.params.endTime;
+
+		if (loc && loc.location) {
+			const resp = await appointmentService.getCalendarBlocks(
+				startTime,
+				endTime,
+				loc.location,
+				calendarId,
+				loc.token,
+			);
+			return res.sendStatus(resp.status).json(resp.data);
+		}
+
+		return res.sendStatus(200).json([]);
+	};
+
 	return {
 		getCalendars,
 		createBlock,
+		getBlockedSlots,
 	};
 };
 
