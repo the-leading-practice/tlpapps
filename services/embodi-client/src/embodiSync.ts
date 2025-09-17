@@ -1,10 +1,10 @@
 import { embodiService } from './services/embodi.js';
 import { USER, PASS } from './constants.js';
 import { getWeekStartEnd } from './utils/time.js';
-import { Day, Slot } from './utils/calendar.js';
 import { tlpService } from './services/tlp.js';
-import { LocationSetting } from './types/types.js';
+import { LocationSetting, Slot, Dictionary } from './types/types.js';
 import logger from './logger.js';
+import getConfig from './config.js';
 
 const createEmbodiSync = () => {
 	const login = async () => {
@@ -20,26 +20,10 @@ const createEmbodiSync = () => {
 		// console.log(global.token);
 	};
 
-	const checkForExistingBlock = async (start: Date, end: Date, location: LocationSetting) => {
-		const startTime = start.getTime();
-		const resp = await tlpService.getBlock(start, end, location);
-
-		if (resp.status === 200) {
-			const json = JSON.parse(resp.data);
-			for (const event of json.data.events) {
-				const eventStart = new Date(event.startTime).getTime();
-				if (eventStart === startTime) {
-					return true;
-				}
-			}
-		}
-
-		return false;
-	};
-
 	const getAvailability = async (start: Date, end: Date, location: LocationSetting) => {
 		const startTime = Math.floor(start.getTime() / 1000);
 		const endTime = Math.floor(end.getTime() / 1000);
+		const config = getConfig();
 
 		logger.writeLog(
 			'info',
@@ -47,6 +31,7 @@ const createEmbodiSync = () => {
 		);
 		logger.writeLog('info', `unix timestamp ${start} to ${end}`);
 
+		// get available slots from embodi
 		const avail = await embodiService.checkAvailability(startTime, endTime, location.locationId);
 		console.log(avail);
 		if (!avail) {
@@ -56,14 +41,22 @@ const createEmbodiSync = () => {
 
 		logger.writeLog('info', `found ${avail.availabilities.length} slots available`);
 
-		const days: Day[] = [];
+		// get existing blocks from GHL
+		logger.writeLog('info', `requesting existing blocks for same timeframe`);
+		const blkResp = await tlpService.getBlock(start, end, location);
+		const blocks = JSON.parse(blkResp.data);
+		if (blkResp.status !== 200) {
+			logger.writeLog(`warn`, 'there was an error pulling blocks from GHL');
+		}
 
-		console.log(start);
-		console.log(end);
+		// console.log(start);
+		// console.log(end);
 
 		const startIdx = start.getDay();
 		const endIdx = end.getDay();
-		// console.log(startIdx, start.getDay(), endIdx, end.getDay());
+
+		const slots: Dictionary<Slot> = {};
+
 		for (let x = startIdx; x <= endIdx; ++x) {
 			const offset = startIdx === 0 && endIdx === 6 ? x : endIdx - x;
 			const date = new Date(
@@ -75,56 +68,57 @@ const createEmbodiSync = () => {
 				0,
 			);
 
-			days[x] = { date, slots: [] };
-
-			for (let y = 0; y < 9; ++y) {
+			for (let y = 0; y < config.hoursToSync; ++y) {
 				const top = new Date(date);
-				const bottom = new Date(date);
+				top.setHours(12 + y); // TODO - this is a hack to get our times to match up
 
-				// TODO - this is a hack to get our times to match up
-				top.setHours(12 + y);
-				bottom.setHours(12 + y);
+				const bottom = new Date(top);
 				bottom.setMinutes(30);
 
-				days[x].slots.push({ date: top, open: false });
-				days[x].slots.push({ date: bottom, open: false });
+				const topTime = Math.floor(top.getTime() / 1000);
+				const bottomTime = Math.floor(bottom.getTime() / 1000);
+
+				slots[topTime] = { date: top, blocked: false, open: false, eventId: '' };
+				slots[bottomTime] = { date: bottom, blocked: false, open: false, eventId: '' };
 			}
 		}
 
+		// filter available slots
 		avail.availabilities.forEach((a: number) => {
 			const top: Date = new Date(a * 1000);
 			const bottom: Date = new Date(top);
-			// console.log(`available: ${top.toString()} ${a}`);
-
 			let saveBottom = false;
+			// console.log(`available: ${top.toString()} ${a}`);
 
 			if (top.getMinutes() === 0) {
 				bottom.setMinutes(30);
 				saveBottom = true;
 			}
 
-			const idx = days[top.getDay()].slots.findIndex(
-				(slot: Slot) => Math.floor(slot.date.getTime() / 1000) === Math.floor(top.getTime() / 1000),
-			);
-
-			if (days[top.getDay()].slots[idx]) {
-				days[top.getDay()].slots[idx].open = true;
+			const topTime = Math.floor(top.getTime() / 1000);
+			if (slots[topTime]) {
+				slots[topTime].open = true;
 			}
 
 			// block an hour
 			if (saveBottom) {
-				const bottomIdx = days[bottom.getDay()].slots.findIndex(
-					(slot: Slot) =>
-						Math.floor(slot.date.getTime() / 1000) === Math.floor(bottom.getTime() / 1000),
-				);
-
-				if (days[bottom.getDay()].slots[bottomIdx]) {
-					days[bottom.getDay()].slots[bottomIdx].open = true;
+				const bottomTime = Math.floor(bottom.getTime() / 1000);
+				if (slots[bottomTime]) {
+					slots[bottomTime].open = true;
 				}
 			}
 		});
 
-		return days;
+		// filter out already blocked slots
+		for (const event of blocks.data.events) {
+			const eventStart = Math.floor(new Date(event.startTime).getTime() / 1000);
+			if (slots[eventStart]) {
+				slots[eventStart].blocked = true;
+				slots[eventStart].eventId = event.id;
+			}
+		}
+
+		return slots;
 	};
 
 	const getWeekAvailability = async (date: Date, location: LocationSetting) => {
@@ -132,7 +126,7 @@ const createEmbodiSync = () => {
 		return getAvailability(week.start, week.end, location);
 	};
 
-	const updateGHL = async (days: Day[], location: LocationSetting) => {
+	const updateGHL = async (slots: any, location: LocationSetting) => {
 		// make sure login is good
 		const now = new Date();
 		if (now.getTime() - location.updated.getTime() >= location.config.TokenRefreshMilliseconds) {
@@ -142,70 +136,63 @@ const createEmbodiSync = () => {
 			location.updated = now;
 		}
 
-		for (const day of days) {
-			if (!day || !day.slots) continue;
-			for (const slot of day.slots) {
-				if (!slot.open) {
-					const start = slot.date;
-					const end = new Date(
-						start.getFullYear(),
-						start.getMonth(),
-						start.getDate(),
-						start.getHours(),
+		const keys = Object.keys(slots);
+		for (const key of keys) {
+			const slot = slots[key];
+			const start = slot.date;
+			const end = new Date(start);
+
+			if (start.getMinutes() === 0) {
+				end.setMinutes(30);
+			} else {
+				end.setHours(end.getHours() + 1);
+				end.setMinutes(0);
+			}
+
+			// we need to block this slot off
+			if (!slot.blocked && !slot.open) {
+				const resp = await tlpService.addBlock(start, end, location);
+
+				if (resp.status >= 200 && resp.status <= 300) {
+					logger.writeLog(
+						'info',
+						`added block to calendar: ${start.toISOString()} ${end.toISOString()}`,
 					);
+				} else {
+					logger.writeLog(
+						'error',
+						`failed to add block to calendar: ${start.toISOString()} ${end.toISOString()}`,
+					);
+				}
+				continue;
+			}
 
-					if (start.getMinutes() === 0) {
-						end.setMinutes(30);
-					} else {
-						end.setHours(end.getHours() + 1);
-						end.setMinutes(0);
-					}
-
-					// check for existing block for this location
-					const isBlocked = await checkForExistingBlock(start, end, location);
-					if (isBlocked) {
-						logger.writeLog(
-							'info',
-							`block already exists for this slot: ${start.toISOString()} ${end.toISOString()}`,
-						);
-
-						continue;
-					}
-
-					const resp = await tlpService.addBlock(start, end, location);
-
-					if (resp.status >= 200 && resp.status <= 300) {
-						logger.writeLog(
-							'info',
-							`added block to calendar: ${start.toISOString()} ${end.toISOString()}`,
-						);
-					} else {
-						logger.writeLog(
-							'error',
-							`failed to add block to calendar: ${start.toISOString()} ${end.toISOString()}`,
-						);
-					}
+			// this slot is now available - delete block
+			if (slot.blocked && slot.open) {
+				const resp = await tlpService.deleteBlock(slot.eventId, location);
+				if (resp.status === 200) {
+					logger.writeLog(
+						'info',
+						`deleted block from calendar ${start.toISOString()} ${slot.eventId}`,
+					);
+				} else {
+					logger.writeLog(
+						'error',
+						`error deleting block from calendar ${start.toISOString()} ${slot.eventId} ${resp.data}`,
+					);
 				}
 			}
 		}
 	};
 
 	const sync = async (date: Date, location: LocationSetting) => {
-		const days = await getWeekAvailability(date, location);
-
-		// post to GHL
-		if (days && days.length > 0) {
-			await updateGHL(days, location);
-		}
+		const slots = await getWeekAvailability(date, location);
+		await updateGHL(slots, location);
 	};
 
 	const syncRange = async (start: Date, end: Date, location: LocationSetting) => {
-		const days = await getAvailability(start, end, location);
-
-		// post to GHL
-		if (days && days.length > 0) {
-			await updateGHL(days, location);
-		}
+		const slots = await getAvailability(start, end, location);
+		await updateGHL(slots, location);
 	};
 
 	return {

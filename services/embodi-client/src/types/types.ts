@@ -1,25 +1,13 @@
-export type Token = {
-	access_token: string;
-	token_type: string;
-	expires_in: number;
-	refresh_token: string;
-	scope: string;
-	userType: string;
-	hashedCompanyId: string;
-	locationId: string;
+export type Slot = {
+	date: Date;
+	open: boolean;
+	blocked: boolean;
+	eventId: string;
 };
 
-export type AccessToken = {
-	location: string;
-	name: string;
-	calendar: string;
-	timezone: string;
-	secret: string;
-	token: string;
-	pushGHL: boolean;
-	pushAppt: boolean;
-	pushPat: boolean;
-	software: string;
+export type Day = {
+	date: Date;
+	slots: Slot[];
 };
 
 export type TableSQL = {
@@ -59,21 +47,6 @@ export const defaultAppConfig: AppConfig = {
 	MaxBatchSize: 50,
 	Software: '',
 	Tables: [],
-};
-
-export type UserData = {
-	firstName?: string;
-	lastName?: string;
-	lastLogin?: string;
-	lastIpAddress?: string;
-};
-
-export type LoginData = {
-	email?: string;
-	password?: string;
-	verified?: boolean;
-	active?: boolean;
-	user?: UserData;
 };
 
 export type Dictionary<T> = { [key: string]: T };

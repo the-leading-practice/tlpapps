@@ -66,10 +66,28 @@ const createTLPService = () => {
 		return { status: resp.status, data: text };
 	};
 
+	const deleteBlock = async (eventId: string, location: LocationSetting) => {
+		const query = `?eventId=${eventId}`;
+
+		const options = {
+			method: 'DELETE',
+			headers: {
+				'Content-Type': 'application/json',
+				Authorization: `Bearer ${location.token}`,
+			},
+		};
+
+		const resp = await fetch(`${TLP_API_URL}ghl/calendar/block${query}`, options);
+		const text = await resp.text();
+
+		return { status: resp.status, data: text };
+	};
+
 	return {
 		login,
 		addBlock,
 		getBlock,
+		deleteBlock,
 	};
 };
 
