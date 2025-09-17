@@ -148,6 +148,27 @@ const createAppointmentService = () => {
 		return { status: resp.status, data: dataStr };
 	};
 
+	const deleteCalendarBlock = async (eventId: string, token: string) => {
+		const opts = {
+			method: 'DELETE',
+			headers: {
+				'Content-Type': 'application/json',
+				authorization: `Bearer ${token}`,
+				version: GHL_API_VERSION,
+			},
+		};
+
+		const resp = await fetch(`${GHL_API_URL}/calendars/events/${eventId}`, opts);
+		const dataStr = await resp.text();
+
+		if (resp.status >= 200 && resp.status < 300) {
+			const json = safeJsonParse(dataStr);
+			return { status: resp.status, data: json };
+		}
+
+		return { status: resp.status, data: dataStr };
+	};
+
 	return {
 		getAppointment,
 		getAppointmentsForContact,
@@ -156,6 +177,7 @@ const createAppointmentService = () => {
 		deleteAppointment,
 		createCalendarBlock,
 		getCalendarBlocks,
+		deleteCalendarBlock,
 	};
 };
 

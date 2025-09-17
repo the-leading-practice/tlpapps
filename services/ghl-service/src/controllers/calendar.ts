@@ -41,8 +41,8 @@ const createCalendarControler = () => {
 		const calendarId = (req.headers['x-tlp-app-calendar'] as string) || '';
 		const loc = getLocation(locHeader);
 
-		const startTime = req.params.startTime;
-		const endTime = req.params.endTime;
+		const startTime = req.query.startTime as string;
+		const endTime = req.query.endTime as string;
 
 		if (loc && loc.location) {
 			const resp = await appointmentService.getCalendarBlocks(
@@ -52,16 +52,31 @@ const createCalendarControler = () => {
 				calendarId,
 				loc.token,
 			);
-			return res.sendStatus(resp.status).json(resp.data);
+			return res.status(resp.status).json({ data: resp.data });
 		}
 
-		return res.sendStatus(200).json([]);
+		return res.status(200).json({ data: [] });
+	};
+
+	const deleteSlot = async (req: express.Request, res: express.Response) => {
+		const locHeader = (req.headers['x-tlp-app-location'] as string) || '';
+		const loc = getLocation(locHeader);
+
+		const eventId = req.query.eventId as string;
+
+		if (loc && loc.token) {
+			const resp = await appointmentService.deleteCalendarBlock(eventId, loc.token);
+			return res.sendStatus(resp.status);
+		}
+
+		return res.sendStatus(200);
 	};
 
 	return {
 		getCalendars,
 		createBlock,
 		getBlockedSlots,
+		deleteSlot,
 	};
 };
 

@@ -1,4 +1,3 @@
-import logger from '../logger.js';
 import { LocationSetting } from '../types/types.js';
 
 const TLP_API_URL = 'https://tlpapps.theleadingpractice.com/api/';
@@ -30,8 +29,8 @@ const createTLPService = () => {
 
 	const addBlock = async (start: Date, end: Date, location: LocationSetting) => {
 		const blockData = {
-			start: start.toISOString().replace('Z', ''),
-			end: end.toISOString().replace('Z', ''),
+			start: start.toISOString(),
+			end: end.toISOString(),
 		};
 
 		const options = {
@@ -61,15 +60,10 @@ const createTLPService = () => {
 			},
 		};
 
-		const resp = await fetch(`${TLP_API_URL}/ghl/calendar/block${query}`, options);
+		const resp = await fetch(`${TLP_API_URL}ghl/calendar/block${query}`, options);
 		const text = await resp.text();
-		let json: any;
 
-		if (resp.status === 200) {
-			json = await resp.json();
-		}
-
-		return { status: resp.status, data: resp.status === 200 ? json : text };
+		return { status: resp.status, data: text };
 	};
 
 	return {

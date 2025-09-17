@@ -76,7 +76,7 @@ export const formatTime = (time: string, timezone: string) => {
 
 	if (time.match(noTz)) {
 		let newTime = time.trim().replace(' ', 'T');
-		const { offsetString, offsetMinutes } = getCurrentOffset(time, timezone);
+		const { offsetString } = getCurrentOffset(time, timezone);
 
 		newTime += offsetString;
 		return new Date(newTime).toISOString();

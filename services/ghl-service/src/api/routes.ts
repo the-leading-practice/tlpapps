@@ -17,9 +17,11 @@ export const routes = (app: Application) => {
 
 	app.route('/ghl/appointment:id').get(apptController.getAppointment);
 
-	app.route('/ghl/calendar/block').post(calendarController.createBlock);
-
-	app.route('/ghl/calendar/blocks').get(calendarController.getBlockedSlots);
+	app
+		.route('/ghl/calendar/block')
+		.get(calendarController.getBlockedSlots)
+		.post(calendarController.createBlock)
+		.delete(calendarController.deleteSlot);
 
 	app
 		.route('/ghl/appointment/')
