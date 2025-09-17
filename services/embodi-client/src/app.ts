@@ -47,10 +47,19 @@ for (const location of locations) {
 		location.updated = new Date();
 	}
 }
-// console.log(registry.get('locations'));
-//
+console.log(registry.get('locations'));
+
 // do a startup sync
 fullSync();
+
+// this is for single day testing only - leave behind - but keep commented
+// const syncBlock = async (start: Date, end: Date, location: LocationSetting) => {
+// 	await embodiSync.login();
+// 	await embodiSync.syncRange(start, end, location);
+// };
+// const start = new Date('2025-09-18T12:00:00.000Z');
+// const end = new Date('2025-09-18T21:00:00.000Z');
+// syncBlock(start, end, locations[0]);
 
 // schedule the cron job to run at 8am every morning
 const syncJob = new Cron(config.crontab);

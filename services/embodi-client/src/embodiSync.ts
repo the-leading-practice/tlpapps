@@ -20,20 +20,34 @@ const createEmbodiSync = () => {
 		// console.log(global.token);
 	};
 
-	const getAvailability = async (date: Date, location: LocationSetting) => {
-		const week = getWeekStartEnd(date);
-		const start = Math.floor(week.start.getTime() / 1000);
-		const end = Math.floor(week.end.getTime() / 1000);
+	const checkForExistingBlock = async (start: Date, end: Date, location: LocationSetting) => {
+		const startTime = start.getTime();
+		const resp = await tlpService.getBlock(start, end, location);
+
+		if (resp.status === 200) {
+			const json = JSON.parse(resp.data);
+			for (const event of json.data.events) {
+				const eventStart = new Date(event.startTime).getTime();
+				if (eventStart === startTime) {
+					return true;
+				}
+			}
+		}
+
+		return false;
+	};
+
+	const getAvailability = async (start: Date, end: Date, location: LocationSetting) => {
+		const startTime = Math.floor(start.getTime() / 1000);
+		const endTime = Math.floor(end.getTime() / 1000);
 
 		logger.writeLog(
 			'info',
-			`requesting availability for ${location.locationId} ${week.start.toString()} to ${week.start.toString()}`,
+			`requesting availability for ${location.locationId} ${start.toString()} to ${start.toString()}`,
 		);
 		logger.writeLog('info', `unix timestamp ${start} to ${end}`);
-		// console.log(week.start.toISOString(), start);
-		// console.log(week.end.toISOString(), end);
 
-		const avail = await embodiService.checkAvailability(start, end, location.locationId);
+		const avail = await embodiService.checkAvailability(startTime, endTime, location.locationId);
 		console.log(avail);
 		if (!avail) {
 			logger.writeLog('info', `nothing available for the timeframe requested`);
@@ -44,11 +58,18 @@ const createEmbodiSync = () => {
 
 		const days: Day[] = [];
 
-		for (let x = 0; x < 7; ++x) {
+		console.log(start);
+		console.log(end);
+
+		const startIdx = start.getDay();
+		const endIdx = end.getDay();
+		// console.log(startIdx, start.getDay(), endIdx, end.getDay());
+		for (let x = startIdx; x <= endIdx; ++x) {
+			const offset = startIdx === 0 && endIdx === 6 ? x : endIdx - x;
 			const date = new Date(
-				week.start.getFullYear(),
-				week.start.getMonth(),
-				week.start.getDate() + x,
+				start.getFullYear(),
+				start.getMonth(),
+				start.getDate() + offset,
 				8,
 				0,
 				0,
@@ -60,8 +81,9 @@ const createEmbodiSync = () => {
 				const top = new Date(date);
 				const bottom = new Date(date);
 
-				top.setHours(8 + y);
-				bottom.setHours(8 + y);
+				// TODO - this is a hack to get our times to match up
+				top.setHours(12 + y);
+				bottom.setHours(12 + y);
 				bottom.setMinutes(30);
 
 				days[x].slots.push({ date: top, open: false });
@@ -70,18 +92,44 @@ const createEmbodiSync = () => {
 		}
 
 		avail.availabilities.forEach((a: number) => {
-			const d = new Date(a * 1000);
-			// console.log(`available: ${d.toString()}`);
-			const idx = days[d.getDay()].slots.findIndex(
-				(slot: Slot) => Math.floor(slot.date.getTime() / 1000) === Math.floor(d.getTime() / 1000),
+			const top: Date = new Date(a * 1000);
+			const bottom: Date = new Date(top);
+			// console.log(`available: ${top.toString()} ${a}`);
+
+			let saveBottom = false;
+
+			if (top.getMinutes() === 0) {
+				bottom.setMinutes(30);
+				saveBottom = true;
+			}
+
+			const idx = days[top.getDay()].slots.findIndex(
+				(slot: Slot) => Math.floor(slot.date.getTime() / 1000) === Math.floor(top.getTime() / 1000),
 			);
 
-			if (days[d.getDay()].slots[idx]) {
-				days[d.getDay()].slots[idx].open = true;
+			if (days[top.getDay()].slots[idx]) {
+				days[top.getDay()].slots[idx].open = true;
+			}
+
+			// block an hour
+			if (saveBottom) {
+				const bottomIdx = days[bottom.getDay()].slots.findIndex(
+					(slot: Slot) =>
+						Math.floor(slot.date.getTime() / 1000) === Math.floor(bottom.getTime() / 1000),
+				);
+
+				if (days[bottom.getDay()].slots[bottomIdx]) {
+					days[bottom.getDay()].slots[bottomIdx].open = true;
+				}
 			}
 		});
 
 		return days;
+	};
+
+	const getWeekAvailability = async (date: Date, location: LocationSetting) => {
+		const week = getWeekStartEnd(date);
+		return getAvailability(week.start, week.end, location);
 	};
 
 	const updateGHL = async (days: Day[], location: LocationSetting) => {
@@ -95,6 +143,7 @@ const createEmbodiSync = () => {
 		}
 
 		for (const day of days) {
+			if (!day || !day.slots) continue;
 			for (const slot of day.slots) {
 				if (!slot.open) {
 					const start = slot.date;
@@ -102,13 +151,19 @@ const createEmbodiSync = () => {
 						start.getFullYear(),
 						start.getMonth(),
 						start.getDate(),
-						start.getHours() + 1,
+						start.getHours(),
 					);
 
-					// check for existing block for this location
-					const block = await tlpService.getBlock(start, end, location);
+					if (start.getMinutes() === 0) {
+						end.setMinutes(30);
+					} else {
+						end.setHours(end.getHours() + 1);
+						end.setMinutes(0);
+					}
 
-					if (block.status === 200) {
+					// check for existing block for this location
+					const isBlocked = await checkForExistingBlock(start, end, location);
+					if (isBlocked) {
 						logger.writeLog(
 							'info',
 							`block already exists for this slot: ${start.toISOString()} ${end.toISOString()}`,
@@ -136,7 +191,16 @@ const createEmbodiSync = () => {
 	};
 
 	const sync = async (date: Date, location: LocationSetting) => {
-		const days = await getAvailability(date, location);
+		const days = await getWeekAvailability(date, location);
+
+		// post to GHL
+		if (days && days.length > 0) {
+			await updateGHL(days, location);
+		}
+	};
+
+	const syncRange = async (start: Date, end: Date, location: LocationSetting) => {
+		const days = await getAvailability(start, end, location);
 
 		// post to GHL
 		if (days && days.length > 0) {
@@ -147,6 +211,7 @@ const createEmbodiSync = () => {
 	return {
 		login,
 		sync,
+		syncRange,
 	};
 };
 
