@@ -92,8 +92,12 @@ const createEmbodiSync = () => {
 
 			if (top.getMinutes() === 0) {
 				bottom.setMinutes(30);
-				saveBottom = true;
+			} else {
+				bottom.setHours(bottom.getHours() + 1);
+				bottom.setMinutes(0);
 			}
+
+			if (avail.duration > 30) saveBottom = true;
 
 			const topTime = Math.floor(top.getTime() / 1000);
 			if (slots[topTime]) {

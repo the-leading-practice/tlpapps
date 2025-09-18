@@ -8,6 +8,9 @@ import { defaultAppConfig, LocationSetting } from './types/types.js';
 import { Cron } from 'croner';
 import logger from './logger.js';
 
+// for testing - leave commented
+//process.env.TZ = 'UTC';
+
 const config: Config = getConfig();
 
 logger.writeLog('info', '---Embodi Client Starting---');
