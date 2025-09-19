@@ -44,10 +44,16 @@ const createEmbodiSync = () => {
 		// get existing blocks from GHL
 		logger.writeLog('info', `requesting existing blocks for same timeframe`);
 		const blkResp = await tlpService.getBlock(start, end, location);
-		const blocks = JSON.parse(blkResp.data);
+
 		if (blkResp.status !== 200) {
-			logger.writeLog(`warn`, 'there was an error pulling blocks from GHL');
+			logger.writeLog(
+				'error',
+				`error getting existing blocks from GHL ${blkResp.status} ${blkResp.data}`,
+			);
+			return {};
 		}
+
+		const blocks = JSON.parse(blkResp.data);
 
 		// console.log(start);
 		// console.log(end);
