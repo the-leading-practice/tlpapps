@@ -24,6 +24,13 @@ const createEmbodiService = () => {
 		let json: any = undefined;
 		try {
 			const res = await fetch(`${endpoint}`, options);
+
+			if (!res.ok) {
+				const text = await res.text();
+				logger.writeLog('error', `error: ${res.status} ${text}`);
+				return undefined;
+			}
+
 			json = await res.json();
 		} catch (error) {
 			if (error instanceof SyntaxError) {
@@ -44,6 +51,11 @@ const createEmbodiService = () => {
 		const endpoint = 'https://staging.portal.embodihealth.com/ghl/appointment/get-availabilities';
 		const query = `?location_id=${id}&start_time=${start}&end_time=${end}`;
 
+		if (!global.token || global.token.length === 0) {
+			logger.writeLog('error', `no valid login with embodi returning`);
+			return undefined;
+		}
+
 		const options = {
 			method: 'GET',
 			headers: {
@@ -56,7 +68,12 @@ const createEmbodiService = () => {
 		try {
 			const res = await fetch(`${endpoint}${query}`, options);
 
-			if (!res.ok) return undefined;
+			if (!res.ok) {
+				const text = await res.text();
+				logger.writeLog('error', `error: ${res.status} ${text}`);
+				return undefined;
+			}
+
 			json = await res.json();
 		} catch (error) {
 			if (error instanceof SyntaxError) {
@@ -75,6 +92,11 @@ const createEmbodiService = () => {
 		const endpoint = 'https://staging.portal.embodihealth.com/ghl/appointment/create';
 		const query = `?contact_id=${id}&start_time=${start}&end_time=${end}`;
 
+		if (!global.token || global.token.length === 0) {
+			logger.writeLog('error', `no valid login with embodi returning`);
+			return undefined;
+		}
+
 		const options = {
 			method: 'GET',
 			headers: {
@@ -87,6 +109,13 @@ const createEmbodiService = () => {
 		let res;
 		try {
 			res = await fetch(`${endpoint}${query}`, options);
+
+			if (!res.ok) {
+				const text = await res.text();
+				logger.writeLog('error', `error: ${res.status} ${text}`);
+				return undefined;
+			}
+
 			json = await res.json();
 		} catch (error) {
 			if (error instanceof SyntaxError) {
