@@ -1,6 +1,7 @@
 export type Config = {
 	service: Service;
 	logging: LoggingType;
+	msgService: string;
 };
 
 export type Service = {

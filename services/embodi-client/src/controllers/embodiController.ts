@@ -4,6 +4,7 @@ import logger from '../logger.js';
 import registry from '../registry.js';
 import { embodiService } from '../services/embodi.js';
 import { LocationSetting } from '../types/types.js';
+import { tlpService } from '../services/tlp.js';
 
 const createEmbodiController = () => {
 	const index = async (req: express.Request, res: express.Response) => {
@@ -28,6 +29,9 @@ const createEmbodiController = () => {
 			`sending start: ${Math.floor(start.getTime() / 1000)}, end: ${Math.floor(end.getTime() / 1000)}, contactId: ${data.appointment.contactId} to embodi`,
 		);
 
+		const locations: LocationSetting[] = registry.get('locations');
+		const loc = locations.find((l: LocationSetting) => l.locationId === data.locationId);
+
 		await embodiSync.login();
 		const resp = await embodiService.scheduleAppointment(
 			Math.floor(start.getTime() / 1000),
@@ -37,6 +41,16 @@ const createEmbodiController = () => {
 
 		// if failed post notification
 		if (resp && resp.status === 409) {
+			const msg = {
+				severity: 'Error',
+				timestamp: new Date().toISOString(),
+				message: `unable to schedule appointment with EMBODI timeslot no longer available\n**ID**: ${data.appointment.id}\n**Contact**: ${data.appointment.contactId}\n**Start Time**: ${data.appointment.startTime}\n**End Time**: ${data.appointment.endTime}`,
+			};
+
+			if (loc) {
+				await tlpService.postNotification(msg, loc);
+			}
+
 			// send failure notice to the notification service
 			logger.writeLog('error', 'unable to schedule appointment with embodi');
 		}
