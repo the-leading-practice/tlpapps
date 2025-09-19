@@ -3,7 +3,9 @@ import express from 'express';
 import { NotifyMessage } from '../types/common.js';
 import { getLocation } from '../utils/common.js';
 import { telegramService } from '../services/telegram.js';
-import { TELEGRAM_BOT_LEVEL } from '../constants/constants.js';
+import { POST_LEVEL } from '../constants/constants.js';
+import getConfig from '../config.js';
+import { clickupService } from '../services/clickup.js';
 
 const _getSeverityIndex = (severity: string) => {
 	const sevArray = ['trace', 'debug', 'info', 'warn', 'error', 'fatal'];
@@ -13,7 +15,8 @@ const _getSeverityIndex = (severity: string) => {
 };
 
 const createController = () => {
-	const tgLevel = _getSeverityIndex(TELEGRAM_BOT_LEVEL);
+	const tgLevel = _getSeverityIndex(POST_LEVEL);
+	const config = getConfig();
 
 	const index = (req: express.Request, res: express.Response) => {
 		const ret = {
@@ -65,7 +68,11 @@ const createController = () => {
 
 		if (sev >= tgLevel) {
 			// send to tg
-			telegramService.sendMessage(logMsg);
+			if (config.msgService === 'telegram') {
+				telegramService.sendMessage(logMsg);
+			} else {
+				clickupService.sendMessage(logMsg);
+			}
 		}
 
 		return res.sendStatus(200);

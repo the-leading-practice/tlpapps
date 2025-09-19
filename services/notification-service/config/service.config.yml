@@ -1,9 +1,9 @@
 service:
-  name: "Notification Service"
+  name: 'Notification Service'
   port: 5640
 
+msgService: 'clickup'
+
 logging:
-  logPath: "/home/oorin/Projects/Clients/TheLeadingPractice/logs/notification-service/"
-  fileName: "error.log"
-
-
+  logPath: '/home/oorin/Projects/Clients/TheLeadingPractice/logs/notification-service/'
+  fileName: 'error.log'

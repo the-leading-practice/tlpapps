@@ -1,8 +1,11 @@
+import { NotifyMessage } from '../types/common.js';
 import { CLICKUP_API_KEY, CLICKUP_TEAM_ID, CLICKUP_CHANNEL_ID } from '../constants/constants.js';
 
 const createClickupService = () => {
-	const postMessage = async (message: string) => {
+	const sendMessage = async (logMsg: NotifyMessage) => {
 		const url = `https://api.clickup.com/api/v3/workspaces/${CLICKUP_TEAM_ID}/chat/channels/${CLICKUP_CHANNEL_ID}/messages`;
+
+		const message = `# ${logMsg.severity.toUpperCase()}: ${logMsg.message}\n**Location:** ${logMsg.location}\n**Name:** ${logMsg.name}\n**TimeStamp:** ${logMsg.timestamp}`;
 
 		const data = {
 			type: 'message',
@@ -29,7 +32,7 @@ const createClickupService = () => {
 	};
 
 	return {
-		postMessage,
+		sendMessage,
 	};
 };
 

@@ -57,3 +57,9 @@ export type LocationSetting = {
 	config: AppConfig;
 	updated: Date;
 };
+
+export type NotificationMessage = {
+	message: string;
+	severity: string;
+	timestamp: string;
+};

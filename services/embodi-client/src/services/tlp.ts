@@ -1,4 +1,4 @@
-import { LocationSetting } from '../types/types.js';
+import { LocationSetting, NotificationMessage } from '../types/types.js';
 
 const TLP_API_URL = 'https://tlpapps.theleadingpractice.com/api/';
 
@@ -83,11 +83,28 @@ const createTLPService = () => {
 		return { status: resp.status, data: text };
 	};
 
+	const postNotification = async (msg: NotificationMessage, location: LocationSetting) => {
+		const options = {
+			method: 'POST',
+			headers: {
+				'Content-Type': 'application/json',
+				Authorization: `Bearer ${location.token}`,
+			},
+			body: JSON.stringify(msg),
+		};
+
+		const resp = await fetch(`${TLP_API_URL}notification`, options);
+		const text = await resp.text();
+
+		return { status: resp.status, data: text };
+	};
+
 	return {
 		login,
 		addBlock,
 		getBlock,
 		deleteBlock,
+		postNotification,
 	};
 };
 
