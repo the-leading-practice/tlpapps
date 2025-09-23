@@ -25,4 +25,6 @@ export const routes = (app: Application) => {
 	// ghl outh access token callback
 	app.route('/idm/oauth').get(controller.oauth);
 	app.route('/idm/oauth/*').get(controller.oauth);
+
+	app.route('/idm/location/auth').post(controller.locationAuth);
 };

@@ -1,29 +1,36 @@
 import { embodiService } from './services/embodi.js';
-import { USER, PASS } from './constants.js';
+import { EMBODI_API_USER, EMBODI_API_PASS } from './constants.js';
 import { getWeekStartEnd } from './utils/time.js';
 import { tlpService } from './services/tlp.js';
 import { LocationSetting, Slot, Dictionary } from './types/types.js';
 import logger from './logger.js';
 import getConfig from './config.js';
+import registry from './registry.js';
 
 const createEmbodiSync = () => {
 	const login = async () => {
-		if (USER.length === 0 || PASS.length === 0) {
+		if (EMBODI_API_USER.length === 0 || EMBODI_API_PASS.length === 0) {
 			logger.writeLog('error', 'cannot run without a valid user or password');
 			process.exit(1);
 		}
 
-		await embodiService.login(USER, PASS);
-		if (global.token.length > 0) {
-			logger.writeLog('info', 'received token from embodi');
+		const auth = await embodiService.login(EMBODI_API_USER, EMBODI_API_PASS);
+
+		if (!auth || auth.token.length === 0) {
+			logger.writeLog('error', `login to embodi failed`);
 		}
-		// console.log(global.token);
 	};
 
 	const getAvailability = async (start: Date, end: Date, location: LocationSetting) => {
 		const startTime = Math.floor(start.getTime() / 1000);
 		const endTime = Math.floor(end.getTime() / 1000);
 		const config = getConfig();
+
+		const auth = registry.get('embodiAuth');
+		if (!auth || auth.token.length === 0) {
+			logger.writeLog('error', `no valid login with embodi returning`);
+			return undefined;
+		}
 
 		logger.writeLog(
 			'info',
@@ -33,7 +40,7 @@ const createEmbodiSync = () => {
 
 		// get available slots from embodi
 		const avail = await embodiService.checkAvailability(startTime, endTime, location.locationId);
-		console.log(avail);
+		// console.log(avail);
 		if (!avail) {
 			logger.writeLog('info', `nothing available for the timeframe requested`);
 			return [];
@@ -145,6 +152,8 @@ const createEmbodiSync = () => {
 			location.config = resp.config;
 			location.updated = now;
 		}
+
+		if (!slots) return;
 
 		const keys = Object.keys(slots);
 		for (const key of keys) {

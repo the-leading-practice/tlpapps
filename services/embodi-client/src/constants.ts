@@ -6,8 +6,12 @@ export const CLIENT_SECRET = process.env.CLIENT_SECRET || '';
 export const GHL_API_URL = process.env.GHL_API_URL || 'https://services.leadconnectorhq.com';
 export const GHL_API_VERSION = process.env.GHL_API_VERSION || '2021-07-28';
 
-export const USER = process.env.EMBODI_USER || '';
-export const PASS = process.env.EMBODI_PASS || '';
+export const EMBODI_AUTH_URL =
+	process.env.EMBODI_AUTH_URL || 'https://staging-auth.kaizenovate.net';
+export const EMBODI_API_URL =
+	process.env.EMBODI_API_URL || 'https://staging.portal.embodihealth.com';
+export const EMBODI_API_USER = process.env.EMBODI_API_USER || '';
+export const EMBODI_API_PASS = process.env.EMBODI_API_PASS || '';
 
 // logging
 export const LOG_PATH = process.env.LOG_PATH || './var/logs/embodi-client';
