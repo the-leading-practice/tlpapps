@@ -4,9 +4,9 @@ import { cryptoService } from '../services/crypto.js';
 import { accessTokenService } from '../services/accessToken/service.js';
 import { appConfigService } from '../services/appConfig/service.js';
 import jwt from 'jsonwebtoken';
-import { TOKEN_KEY } from '../constants/constants.js';
-import type { AccessToken, LoginData, Token } from '../types/types.js';
-import { access } from 'fs';
+import { CLIENT_ID, CLIENT_SECRET, TOKEN_KEY } from '../constants/constants.js';
+import type { AccessToken, Token } from '../types/types.js';
+import { HighLevel } from '@gohighlevel/api-client';
 
 const createController = () => {
 	const index = async (req: any, res: express.Response) => {
@@ -67,6 +67,7 @@ const createController = () => {
 			}
 
 			const updateToken: AccessToken = {
+				company: token.company,
 				location: location,
 				name: token.name,
 				calendar: token.calendar,
@@ -205,72 +206,147 @@ const createController = () => {
 		// console.log( req.query );
 
 		// get code
-		const ghlCode = req.query.code;
+		const ghlCode = req.query.code || '';
 		if (typeof ghlCode === 'undefined' || ghlCode.length === 0) {
 			res.sendStatus(400);
 			return;
 		}
 
-		// get token
-		ghlTokenService.getAccessToken(ghlCode as string).then(async (msg) => {
-			// encrypt token for long term storage
-			const encToken = cryptoService.encrypt(JSON.stringify(msg));
-			const secret = cryptoService.getNewSecret();
-			const locationId = msg.data.locationId;
+		const hl = new HighLevel({ clientId: CLIENT_ID, clientSecret: CLIENT_SECRET });
+		hl.oauth
+			.getAccessToken({
+				client_id: CLIENT_ID,
+				client_secret: CLIENT_SECRET,
+				grant_type: 'authorization_code',
+				code: ghlCode as string,
+				user_type: 'Location',
+			})
+			.then(async (msg: any) => {
+				// get token
+				// ghlTokenService.getAccessToken(ghlCode as string).then(async (msg) => {
+				const token = msg;
+				console.log(token);
 
-			// TODO - hash the secret for storage in the database
-			const existingToken = await accessTokenService.getTokenByLocation(locationId);
+				// encrypt token for long term storage
+				const encToken = cryptoService.encrypt(JSON.stringify(msg));
+				const secret = cryptoService.getNewSecret();
 
-			let name = existingToken ? existingToken.name : '';
-			const calendar = existingToken ? existingToken.calendar : 'need-calendar-id';
-			let timezone = existingToken ? existingToken.timezone : '';
-			const pushGHL = existingToken && existingToken.pushGHL ? existingToken.pushGHL : false;
-			const pushAppt = existingToken && existingToken.pushAppt ? existingToken.pushAppt : false;
-			const pushPat = existingToken && existingToken.pushPat ? existingToken.pushPat : false;
-			const software = existingToken && existingToken.software ? existingToken.software : 'unknown';
+				// TODO - hash the secret for storage in the database
+				if (token.companyId) {
+					const existingToken = await accessTokenService.getTokenByCompany(token.companyId);
 
-			if (!existingToken) {
-				// we need to get the data for this practice
-				// get location data from ghl
-				const locationData = await ghlTokenService.getLocationData(
-					locationId,
-					msg.data.access_token,
-				);
+					console.log(existingToken);
 
-				name = locationData.data.location.name;
-				timezone = locationData.data.location.timezone;
-			}
+					const company = token.companyId || 'waiting';
+					const location = token.locationId || 'waiting';
+					let name = existingToken ? existingToken.name : 'waiting';
+					const calendar = existingToken ? existingToken.calendar : 'need-calendar-id';
+					let timezone = existingToken ? existingToken.timezone : 'waiting';
+					const pushGHL = existingToken && existingToken.pushGHL ? existingToken.pushGHL : false;
+					const pushAppt = existingToken && existingToken.pushAppt ? existingToken.pushAppt : false;
+					const pushPat = existingToken && existingToken.pushPat ? existingToken.pushPat : false;
+					const software =
+						existingToken && existingToken.software ? existingToken.software : 'unknown';
 
-			if (timezone.length === 0) {
-				const locationData = await ghlTokenService.getLocationData(
-					locationId,
-					msg.data.access_token,
-				);
-				timezone = locationData.data.location.timezone;
-			}
+					if (!existingToken && token.locationId) {
+						// we need to get the data for this practice
+						// get location data from ghl
+						const locationData = await ghlTokenService.getLocationData(
+							token.locationId,
+							token.access_token,
+						);
 
-			const updateToken: AccessToken = {
-				location: locationId,
-				name: name,
-				calendar: calendar,
-				timezone: timezone,
-				secret: secret,
-				token: encToken,
-				pushGHL: pushGHL,
-				pushAppt: pushAppt,
-				pushPat: pushPat,
-				software: software,
-			};
-			const access = await accessTokenService.updateToken(updateToken);
+						name = locationData.data.location.name;
+						timezone = locationData.data.location.timezone;
+					}
 
-			// send reponse
-			res.status(200);
-			res.set('Content-Security-Policy', 'img-src https://media.theleadingpractice.com');
-			res.render('oauth', {
-				locationId: access.location,
-				locationSecret: access.secret,
+					if (timezone.length === 0 && token.locationId) {
+						const locationData = await ghlTokenService.getLocationData(
+							token.locationId,
+							token.access_token,
+						);
+						timezone = locationData.data.location.timezone;
+					}
+
+					const updateToken: AccessToken = {
+						company: company,
+						location: location,
+						name: name,
+						calendar: calendar,
+						timezone: timezone,
+						secret: secret,
+						token: encToken,
+						pushGHL: pushGHL,
+						pushAppt: pushAppt,
+						pushPat: pushPat,
+						software: software,
+					};
+
+					console.log('updating accessToken');
+					console.log(updateToken);
+					const access = await accessTokenService.updateToken(updateToken);
+
+					// send reponse
+					res.status(200);
+					res.set('Content-Security-Policy', 'img-src https://media.theleadingpractice.com');
+					res.render('oauth', {
+						locationId: access.location,
+						locationSecret: access.secret,
+					});
+				}
 			});
-		});
+	};
+
+	const locationAuth = async (req: express.Request, res: express.Response) => {
+		res.status(200).json({ success: true });
+
+		const data = { ...req.body };
+
+		const hl = new HighLevel({ clientId: CLIENT_ID, clientSecret: CLIENT_SECRET });
+		try {
+			const res = await hl.oauth.getLocationAccessToken({
+				companyId: data.companyId,
+				locationId: data.locationId,
+			});
+
+			const encToken = cryptoService.encrypt(JSON.stringify(res));
+
+			// update token in mongo
+			const existingToken = await accessTokenService.getTokenByCompany(data.companyId);
+			const updateToken: AccessToken = {
+				company: data.companyId,
+				location: data.locationId,
+				name: data.companyName,
+				calendar: 'need-calendar-id',
+				timezone: '',
+				secret: '',
+				token: encToken,
+				pushGHL: false,
+				pushAppt: false,
+				pushPat: false,
+				software: 'unkown',
+			};
+
+			if (existingToken) {
+				updateToken.calendar = existingToken.calendar;
+				updateToken.name = existingToken.name;
+				updateToken.timezone = existingToken.timezone;
+				updateToken.secret = existingToken.timezone;
+				updateToken.pushGHL = existingToken.pushGHL || false;
+				updateToken.pushAppt = existingToken.pushAppt || false;
+				updateToken.pushPat = existingToken.pushPat || false;
+				updateToken.software = existingToken.software;
+
+				if (updateToken.timezone.length === 0) {
+					const locResp = await hl.locations.getLocation({ locationId: data.locationId });
+					existingToken.timezone = locResp.location?.timezone || '';
+				}
+
+				await accessTokenService.updateToken(updateToken);
+			}
+		} catch (err) {
+			console.log(`error getting location access${err}`);
+		}
 	};
 
 	return {
@@ -278,6 +354,7 @@ const createController = () => {
 		login,
 		auth,
 		oauth,
+		locationAuth,
 	};
 };
 

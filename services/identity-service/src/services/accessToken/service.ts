@@ -7,6 +7,11 @@ const createAccessTokenService = () => {
 		return token;
 	};
 
+	const getTokenByCompany = async (company: string) => {
+		const token = await accessTokenModel.findOne({ company: company });
+		return token;
+	};
+
 	const getToken = async (location: string, secret: string) => {
 		const token = await accessTokenModel.findOne({ location: location, secret: secret });
 		return token;
@@ -14,6 +19,7 @@ const createAccessTokenService = () => {
 
 	const createToken = async (accessToken: AccessToken) => {
 		const newToken = await accessTokenModel.create({
+			company: accessToken.company,
 			name: accessToken.name,
 			location: accessToken.location,
 			calendar: accessToken.calendar,
@@ -34,6 +40,7 @@ const createAccessTokenService = () => {
 		const existingToken = await accessTokenModel.findOne({ location: accessToken.location });
 
 		if (existingToken) {
+			existingToken.company = accessToken.company;
 			existingToken.name = accessToken.name;
 			existingToken.calendar = accessToken.calendar;
 			existingToken.timezone = accessToken.timezone;
@@ -54,6 +61,7 @@ const createAccessTokenService = () => {
 	return {
 		getToken,
 		getTokenByLocation,
+		getTokenByCompany,
 		createToken,
 		updateToken,
 	};

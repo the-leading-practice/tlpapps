@@ -1,3 +1,5 @@
+import registry from '../registry.js';
+import { EMBODI_AUTH_URL, EMBODI_API_URL } from '../constants.js';
 import logger from '../logger.js';
 
 const createEmbodiService = () => {
@@ -6,7 +8,8 @@ const createEmbodiService = () => {
 	};
 
 	const login = async (user: string, pass: string) => {
-		const endpoint = `https://staging-auth.kaizenovate.net/users/login`;
+		const endpoint = `${EMBODI_AUTH_URL}/users/login`;
+		logger.writeLog('info', `logging into embodi ${endpoint}`);
 
 		const auth = {
 			username: user,
@@ -38,20 +41,31 @@ const createEmbodiService = () => {
 			} else {
 				logger.writeLog('error', `error: ${error}`);
 			}
+
+			return undefined;
 		}
 
 		if (json && json.success === true) {
-			global.token = json.token;
-			global.delay = json.delay;
-			global.lastTokenRefresh = new Date().getTime();
+			const embodi = {
+				...json,
+				lastRefresh: new Date().getTime(),
+			};
+			registry.set('embodiAuth', embodi);
+
+			console.log(registry.get('embodiAuth'));
+
+			return embodi;
 		}
 	};
 
 	const checkAvailability = async (start: number, end: number, id: string) => {
-		const endpoint = 'https://staging.portal.embodihealth.com/ghl/appointment/get-availabilities';
+		const endpoint = `${EMBODI_API_URL}/ghl/appointment/get-availabilities`;
 		const query = `?location_id=${id}&start_time=${start}&end_time=${end}`;
 
-		if (!global.token || global.token.length === 0) {
+		logger.writeLog('info', `requesting availabilities ${endpoint}${query}`);
+
+		const auth = registry.get('embodiAuth');
+		if (!auth || auth.token.length === 0) {
 			logger.writeLog('error', `no valid login with embodi returning`);
 			return undefined;
 		}
@@ -59,7 +73,7 @@ const createEmbodiService = () => {
 		const options = {
 			method: 'GET',
 			headers: {
-				Authorization: 'Bearer ' + global.token,
+				Authorization: 'Bearer ' + auth.token,
 				...commonHeaders,
 			},
 		};
@@ -89,18 +103,19 @@ const createEmbodiService = () => {
 	};
 
 	const scheduleAppointment = async (start: number, end: number, id: string) => {
-		const endpoint = 'https://staging.portal.embodihealth.com/ghl/appointment/create';
+		const endpoint = `${EMBODI_API_URL}/ghl/appointment/create`;
 		const query = `?contact_id=${id}&start_time=${start}&end_time=${end}`;
 
-		if (!global.token || global.token.length === 0) {
+		const auth = registry.get('embodiAuth');
+		if (!auth || auth.token.length === 0) {
 			logger.writeLog('error', `no valid login with embodi returning`);
 			return undefined;
 		}
 
 		const options = {
-			method: 'GET',
+			method: 'POST',
 			headers: {
-				Authorization: 'Bearer ' + global.token,
+				Authorization: 'Bearer ' + auth.token,
 				...commonHeaders,
 			},
 		};

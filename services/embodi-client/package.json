@@ -6,7 +6,7 @@
 	"type": "module",
 	"scripts": {
 		"dev": "tsx ./src/app.ts",
-		"build": "tsc && cp -R config/ ./dist && cp .env ./dist",
+		"build": "tsc && cp -R config/ ./dist",
 		"format": "prettier --write .",
 		"lint:fix": "npm run lint:fix:eslint && npm run lint:fix:prettier",
 		"lint:eslint": "eslint --cache \"src/**/*.{js,ts}\"",

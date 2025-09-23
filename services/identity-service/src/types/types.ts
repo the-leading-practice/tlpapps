@@ -4,21 +4,24 @@ export type Token = {
 	expires_in: number;
 	refresh_token: string;
 	scope: string;
+	refreshTokenId: string;
 	userType: string;
-	hashedCompanyId: string;
-	locationId: string;
+	companyId: string;
+	isBulkInstallation: boolean;
+	userId: string;
 };
 
 export type AccessToken = {
+	company: string;
 	location: string;
 	name: string;
 	calendar: string;
 	timezone: string;
 	secret: string;
-	token: string;
-	pushGHL: boolean;
-	pushAppt: boolean;
-	pushPat: boolean;
+	token?: string;
+	pushGHL?: boolean;
+	pushAppt?: boolean;
+	pushPat?: boolean;
 	software: string;
 };
 

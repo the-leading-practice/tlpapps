@@ -3,7 +3,7 @@ service:
   port: 5690
 
 crontab: '* 0 8 * * *'
-hoursToSync: 9
+hoursToSync: 12
 
 locations:
   - locationId: 'hyKdI9e7r3RFvFcLEtj7'

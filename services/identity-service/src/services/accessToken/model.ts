@@ -3,6 +3,7 @@ import mongoose from 'mongoose';
 const accessTokenSchema = new mongoose.Schema(
 	{
 		name: { type: String, required: true },
+		company: { type: String, required: true },
 		location: { type: String, required: true },
 		calendar: { type: String, required: true },
 		timezone: { type: String, required: true },
