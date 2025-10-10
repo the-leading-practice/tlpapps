@@ -146,7 +146,16 @@ const createEmbodiSync = () => {
 	const updateGHL = async (slots: any, location: LocationSetting) => {
 		// make sure login is good
 		const now = new Date();
-		if (now.getTime() - location.updated.getTime() >= location.config.TokenRefreshMilliseconds) {
+
+		if (!location) {
+			logger.writeLog('error', 'location seems undefined - this should be impossible!!');
+			return;
+		}
+
+		if (
+			!location.config ||
+			now.getTime() - location.updated.getTime() >= location.config.TokenRefreshMilliseconds
+		) {
 			const resp = await tlpService.login(location.locationId, location.secret);
 			location.token = resp.token;
 			location.config = resp.config;
