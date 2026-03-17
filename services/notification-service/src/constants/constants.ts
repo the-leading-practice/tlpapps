@@ -15,7 +15,6 @@ export const TELEGRAM_BOT_KEY = process.env.TELEGRAM_BOT_KEY || '';
 export const TELEGRAM_BOT_GROUP_ID = process.env.TELEGRAM_BOT_GROUP_ID || '';
 export const POST_LEVEL = process.env.POST_LEVEL || 'error';
 
-export const CLICKUP_API_KEY =
-	process.env.CLICKUP_API_KEY || 'pk_10792315_G0MD0BMD1UBYHQDLRWSSVJESQEAGI4SG';
+export const CLICKUP_API_KEY = process.env.CLICKUP_API_KEY || '';
 export const CLICKUP_TEAM_ID = process.env.CLICKUP_TEAM_ID || '8555762';
 export const CLICKUP_CHANNEL_ID = process.env.CLICKUP_CHANNEL_ID || '8537j-130837';
