@@ -101,4 +101,14 @@ services:
     ports:
       - 5690:5690
     env_file: .env
+
+  drchrono-client:
+    build: ./tlpservices/drchrono-client
+    depends_on:
+      patient-service:
+        condition: service_started
+    image: drchrono-client
+    ports:
+      - 9101:9101
+    env_file: .env
 # disk volumes

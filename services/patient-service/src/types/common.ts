@@ -39,7 +39,7 @@ export type ApptData = {
 	apptId: number;
 	patientId: number;
 	apptTime: string;
-	apptStatus: number;
+	apptStatus: number | string;
 };
 
 export type TLPAppointmentData = {

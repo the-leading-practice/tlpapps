@@ -7,7 +7,8 @@ SERVICES="api-gateway \
           patient-service \
           ghl-service \
           config-service \
-          notification-service"
+          notification-service \
+          drchrono-client"
 
 BUILD_DIR="dist"
 

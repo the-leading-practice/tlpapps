@@ -1,5 +1,5 @@
 import { ApptData, TLPAppointmentData, LocationSetting } from '../types/common.js';
-import { ChrioTouchMapping, MappingEntry } from './statusMapping.js';
+import { ChrioTouchMapping, DrChronoMapping, MappingEntry } from './statusMapping.js';
 import { formatTime, getLocation } from './common.js';
 import { integrationService } from '../services/integration.js';
 import { appointmentService } from '../services/appointment.js';
@@ -77,6 +77,9 @@ export const getAppointmentStatus = (name: string, status: string) => {
 	switch (name) {
 		case 'ChiroTouch':
 			mapping = ChrioTouchMapping.entries.find((e: MappingEntry) => e.status === status);
+			break;
+		case 'DrChrono':
+			mapping = DrChronoMapping.entries.find((e: MappingEntry) => e.status === status);
 			break;
 	}
 
