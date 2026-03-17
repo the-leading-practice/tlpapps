@@ -8,7 +8,7 @@ const createController = () => {
   };
 
   const getConfig = async (req: Request, res: Response) => {
-    const location = req.params.location;
+    const location = req.params.location as string;
     if (!location) return res.status(400).json({ status: 'invalid format: missing location' });
 
     const config = await configService.getConfig(location);
@@ -18,7 +18,7 @@ const createController = () => {
   };
 
   const updateConfig = async (req: Request, res: Response) => {
-    const location = req.params.location;
+    const location = req.params.location as string;
     const newConfig = { ...req.body };
 
     if (newConfig._id) delete newConfig._id;

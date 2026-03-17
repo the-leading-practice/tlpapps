@@ -13,7 +13,7 @@ const createController = () => {
   };
 
   const stats = async (req: Request, res: Response) => {
-    const id = req.params.id;
+    const id = req.params.id as string;
     const resp = await dockerService.stats(id);
     res.status(resp.status).send(resp.data);
   };

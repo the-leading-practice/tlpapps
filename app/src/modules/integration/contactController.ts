@@ -12,7 +12,7 @@ const createContactController = () => {
 		const locHeader = (req.headers['x-tlp-app-location'] as string) || '';
 		const loc = getLocation(locHeader);
 
-		const query = req.params.query;
+		const query = req.params.query as string;
 
 		if (loc.location) {
 			const resp = (await contactService.findContact(loc.location, loc.token, query)) as any;
@@ -40,7 +40,7 @@ const createContactController = () => {
 	const getContact = async (req: express.Request, res: express.Response) => {
 		const locHeader = (req.headers['x-tlp-app-location'] as string) || '';
 		const loc = getLocation(locHeader);
-		const id = req.params.id;
+		const id = req.params.id as string;
 
 		console.log(`GET contact contactid[${id}]`);
 
@@ -65,7 +65,7 @@ const createContactController = () => {
 		const locHeader = (req.headers['x-tlp-app-location'] as string) || '';
 		const loc = getLocation(locHeader);
 
-		const ghlContactId = req.params.id;
+		const ghlContactId = req.params.id as string;
 		const patient = { ...req.body };
 
 		console.log(`PUT updateContact contactid[${ghlContactId}]`);

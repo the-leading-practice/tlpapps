@@ -14,7 +14,7 @@ const createApptController = () => {
 		const timezone = (req.headers['x-tlp-app-timezone'] as string) || '';
 		const calendarId = (req.headers['x-tlp-app-calendar'] as string) || '';
 		const loc = getLocation(locHeader);
-		const eventId = req.params.id;
+		const eventId = req.params.id as string;
 
 		logger.writeLog('info', 'getAppointment()', `request to get appointment ${eventId}`);
 
@@ -54,7 +54,7 @@ const createApptController = () => {
 		const locHeader = (req.headers['x-tlp-app-location'] as string) || '';
 		const timezone = (req.headers['x-tlp-app-timezone'] as string) || '';
 		const loc = getLocation(locHeader);
-		const contactId = req.params.id;
+		const contactId = req.params.id as string;
 
 		logger.writeLog('info', 'getAppointmentsForContact()', `get appt for contact ${contactId}`);
 

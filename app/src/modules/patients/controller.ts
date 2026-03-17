@@ -31,12 +31,12 @@ const createController = () => {
 
 	//--[ get single patient ]-----------------------------------------------------
 	const patient = async (req: express.Request, res: express.Response) => {
-		console.log(`GET: patient id[${req.params.id}]`);
+		console.log(`GET: patient id[${req.params.id as string}]`);
 		const locHeader = (req.headers['x-tlp-app-location'] as string) || '';
 		const loc = getLocation(locHeader);
 
 		if (loc.location) {
-			const ret = await patientDataService.getPatient(loc.location, parseInt(req.params.id));
+			const ret = await patientDataService.getPatient(loc.location, parseInt(req.params.id as string));
 			res.type('json');
 			return res.status(200).json(ret);
 		}
@@ -301,7 +301,7 @@ const createController = () => {
 			return;
 		}
 
-		const ret = await patientDataService.getPatient(loc.location, parseInt(req.params.id));
+		const ret = await patientDataService.getPatient(loc.location, parseInt(req.params.id as string));
 
 		if (!ret) {
 			res.status(404).json({ status: 'not found' });
@@ -313,12 +313,12 @@ const createController = () => {
 	};
 
 	const deletePatient = async (req: express.Request, res: express.Response) => {
-		const id = req.params.id;
+		const id = req.params.id as string;
 		const ids = id.split(',');
 
 		if (ids.length > 1) {
 			console.log(`id array from query: `);
-			ids.forEach((i) => console.log(`  id: ${i}`));
+			ids.forEach((i: string) => console.log(`  id: ${i}`));
 		} else console.log(`id from query: ${id}`);
 
 		// TODO - mark the record as inactive here

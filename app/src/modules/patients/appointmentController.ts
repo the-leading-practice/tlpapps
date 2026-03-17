@@ -22,7 +22,7 @@ const createController = () => {
 		const locHeader = (req.headers['x-tlp-app-location'] as string) || '';
 		const loc = getLocation(locHeader);
 
-		const eventId = req.params.id;
+		const eventId = req.params.id as string;
 		const ret = await appointmentDataService.getAppointment(loc.location, parseInt(eventId));
 
 		res.status(200).json(ret);
@@ -156,17 +156,17 @@ const createController = () => {
 	};
 
 	const updateAppointments = async (req: express.Request, res: express.Response) => {
-		console.log(req.params.id);
+		console.log(req.params.id as string);
 		res.status(200);
 	};
 
 	const deleteAppt = async (req: express.Request, res: express.Response) => {
-		const id = req.params.id;
+		const id = req.params.id as string;
 		const ids = id.split(',');
 
 		if (ids.length > 1) {
 			console.log(`id array from query: `);
-			ids.forEach((i) => console.log(`  id: ${i}`));
+			ids.forEach((i: string) => console.log(`  id: ${i}`));
 		} else console.log(`id from query: ${id}`);
 
 		// TODO - mark the record as inactive here

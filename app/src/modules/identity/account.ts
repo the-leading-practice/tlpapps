@@ -19,7 +19,7 @@ const createAccountController = () => {
   };
 
   const verify = async (req: express.Request, res: express.Response) => {
-    const emailToken = req.params.email;
+    const emailToken = req.params.email as string;
 
     // email token should be encrypted to make it harder to spoof
     const email = cryptoService.decrypt(Buffer.from(emailToken, 'hex'));

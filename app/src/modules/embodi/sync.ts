@@ -257,7 +257,11 @@ export const embodiSync = createEmbodiSync();
  * Call this from server startup to load embodi locations, login, and start
  * the daily cron sync. Requires a config object with locations and crontab.
  */
-export async function initEmbodiSync(embodiConfig: EmbodiConfig) {
+export async function initEmbodiSync(embodiConfig?: EmbodiConfig) {
+  if (!embodiConfig) {
+    logger.warn('initEmbodiSync called without config, skipping');
+    return;
+  }
   const { defaultEmbodiAppConfig } = await import('./types.js');
 
   const locations: EmbodiLocationSetting[] = [];

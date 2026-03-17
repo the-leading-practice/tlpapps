@@ -3,8 +3,8 @@
  * Ported from patient-service/src/services/patient.ts and appointment.ts.
  * Uses shared models from ../../models/.
  */
-import { Patient } from '../../models/patient.js';
-import { Appointment } from '../../models/appointment.js';
+import { PatientModel as Patient } from '../../models/patient.js';
+import { AppointmentModel as Appointment } from '../../models/appointment.js';
 import type { PatientMapping, TLPAppointmentData, ApptData } from './types.js';
 
 // ── Patient data service ────────────────────────────────────────────────────

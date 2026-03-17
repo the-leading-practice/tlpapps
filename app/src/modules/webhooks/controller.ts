@@ -22,7 +22,7 @@ const createController = () => {
     res.status(200).json({ success: true });
 
     const config = await configService.getConfig(req.body.locationId);
-    if (config && config.config.Software === 'Embodi') {
+    if (config && config.config?.Software === 'Embodi') {
       logger.info('forwarding to embodi module');
       // Direct function call instead of HTTP call to embodi-client
       await embodiController.handleCreatedAppointment(req.body);
@@ -37,9 +37,9 @@ const createController = () => {
 
     try {
       // Dynamic import to avoid circular dependency issues at startup
-      const { identityController } = await import('../identity/controller.js');
+      const { controller: identityController } = await import('../identity/controller.js');
       if (identityController && typeof identityController.locationAuth === 'function') {
-        await identityController.locationAuth(data);
+        await identityController.locationAuth(data as any);
       }
     } catch (err) {
       logger.warn({ err }, 'identity module not yet available for install hook');
