@@ -39,7 +39,12 @@ const createController = () => {
       // Dynamic import to avoid circular dependency issues at startup
       const { controller: identityController } = await import('../identity/controller.js');
       if (identityController && typeof identityController.locationAuth === 'function') {
-        await identityController.locationAuth(data as any);
+        // locationAuth expects (req, res) but the webhook only has data.
+        // Create a minimal req-like object; locationAuth sends res.status(200) immediately
+        // then processes asynchronously, so a no-op res is fine here.
+        const fakeReq = { body: data } as any;
+        const fakeRes = { status: () => ({ json: () => {} }) } as any;
+        await identityController.locationAuth(fakeReq, fakeRes);
       }
     } catch (err) {
       logger.warn({ err }, 'identity module not yet available for install hook');
