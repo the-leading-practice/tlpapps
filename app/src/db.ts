@@ -12,8 +12,7 @@ export async function connectDB(): Promise<void> {
     await mongoose.connect(config.mongoConnString);
     logger.info(`Connected to MongoDB: ${mongoose.connection.name}`);
   } catch (err) {
-    logger.error({ err }, 'Failed to connect to MongoDB');
-    process.exit(1);
+    logger.error({ err }, 'Failed to connect to MongoDB - server will start without database');
   }
 
   mongoose.connection.on('error', (err) => {
