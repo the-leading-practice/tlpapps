@@ -44,6 +44,7 @@
           <details>
             <summary class="text-lg"><Icon icon="mdi:clipboard-pulse-outline" /> Practice</summary>
             <ul>
+              <li class="text-lg"><a href="/practice"><Icon icon="mdi:format-list-bulleted" /> All Practices</a></li>
               <li class="text-lg"><a href="/practice/onboard"><Icon icon="mdi:account-convert-outline" /> Onboard</a></li>
               <li class="text-lg"><a href="/practice/settings"><Icon icon="mdi:card-bulleted-settings-outline" /> Settings</a></li>
               <li class="text-lg"><a href="/practice/config"><Icon icon="mdi:application-cog-outline" /> Client Config</a></li>

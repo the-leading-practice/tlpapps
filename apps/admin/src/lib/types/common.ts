@@ -41,3 +41,25 @@ export type LoginData = {
   verified?: boolean;
   user?: UserData;
 }
+
+export type Practice = {
+  _id?: string;
+  name: string;
+  location: string;
+  software: string;
+  calendarId?: string;
+  timezone: string;
+  pushGhl?: boolean;
+  pushAppointments?: boolean;
+  pushPatients?: boolean;
+  patientCount?: number;
+  appointmentCount?: number;
+  lastSync?: string;
+}
+
+export type DashboardData = {
+  totalPractices: number;
+  totalPatients: number;
+  totalAppointments: number;
+  practices: Practice[];
+}
