@@ -33,5 +33,25 @@ function buildMongoConnString(): string {
   const pass = process.env.MONGO_PASS || '';
   const db = process.env.MONGO_DB || '';
   if (!connStr) return '';
-  return `${connStr.replace(/%USER%/g, user).replace(/%PW%/g, encodeURIComponent(pass))}/${db}`;
+
+  // If credentials are embedded in the URL already, use as-is with ?authSource and db
+  // If using %USER%/%PW% placeholders, substitute them
+  let base = connStr.replace(/%USER%/g, user).replace(/%PW%/g, encodeURIComponent(pass));
+
+  // If the connection string already has a path (e.g. /admin), use authSource instead of appending db
+  const url = new URL(base);
+  const existingDb = url.pathname.replace('/', '');
+  if (existingDb && db && existingDb !== db) {
+    // Use the existing path as authSource, connect to the specified db
+    url.pathname = `/${db}`;
+    url.searchParams.set('authSource', existingDb);
+    return url.toString();
+  }
+
+  if (db && !existingDb) {
+    url.pathname = `/${db}`;
+    return url.toString();
+  }
+
+  return base;
 }
