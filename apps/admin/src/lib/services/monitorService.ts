@@ -1,27 +1,13 @@
-const MONITOR_URL = "http://localhost:5680/monitor";
+import { apiGet } from "$lib/api";
 
 const createMonitorService = () => {
 
 	const getContainers = async () => {
-		const options = {
-			method: 'GET'
-		}
-
-		const resp = await fetch( `${MONITOR_URL}/list`, options );
-		const json = await resp.json();
-
-		return json;
+		return apiGet('/monitor/list');
 	}
 
-	const getStats = async ( id: string ) => {
-		const options = {
-			method: 'GET'
-		}
-
-		const resp = await fetch( `${MONITOR_URL}/stats/${id}`, options );
-		const json = await resp.json();
-
-		return json;
+	const getStats = async (id: string) => {
+		return apiGet(`/monitor/stats/${id}`);
 	}
 
 	return {

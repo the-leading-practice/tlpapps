@@ -1,38 +1,17 @@
 import type { ConfigRecord } from "$lib/types/common";
-
+import { apiGet, apiPost } from "$lib/api";
 
 const createConfigService = () => {
-  const getConfigs = async ( fetch: any ) => {
-    const url = "http://localhost:5650/configs";
-    
-    const resp = await fetch( url, {method: "GET"} )
-    const json = await resp.json();
-    
-    return json;
+  const getConfigs = async (_fetch?: any) => {
+    return apiGet('/configs');
   }
 
-  const getConfig = async ( fetch: any, location: string ) => {
-    const url = `http://localhost:5650/config/${location}`;
-    
-    const resp = await fetch( url, {method: "GET"} )
-    const json = await resp.json();
-    
-    return json;
+  const getConfig = async (_fetch?: any, location?: string) => {
+    return apiGet(`/config/${location}`);
   }
 
-  const updateConfig = async( config: ConfigRecord ) => {
-    const url = `http://localhost:5650/config/${config.location}`;
-    const body = JSON.stringify( config );
-    console.log( body );
-
-    const options = {
-      method: "POST",
-      header: {'Content-Type': 'application/json'},
-      body: body
-    };
-
-    const resp = await fetch( url, options );
-    return await resp.json();
+  const updateConfig = async (config: ConfigRecord) => {
+    return apiPost(`/config/${config.location}`, config);
   }
 
   return {

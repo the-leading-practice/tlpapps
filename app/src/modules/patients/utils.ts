@@ -94,6 +94,8 @@ export const getCurrentOffset = (time: string, timeZone: string) => {
 };
 
 export const formatTime = (time: string, timezone: string) => {
+	if (!time) return null;
+
 	// eslint-disable-next-line no-useless-escape
 	const iso = new RegExp(/[0-9]{4}\-[0-9]{2}\-[0-9]{2}T[0-9]{2}\:[0-9]{2}\:[0-9]{2}\.[0-9]{3}Z/);
 	const offset = new RegExp(
