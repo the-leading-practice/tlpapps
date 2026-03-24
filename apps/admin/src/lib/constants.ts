@@ -1,5 +1,5 @@
-export const SUPABASE_URL="https://ndhnybbnpsshewjlztsz.supabase.co";
-export const SUPABASE_KEY="eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im5kaG55YmJucHNzaGV3amx6dHN6Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3MTY1OTY2ODQsImV4cCI6MjAzMjE3MjY4NH0.0cQIDhnfSxM7Z_Splu8e02oDRAINLBv8JvhVMf4n3cc";
+export const SUPABASE_URL="https://fuobrebyszcshbdxmaxr.supabase.co";
+export const SUPABASE_KEY="sb_publishable_ip8ehFtp7yQ1MGRtn9XsTw_T22R-2XD";
 
 export const PALETTE_COLORS = [
   '#122230',
