@@ -14,6 +14,9 @@ export const config = {
   configPrimary: (process.env.CONFIG_PRIMARY === 'pg' ? 'pg' : 'mongo') as 'mongo' | 'pg',
   // When 'on', writes are mirrored to Mongo even after the PG flip (14-day warm standby).
   configLegacyWrite: process.env.CONFIG_LEGACY_WRITE !== 'off',
+  // P04 patients dual-write: when 'on', patient mutations mirror Mongo -> PG (shadow).
+  // Default off so merging P04 is behavior-neutral. PG failures log but never fail the request.
+  pgDualWritePatients: process.env.PG_DUAL_WRITE_PATIENTS === 'on',
   tokenKey: process.env.TOKEN_KEY || '',
   ghl: {
     clientId: process.env.CLIENT_ID || '',
