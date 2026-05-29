@@ -1,0 +1,198 @@
+import {
+  pgTable,
+  pgEnum,
+  uuid,
+  integer,
+  text,
+  timestamp,
+  jsonb,
+  index,
+  uniqueIndex,
+} from 'drizzle-orm/pg-core';
+import { patients } from './patients.js';
+import { locations } from './config.js';
+
+/**
+ * P07 sync core schema — PG greenfield (no Mongo equivalent). These tables hold
+ * the durable state for the event-driven DrChrono <-> GHL sync engine built in
+ * P08 (DrChrono team). This phase ships SCHEMA ONLY; nothing here is wired into
+ * boot or any route — it is behavior-neutral.
+ *
+ * Six tables:
+ *   sync_jobs        — one row per cron/manual job run (status + summary).
+ *   sync_events      — webhook + cron-derived events persisted BEFORE processing.
+ *                      `dedup_key` is the idempotency key (unique), composed by
+ *                      the engine as `${source}:${action}:${external_id}:${ver}`.
+ *   sync_mappings    — identity bridge between DrChrono and GHL ids per location.
+ *   sync_conflicts   — divergences surfaced by shadow/sync/reconcile passes.
+ *   appointment_links— GHL calendar event <-> DrChrono appointment pairing.
+ *   sync_dead_letter — events that exhausted retries (FK back to sync_events).
+ *
+ * FKs: appointment_links.patient_id -> patients.id (P04); sync_dead_letter.event_id
+ * -> sync_events.id. location_id columns reference locations.id (P03) where the
+ * row is location-scoped.
+ */
+
+// --- Enums -----------------------------------------------------------------
+
+export const syncSourceEnum = pgEnum('sync_source', ['ghl', 'drchrono']);
+export const syncJobStatusEnum = pgEnum('sync_job_status', [
+  'running',
+  'succeeded',
+  'failed',
+]);
+export const syncEventStatusEnum = pgEnum('sync_event_status', [
+  'pending',
+  'processed',
+  'failed',
+  'dead',
+]);
+export const syncMappingKindEnum = pgEnum('sync_mapping_kind', [
+  'patient',
+  'appointment',
+]);
+export const syncConflictSourceEnum = pgEnum('sync_conflict_source', [
+  'shadow',
+  'sync',
+  'reconcile',
+]);
+export const syncConflictResolutionEnum = pgEnum('sync_conflict_resolution', [
+  'pending',
+  'auto-resolved',
+  'manual-resolved',
+]);
+
+// --- Tables ----------------------------------------------------------------
+
+export const syncJobs = pgTable(
+  'sync_jobs',
+  {
+    id: uuid('id').primaryKey().defaultRandom(),
+    kind: text('kind').notNull(),
+    status: syncJobStatusEnum('status').notNull().default('running'),
+    startedAt: timestamp('started_at', { withTimezone: true }).notNull().defaultNow(),
+    finishedAt: timestamp('finished_at', { withTimezone: true }),
+    summary: jsonb('summary'),
+    locationId: integer('location_id').references(() => locations.id, {
+      onDelete: 'set null',
+    }),
+  },
+  (t) => ({
+    kindStatusStartedIdx: index('sync_jobs_kind_status_started_idx').on(
+      t.kind,
+      t.status,
+      t.startedAt.desc(),
+    ),
+  }),
+);
+
+export const syncEvents = pgTable(
+  'sync_events',
+  {
+    id: uuid('id').primaryKey().defaultRandom(),
+    source: syncSourceEnum('source').notNull(),
+    action: text('action').notNull(),
+    payload: jsonb('payload').notNull(),
+    receivedAt: timestamp('received_at', { withTimezone: true }).notNull().defaultNow(),
+    processedAt: timestamp('processed_at', { withTimezone: true }),
+    status: syncEventStatusEnum('status').notNull().default('pending'),
+    error: text('error'),
+    originTag: text('origin_tag'),
+    // Idempotency key. Engine composes `${source}:${action}:${external_id}:${ver}`.
+    dedupKey: text('dedup_key').notNull(),
+  },
+  (t) => ({
+    dedupKeyUnique: uniqueIndex('sync_events_dedup_key_unique').on(t.dedupKey),
+    statusReceivedIdx: index('sync_events_status_received_idx').on(t.status, t.receivedAt),
+  }),
+);
+
+export const syncMappings = pgTable(
+  'sync_mappings',
+  {
+    id: uuid('id').primaryKey().defaultRandom(),
+    kind: syncMappingKindEnum('kind').notNull(),
+    drchronoId: text('drchrono_id').notNull(),
+    ghlId: text('ghl_id').notNull(),
+    locationId: integer('location_id').references(() => locations.id, {
+      onDelete: 'cascade',
+    }),
+    origin: text('origin'),
+    version: integer('version').notNull().default(0),
+    lastSyncedAt: timestamp('last_synced_at', { withTimezone: true }),
+    lastHash: text('last_hash'),
+  },
+  (t) => ({
+    drchronoUnique: uniqueIndex('sync_mappings_kind_drchrono_location_unique').on(
+      t.kind,
+      t.drchronoId,
+      t.locationId,
+    ),
+    ghlUnique: uniqueIndex('sync_mappings_kind_ghl_location_unique').on(
+      t.kind,
+      t.ghlId,
+      t.locationId,
+    ),
+  }),
+);
+
+export const syncConflicts = pgTable(
+  'sync_conflicts',
+  {
+    id: uuid('id').primaryKey().defaultRandom(),
+    source: syncConflictSourceEnum('source').notNull(),
+    entity: text('entity').notNull(),
+    mongoValue: jsonb('mongo_value'),
+    pgValue: jsonb('pg_value'),
+    ghlValue: jsonb('ghl_value'),
+    drchronoValue: jsonb('drchrono_value'),
+    resolution: syncConflictResolutionEnum('resolution').notNull().default('pending'),
+    resolvedBy: text('resolved_by'),
+    resolvedAt: timestamp('resolved_at', { withTimezone: true }),
+    diffJson: jsonb('diff_json'),
+    createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => ({
+    resolutionCreatedIdx: index('sync_conflicts_resolution_created_idx').on(
+      t.resolution,
+      t.createdAt,
+    ),
+  }),
+);
+
+export const appointmentLinks = pgTable(
+  'appointment_links',
+  {
+    id: uuid('id').primaryKey().defaultRandom(),
+    ghlEventId: text('ghl_event_id').notNull(),
+    drchronoAppointmentId: text('drchrono_appointment_id').notNull(),
+    locationId: integer('location_id').references(() => locations.id, {
+      onDelete: 'set null',
+    }),
+    doctorId: text('doctor_id'),
+    patientId: uuid('patient_id').references(() => patients.id, {
+      onDelete: 'set null',
+    }),
+    calendarId: text('calendar_id'),
+    status: text('status'),
+    lastSyncedAt: timestamp('last_synced_at', { withTimezone: true }),
+  },
+  (t) => ({
+    ghlEventUnique: uniqueIndex('appointment_links_ghl_event_id_unique').on(t.ghlEventId),
+    drchronoAppointmentUnique: uniqueIndex(
+      'appointment_links_drchrono_appointment_id_unique',
+    ).on(t.drchronoAppointmentId),
+  }),
+);
+
+export const syncDeadLetter = pgTable('sync_dead_letter', {
+  id: uuid('id').primaryKey().defaultRandom(),
+  eventId: uuid('event_id')
+    .notNull()
+    .references(() => syncEvents.id, { onDelete: 'cascade' }),
+  attempts: integer('attempts').notNull().default(0),
+  lastError: text('last_error'),
+  payload: jsonb('payload'),
+  createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+  replayedAt: timestamp('replayed_at', { withTimezone: true }),
+});

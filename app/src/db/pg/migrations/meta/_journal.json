@@ -15,6 +15,13 @@
       "when": 1780088629719,
       "tag": "0001_large_sleeper",
       "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "7",
+      "when": 1780089212502,
+      "tag": "0002_steady_ikaris",
+      "breakpoints": true
     }
   ]
 }
