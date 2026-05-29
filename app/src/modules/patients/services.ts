@@ -5,6 +5,7 @@
  */
 import { PatientModel as Patient } from '../../models/patient.js';
 import { AppointmentModel as Appointment } from '../../models/appointment.js';
+import { writePatient } from './helpers/dual-write-patient.js';
 import type { PatientMapping, TLPAppointmentData, ApptData } from './types.js';
 
 // ── Patient data service ────────────────────────────────────────────────────
@@ -34,11 +35,9 @@ const createPatientDataService = () => {
 	};
 
 	const upsertPatient = async (locationId: string, patient: any) => {
-		const query = { locationId: locationId, patientId: patient.patientId };
-		const newPatient = { ...patient };
-
-		const newDoc = await Patient.findOneAndUpdate(query, newPatient, { upsert: true, new: true });
-		return newDoc;
+		// Route through the dual-write helper: Mongo upsert (primary) + best-effort
+		// PG shadow when PG_DUAL_WRITE_PATIENTS=on. Flag off => Mongo-only (unchanged).
+		return writePatient({ op: 'upsert', locationId, mapping: { ...patient } });
 	};
 
 	return {
