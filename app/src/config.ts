@@ -1,8 +1,13 @@
 import * as dotenv from 'dotenv';
 dotenv.config();
 
+if (!process.env.DATABASE_URL) {
+  throw new Error('DATABASE_URL is required');
+}
+
 export const config = {
   port: parseInt(process.env.PORT || '8080'),
+  databaseUrl: process.env.DATABASE_URL,
   mongoConnString: buildMongoConnString(),
   tokenKey: process.env.TOKEN_KEY || '',
   ghl: {
