@@ -9,6 +9,11 @@ export const config = {
   port: parseInt(process.env.PORT || '8080'),
   databaseUrl: process.env.DATABASE_URL,
   mongoConnString: buildMongoConnString(),
+  // P03 config migration: which store the config module reads/writes as primary.
+  // Default 'mongo' so merging P03 changes no runtime behavior until the orchestrator flips it.
+  configPrimary: (process.env.CONFIG_PRIMARY === 'pg' ? 'pg' : 'mongo') as 'mongo' | 'pg',
+  // When 'on', writes are mirrored to Mongo even after the PG flip (14-day warm standby).
+  configLegacyWrite: process.env.CONFIG_LEGACY_WRITE !== 'off',
   tokenKey: process.env.TOKEN_KEY || '',
   ghl: {
     clientId: process.env.CLIENT_ID || '',
