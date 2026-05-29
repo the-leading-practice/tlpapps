@@ -2,8 +2,10 @@ import express from 'express';
 import compression from 'compression';
 import cors from 'cors';
 import morgan from 'morgan';
+import mongoose from 'mongoose';
 import { errorHandler, notFoundHandler } from './middleware/errors.js';
 import { authToken } from './middleware/auth.js';
+import { sql } from './db/pg/client.js';
 
 // Module routers
 import identityRoutes from './modules/identity/routes.js';
@@ -27,8 +29,20 @@ export function createServer() {
   app.use(express.urlencoded({ extended: true }));
   app.use(morgan('short'));
 
-  // Health check
-  app.get('/health', (req, res) => res.json({ status: 'ok' }));
+  // Health check — reports both Mongo and Postgres; 200 only if both ok
+  app.get('/health', async (req, res) => {
+    const mongo = mongoose.connection.readyState === 1 ? 'ok' : 'fail';
+
+    let pg: 'ok' | 'fail' = 'ok';
+    try {
+      await sql`select 1`;
+    } catch {
+      pg = 'fail';
+    }
+
+    const status = mongo === 'ok' && pg === 'ok' ? 'ok' : 'degraded';
+    res.status(status === 'ok' ? 200 : 503).json({ mongo, pg, status });
+  });
 
   // Public routes (no auth required)
   app.use('/api', identityRoutes);
