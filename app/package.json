@@ -6,7 +6,9 @@
     "dev": "tsx watch src/index.ts",
     "build": "tsc",
     "start": "node dist/index.js",
-    "migrate": "tsx scripts/migrate.ts"
+    "migrate": "tsx scripts/migrate.ts",
+    "backfill:config": "tsx scripts/backfill-config.ts",
+    "diff:config": "tsx scripts/diff-config.ts"
   },
   "dependencies": {
     "@gohighlevel/api-client": "^1.0.0",
