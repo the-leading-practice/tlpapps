@@ -17,6 +17,13 @@ export const config = {
   // P04 patients dual-write: when 'on', patient mutations mirror Mongo -> PG (shadow).
   // Default off so merging P04 is behavior-neutral. PG failures log but never fail the request.
   pgDualWritePatients: process.env.PG_DUAL_WRITE_PATIENTS === 'on',
+  // P07 sync engine (full engine wired in P08). RUN_CRON gates whether this replica
+  // runs the cron-driven sync loop; default off so merging P07 changes no boot behavior.
+  runCron: process.env.RUN_CRON === 'on',
+  // First arg of the two-arg pg_try_advisory_lock(base, kindHash) used for cron leader
+  // election — namespaces this app's locks so kind-hash collisions can't clash with
+  // any other advisory-lock user on the same PG instance.
+  syncLeaderKeyBase: parseInt(process.env.SYNC_LEADER_KEY_BASE || '910700', 10),
   tokenKey: process.env.TOKEN_KEY || '',
   ghl: {
     clientId: process.env.CLIENT_ID || '',
