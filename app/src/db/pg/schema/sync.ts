@@ -196,3 +196,18 @@ export const syncDeadLetter = pgTable('sync_dead_letter', {
   createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
   replayedAt: timestamp('replayed_at', { withTimezone: true }),
 });
+
+// --- Inferred types (the row/insert contracts the P08 engine builds against) ---
+
+export type SyncJob = typeof syncJobs.$inferSelect;
+export type NewSyncJob = typeof syncJobs.$inferInsert;
+export type SyncEvent = typeof syncEvents.$inferSelect;
+export type NewSyncEvent = typeof syncEvents.$inferInsert;
+export type SyncMapping = typeof syncMappings.$inferSelect;
+export type NewSyncMapping = typeof syncMappings.$inferInsert;
+export type SyncConflict = typeof syncConflicts.$inferSelect;
+export type NewSyncConflict = typeof syncConflicts.$inferInsert;
+export type AppointmentLink = typeof appointmentLinks.$inferSelect;
+export type NewAppointmentLink = typeof appointmentLinks.$inferInsert;
+export type SyncDeadLetter = typeof syncDeadLetter.$inferSelect;
+export type NewSyncDeadLetter = typeof syncDeadLetter.$inferInsert;
