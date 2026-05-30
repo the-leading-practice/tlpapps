@@ -55,3 +55,61 @@ export async function releaseLock(kind: string): Promise<boolean> {
   `;
   return rows[0]?.released === true;
 }
+
+/**
+ * P08 full leader: a session-pinned advisory lock holder.
+ *
+ * Per the CAVEAT above, `pg_try_advisory_lock` is bound to the PG SESSION, but the
+ * shared `postgres` pool hands out a different connection per query — so a lock taken
+ * on the pool would be unreliable. `Leader` reserves a single dedicated connection
+ * (`sql.reserve()`) for the lock's entire lifetime. Acquire takes the lock on that
+ * pinned connection; release (or process exit) frees it. If the reserved connection
+ * drops, PG reaps the session and the lock auto-frees — exactly the crash-safety D-04
+ * relies on.
+ */
+export class Leader {
+  private reserved: Awaited<ReturnType<typeof sql.reserve>> | null = null;
+  private held = false;
+
+  constructor(private readonly kind: string) {}
+
+  get isLeader(): boolean {
+    return this.held;
+  }
+
+  /** Try to become leader. Idempotent: returns true if already held by this Leader. */
+  async tryAcquire(): Promise<boolean> {
+    if (this.held) return true;
+    const conn = await sql.reserve();
+    try {
+      const rows = await conn<{ locked: boolean }[]>`
+        SELECT pg_try_advisory_lock(${config.syncLeaderKeyBase}, hashtext(${this.kind})::int) AS locked
+      `;
+      if (rows[0]?.locked === true) {
+        this.reserved = conn;
+        this.held = true;
+        return true;
+      }
+      // Lost the race — hand the connection back to the pool.
+      conn.release();
+      return false;
+    } catch (err) {
+      conn.release();
+      throw err;
+    }
+  }
+
+  /** Release the lock and return the pinned connection to the pool. */
+  async release(): Promise<void> {
+    if (!this.held || !this.reserved) return;
+    try {
+      await this.reserved`
+        SELECT pg_advisory_unlock(${config.syncLeaderKeyBase}, hashtext(${this.kind})::int)
+      `;
+    } finally {
+      this.reserved.release();
+      this.reserved = null;
+      this.held = false;
+    }
+  }
+}
