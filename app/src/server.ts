@@ -18,6 +18,7 @@ import monitorRoutes from './modules/monitor/routes.js';
 import embodiRoutes from './modules/embodi/routes.js';
 import drchronoRoutes from './modules/drchrono/routes.js';
 import adminRoutes from './modules/admin/routes.js';
+import syncRoutes from './modules/sync/routes.js';
 
 export function createServer() {
   const app = express();
@@ -57,6 +58,7 @@ export function createServer() {
   app.use('/api', authToken, monitorRoutes);
   app.use('/api', authToken, embodiRoutes);
   app.use('/api', authToken, adminRoutes);
+  app.use('/api', authToken, syncRoutes);
 
   // Error handling
   app.use(notFoundHandler);

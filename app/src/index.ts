@@ -6,6 +6,7 @@ import { createServer } from './server.js';
 import { logger } from './logger.js';
 import { initWebSocket } from './modules/rpc/index.js';
 import { initEmbodiSync } from './modules/embodi/sync.js';
+import { startEngine } from './modules/sync/engine.js';
 
 async function main() {
   // Connect both databases on boot; fail fast if either is unreachable.
@@ -20,6 +21,10 @@ async function main() {
 
   // Initialize Embodi cron sync
   initEmbodiSync();
+
+  // P08 DrChrono<->GHL sync engine (dry-run). No-op unless RUN_CRON=on; leader
+  // election ensures exactly one replica runs the loop. No EHR writes in P08.
+  startEngine();
 
   server.listen(config.port, () => {
     logger.info(`TLP server listening on port ${config.port}`);
