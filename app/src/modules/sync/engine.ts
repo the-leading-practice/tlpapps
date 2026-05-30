@@ -24,6 +24,7 @@ import { config } from '../../config.js';
 import { logger } from '../../logger.js';
 import { Leader } from './leader.js';
 import { decide, type SyncSystem } from './decision.js';
+import { dispatchWrite, writeModeFor } from './writers/dispatch.js';
 import {
   ghlAppointmentToNormalized,
   drchronoAppointmentToNormalized,
@@ -38,16 +39,6 @@ const TICK_MS = 2000;
 const MAX_ATTEMPTS = 5;
 /** Engine kind for the advisory lock. */
 export const ENGINE_LOCK_KIND = 'sync_engine';
-
-/** Write-flag mode. P08: all modes are dry — `on` only logs. P09 wires `on` to APIs. */
-type WriteMode = 'dry' | 'on';
-function writeMode(target: SyncSystem): WriteMode {
-  const v =
-    target === 'ghl'
-      ? process.env.SYNC_WRITE_DRCHRONO_TO_GHL
-      : process.env.SYNC_WRITE_GHL_TO_DRCHRONO;
-  return v === 'on' ? 'on' : 'dry';
-}
 
 export interface BatchResult {
   fetched: number;
@@ -148,19 +139,30 @@ async function processOne(ev: SyncEvent): Promise<Outcome> {
     return 'skipped';
   }
 
-  // decision.action === 'write' — DRY-RUN: persist PG state + log the would-be EHR write.
-  const mode = writeMode(decision.target as SyncSystem);
+  // decision.action === 'write'. P09: consult the per-direction kill switch.
+  //   off => skip + counter; dry => log intent (no API); on => invoke writer (dormant).
+  // The engine carries no live EHR token, so `on` is a defensive no-op here until T06
+  // wires per-location credentials. Loop prevention already handled by decision.ts
+  // (skip-loop) above via the inbound origin-tag check.
+  const target = decision.target as SyncSystem;
+  const mode = writeModeFor(target);
+  const verb = mapVerb(String((decision.payload as Record<string, unknown>)?._verb ?? ev.action));
+  const targetId =
+    target === 'ghl' ? normalized.ghlEventId ?? undefined : normalized.drchronoAppointmentId ?? undefined;
+
+  const outcome = await dispatchWrite({
+    eventId: ev.id,
+    target,
+    entity: 'appointment',
+    verb,
+    id: targetId,
+    body: decision.payload ?? undefined,
+    // token intentionally omitted — engine has no per-location EHR token in scope yet.
+  });
+
   log.info(
-    {
-      eventId: ev.id,
-      target: decision.target,
-      mode,
-      dryRun: true,
-      reason: decision.reason,
-    },
-    mode === 'on'
-      ? 'P08 dry-run: would write to EHR (real call deferred to P09)'
-      : 'P08 dry-run: write flag off — intent only',
+    { eventId: ev.id, target, mode, verb, outcome, reason: decision.reason },
+    'sync write dispatched',
   );
 
   await persistState(source, normalized, incomingHash);
@@ -299,6 +301,15 @@ export async function reapDeadLetters(): Promise<number> {
     .limit(BATCH_SIZE);
   if (failed.length === 0) return 0;
   return failed.length;
+}
+
+/** Map a normalized decision verb to a writer verb (create|update|cancel|delete). */
+function mapVerb(v: string): 'create' | 'update' | 'cancel' | 'delete' {
+  const t = v.toLowerCase();
+  if (t === 'cancel' || t === 'cancelled' || t === 'canceled') return 'cancel';
+  if (t === 'delete' || t === 'deleted') return 'delete';
+  if (t === 'created' || t === 'create') return 'create';
+  return 'update';
 }
 
 function extractZone(payload: unknown): string {
