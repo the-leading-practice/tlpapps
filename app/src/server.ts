@@ -26,7 +26,15 @@ export function createServer() {
   // Global middleware
   app.use(compression());
   app.use(cors());
-  app.use(express.json());
+  // Capture the raw request body so webhook HMAC verification (P09) can hash the exact
+  // bytes GHL signed. Express's json parser otherwise discards the raw buffer.
+  app.use(
+    express.json({
+      verify: (req, _res, buf) => {
+        (req as express.Request & { rawBody?: Buffer }).rawBody = buf;
+      },
+    }),
+  );
   app.use(express.urlencoded({ extended: true }));
   app.use(morgan('short'));
 
