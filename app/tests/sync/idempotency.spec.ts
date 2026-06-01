@@ -6,15 +6,19 @@
  * i.e. re-processing an event yields zero net state change. This is the load-bearing
  * guarantee for at-least-once webhook/cron delivery (P09).
  *
- * Requires a reachable Postgres with the P07 sync schema migrated (DATABASE_URL).
- * The test is self-cleaning: it scopes all rows to a unique GHL event id and deletes
- * them on teardown. Skips (does not fail) if DATABASE_URL is unset.
+ * Requires a reachable Postgres with the P07 sync schema migrated. This test
+ * connects to a REAL database and is therefore OPT-IN ONLY: it runs solely when
+ * RUN_DB_TESTS=1 is set. The default offline suite must never reach live infra, and
+ * the test bootstrap (tests/setup.mjs) sets a sentinel DATABASE_URL so config loads
+ * without a DB — sniffing DATABASE_URL would falsely enable this test. Gating on an
+ * explicit flag keeps the offline run deterministic and prod-safe. Self-cleaning:
+ * scopes all rows to a unique GHL event id and deletes them on teardown.
  */
 
 import { test, before, after } from 'node:test';
 import assert from 'node:assert/strict';
 
-const HAS_DB = !!process.env.DATABASE_URL;
+const HAS_DB = process.env.RUN_DB_TESTS === '1';
 
 // A unique GHL event id namespaces every row this test creates.
 const GHL_EVENT_ID = `test-appt-${Date.now()}`;
@@ -94,7 +98,7 @@ test('same dedup_key processed 100x => exactly one mapping + one link', { skip: 
 });
 
 before(() => {
-  if (!HAS_DB) console.log('DATABASE_URL unset — skipping idempotency DB test');
+  if (!HAS_DB) console.log('RUN_DB_TESTS!=1 — skipping idempotency DB test (needs live Postgres)');
 });
 
 after(async () => {

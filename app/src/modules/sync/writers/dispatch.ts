@@ -3,9 +3,12 @@
  * based on the per-direction kill switch.
  *
  * Modes (read per target direction from env):
- *   off : skip entirely, increment `sync_writes_skipped_off` counter. No writer call.
- *   dry : log the would-be write intent. No API call. (DEFAULT — defaults stay dry.)
- *   on  : invoke the real writer (DORMANT until user flips the flag in T06).
+ *   off    : skip entirely, increment `sync_writes_skipped_off` counter. No writer call.
+ *   dry    : log the would-be write intent. No API call. (DEFAULT — defaults stay dry.)
+ *   verify : build the REAL outbound write but POST it to a verification SINK instead of
+ *            the live EHR. The ONLY outbound HTTP is to the sink — never drchrono.com or
+ *            the GHL API. No EHR auth token required.
+ *   on     : invoke the real writer (DORMANT until user flips the flag in T06).
  *
  * The `http` and writer fns are injectable so the engine wiring can be unit-tested with
  * mocks (assert: dry => writer never called; on => writer called once).
@@ -20,10 +23,11 @@ import {
   type DcVerb,
   type HttpFn as DcHttp,
 } from './drchrono.js';
+import { makeSinkHttp, type VerifyDirection } from './verify-sink.js';
 
 const log = logger.child({ module: 'writer-dispatch' });
 
-export type WriteMode = 'off' | 'dry' | 'on';
+export type WriteMode = 'off' | 'dry' | 'verify' | 'on';
 
 /** Resolve the kill-switch mode for a write INTO `target`. */
 export function writeModeFor(target: SyncSystem, env: NodeJS.ProcessEnv = process.env): WriteMode {
@@ -31,7 +35,19 @@ export function writeModeFor(target: SyncSystem, env: NodeJS.ProcessEnv = proces
     target === 'ghl' ? env.SYNC_WRITE_DRCHRONO_TO_GHL : env.SYNC_WRITE_GHL_TO_DRCHRONO;
   if (v === 'on') return 'on';
   if (v === 'off') return 'off';
+  if (v === 'verify') return 'verify';
   return 'dry';
+}
+
+/**
+ * Resolve the verification sink URL: explicit env (config.sync.verifySinkUrl), else the
+ * built-in endpoint on this app's own port. Read from process.env lazily (not via the
+ * config module) so the dispatch module graph never forces config evaluation at import —
+ * keeps it side-effect-free for unit tests that set env after import.
+ */
+function resolveSinkUrl(env: NodeJS.ProcessEnv = process.env): string {
+  const port = env.PORT || '8080';
+  return env.SYNC_VERIFY_SINK_URL || `http://localhost:${port}/api/sync/verify-sink`;
 }
 
 export interface DispatchInput {
@@ -52,7 +68,7 @@ export interface DispatchDeps {
   retryDelayFactor?: number;
 }
 
-export type DispatchOutcome = 'skipped-off' | 'dry-logged' | 'written';
+export type DispatchOutcome = 'skipped-off' | 'dry-logged' | 'verified' | 'written';
 
 /** In-memory counter for skipped-off writes (surfaced by engine batch logs). */
 export const counters = { sync_writes_skipped_off: 0 };
@@ -79,39 +95,58 @@ export async function dispatchWrite(
     return 'dry-logged';
   }
 
-  // mode === 'on' — invoke the real writer (DORMANT path).
-  if (!input.token) {
-    // Defensive: never attempt an unauthenticated live write. Treat as dry.
+  // mode === 'verify' — build the REAL write but POST it to the sink, never the EHR.
+  // No token is required; writers stamp a placeholder so the payload is fully built.
+  const verify = mode === 'verify';
+  const sink = verify ? resolveSinkUrl() : undefined;
+
+  if (!verify && !input.token) {
+    // mode === 'on' but no token — never attempt an unauthenticated live write. Treat as dry.
     log.error({ op, eventId: input.eventId }, 'write mode on but no token — refusing live write');
     return 'dry-logged';
   }
 
+  const token = input.token ?? '';
+
   if (input.target === 'ghl') {
+    const direction: VerifyDirection = 'drchrono→ghl';
+    const http = verify
+      ? makeSinkHttp({ sinkUrl: sink!, direction, eventId: input.eventId, http: deps.ghlHttp })
+      : deps.ghlHttp;
     await ghlWrite(
       {
         eventId: input.eventId,
         entity: input.entity as GhlEntity,
         verb: input.verb as GhlVerb,
-        token: input.token,
+        token,
         id: input.id,
         body: input.body,
       },
-      deps.ghlHttp,
+      http,
       { delayFactor: deps.retryDelayFactor },
     );
   } else {
+    const direction: VerifyDirection = 'ghl→drchrono';
+    const http = verify
+      ? makeSinkHttp({ sinkUrl: sink!, direction, eventId: input.eventId, http: deps.dcHttp })
+      : deps.dcHttp;
     await drchronoWrite(
       {
         eventId: input.eventId,
         entity: input.entity as DcEntity,
         verb: input.verb as DcVerb,
-        token: input.token,
+        token,
         id: input.id,
         body: input.body,
       },
-      deps.dcHttp,
+      http,
       { delayFactor: deps.retryDelayFactor },
     );
+  }
+
+  if (verify) {
+    log.info({ op, eventId: input.eventId, sink }, 'verify: captured outbound write (no EHR call)');
+    return 'verified';
   }
   log.info({ op, eventId: input.eventId }, 'live write completed');
   return 'written';

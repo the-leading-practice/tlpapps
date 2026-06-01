@@ -6,12 +6,15 @@
     "dev": "tsx watch src/index.ts",
     "build": "tsc",
     "start": "node dist/index.js",
-    "test": "node --import tsx --test",
+    "test": "node --import ./tests/setup.mjs --import tsx --test \"tests/**/*.spec.ts\"",
+    "test:patients": "node --import ./tests/setup.mjs --import tsx --test \"tests/patients/**/*.spec.ts\"",
+    "test:sync": "node --import ./tests/setup.mjs --import tsx --test \"tests/sync/**/*.spec.ts\"",
     "db:generate": "cd src/db/pg && node --import tsx ../../../node_modules/drizzle-kit/bin.cjs generate",
     "migrate": "tsx scripts/migrate.ts",
     "backfill:config": "tsx scripts/backfill-config.ts",
     "diff:config": "tsx scripts/diff-config.ts",
-    "reconcile:patients": "tsx scripts/reconcile-patients.ts"
+    "reconcile:patients": "tsx scripts/reconcile-patients.ts",
+    "demo:verify-sink": "node --import tsx scripts/demo-verify-sink.ts"
   },
   "dependencies": {
     "@gohighlevel/api-client": "^1.0.0",

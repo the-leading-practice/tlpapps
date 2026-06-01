@@ -17,6 +17,12 @@ export const config = {
   // P04 patients dual-write: when 'on', patient mutations mirror Mongo -> PG (shadow).
   // Default off so merging P04 is behavior-neutral. PG failures log but never fail the request.
   pgDualWritePatients: process.env.PG_DUAL_WRITE_PATIENTS === 'on',
+  // P05 patients read source: which store serves patient reads. Default 'mongo'
+  // so merging P05 is behavior-neutral. When 'pg', reads come from Postgres and an
+  // async (never-awaited) shadow-compare against Mongo logs drift to sync_conflicts.
+  patientsReadPrimary: (process.env.PATIENTS_READ_PRIMARY === 'pg' ? 'pg' : 'mongo') as
+    | 'mongo'
+    | 'pg',
   // P07 sync engine (full engine wired in P08). RUN_CRON gates whether this replica
   // runs the cron-driven sync loop; default off so merging P07 changes no boot behavior.
   runCron: process.env.RUN_CRON === 'on',
@@ -24,6 +30,13 @@ export const config = {
   // election — namespaces this app's locks so kind-hash collisions can't clash with
   // any other advisory-lock user on the same PG instance.
   syncLeaderKeyBase: parseInt(process.env.SYNC_LEADER_KEY_BASE || '910700', 10),
+  sync: {
+    // P05 verify mode capture sink. Empty/undefined => use the built-in
+    // /api/sync/verify-sink endpoint; set to an external URL (e.g. webhook.site)
+    // to capture envelopes elsewhere. Only used when a SYNC_WRITE_* direction is
+    // set to `verify`.
+    verifySinkUrl: process.env.SYNC_VERIFY_SINK_URL || undefined,
+  },
   tokenKey: process.env.TOKEN_KEY || '',
   ghl: {
     clientId: process.env.CLIENT_ID || '',

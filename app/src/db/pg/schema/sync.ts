@@ -197,6 +197,22 @@ export const syncDeadLetter = pgTable('sync_dead_letter', {
   replayedAt: timestamp('replayed_at', { withTimezone: true }),
 });
 
+/**
+ * P05 verify mode — capture of outbound writes the engine WOULD have sent in
+ * `verify` write mode. Each row is a full envelope (url/method/headers/body the
+ * writer built) POSTed to the built-in /api/sync/verify-sink endpoint. No EHR is
+ * ever touched; this is the human-inspectable proof of correct create/update/
+ * cancel/delete emission.
+ */
+export const syncVerifyCaptures = pgTable('sync_verify_captures', {
+  id: uuid('id').primaryKey().defaultRandom(),
+  capturedAt: timestamp('captured_at', { withTimezone: true }).notNull().defaultNow(),
+  direction: text('direction'),
+  eventId: text('event_id'),
+  wouldHaveSent: jsonb('would_have_sent'),
+  createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+});
+
 // --- Inferred types (the row/insert contracts the P08 engine builds against) ---
 
 export type SyncJob = typeof syncJobs.$inferSelect;
@@ -211,3 +227,5 @@ export type AppointmentLink = typeof appointmentLinks.$inferSelect;
 export type NewAppointmentLink = typeof appointmentLinks.$inferInsert;
 export type SyncDeadLetter = typeof syncDeadLetter.$inferSelect;
 export type NewSyncDeadLetter = typeof syncDeadLetter.$inferInsert;
+export type SyncVerifyCapture = typeof syncVerifyCaptures.$inferSelect;
+export type NewSyncVerifyCapture = typeof syncVerifyCaptures.$inferInsert;

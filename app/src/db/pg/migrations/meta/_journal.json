@@ -22,6 +22,13 @@
       "when": 1780089212502,
       "tag": "0002_steady_ikaris",
       "breakpoints": true
+    },
+    {
+      "idx": 3,
+      "version": "7",
+      "when": 1780264441955,
+      "tag": "0003_sleepy_mockingbird",
+      "breakpoints": true
     }
   ]
 }

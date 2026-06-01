@@ -19,6 +19,7 @@ import embodiRoutes from './modules/embodi/routes.js';
 import drchronoRoutes from './modules/drchrono/routes.js';
 import adminRoutes from './modules/admin/routes.js';
 import syncRoutes from './modules/sync/routes.js';
+import syncVerifySinkRoutes from './modules/sync/verify-sink-routes.js';
 
 export function createServer() {
   const app = express();
@@ -57,6 +58,8 @@ export function createServer() {
   app.use('/api', identityRoutes);
   app.use('/api', webhookRoutes);
   app.use('/api', drchronoRoutes);
+  // P05 verify-mode capture sink (public; no EHR/JWT — verify works with no creds)
+  app.use('/api', syncVerifySinkRoutes);
 
   // Protected routes (auth required)
   app.use('/api', authToken, patientRoutes);

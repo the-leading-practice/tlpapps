@@ -5,6 +5,7 @@
 import express from 'express';
 import { integrationService } from '../integration/services.js';
 import { patientDataService } from './services.js';
+import { readPatient } from './helpers/read-patient.js';
 import type { PatientMapping } from './types.js';
 import { getLocation, deepEqual, verifyPatient } from './utils.js';
 import { logger } from './loggerAdapter.js';
@@ -36,7 +37,10 @@ const createController = () => {
 		const loc = getLocation(locHeader);
 
 		if (loc.location) {
-			const ret = await patientDataService.getPatient(loc.location, parseInt(req.params.id as string));
+			const ret = await readPatient({
+				locationId: loc.location,
+				patientId: parseInt(req.params.id as string),
+			});
 			res.type('json');
 			return res.status(200).json(ret);
 		}
@@ -117,11 +121,11 @@ const createController = () => {
 			// let's see if we have a mapping
 			let isNewMapping = false;
 
-			// check for mapping in mongo
-			let mapping: PatientMapping | null = await patientDataService.getPatient(
-				loc.location,
-				patient.patientId,
-			);
+			// check for existing mapping via the read helper (mongo or pg per flag)
+			let mapping: PatientMapping | null = await readPatient({
+				locationId: loc.location,
+				patientId: patient.patientId,
+			});
 			let verifiedContact: any = null;
 
 			if (!mapping) {
@@ -301,7 +305,10 @@ const createController = () => {
 			return;
 		}
 
-		const ret = await patientDataService.getPatient(loc.location, parseInt(req.params.id as string));
+		const ret = await readPatient({
+			locationId: loc.location,
+			patientId: parseInt(req.params.id as string),
+		});
 
 		if (!ret) {
 			res.status(404).json({ status: 'not found' });

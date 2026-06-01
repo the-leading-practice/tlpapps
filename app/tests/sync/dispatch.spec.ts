@@ -25,11 +25,50 @@ function mockHttp() {
   return { fn, get calls() { return calls; } };
 }
 
-test('writeModeFor: off | dry | on resolution', () => {
+test('writeModeFor: off | dry | verify | on resolution', () => {
   assert.equal(writeModeFor('ghl', { SYNC_WRITE_DRCHRONO_TO_GHL: 'on' } as any), 'on');
   assert.equal(writeModeFor('ghl', { SYNC_WRITE_DRCHRONO_TO_GHL: 'off' } as any), 'off');
+  assert.equal(writeModeFor('ghl', { SYNC_WRITE_DRCHRONO_TO_GHL: 'verify' } as any), 'verify');
   assert.equal(writeModeFor('ghl', {} as any), 'dry');
   assert.equal(writeModeFor('drchrono', { SYNC_WRITE_GHL_TO_DRCHRONO: 'on' } as any), 'on');
+  assert.equal(writeModeFor('drchrono', { SYNC_WRITE_GHL_TO_DRCHRONO: 'verify' } as any), 'verify');
+});
+
+const EHR_BASES = ['drchrono.com', 'leadconnectorhq.com'];
+const hitsEhr = (url: string) => EHR_BASES.some((b) => url.includes(b));
+
+test('dispatch verify (drchrono->ghl): EHR never hit, sink hit once, outcome verified, no token', async () => {
+  // The injected writer http records every URL it is asked to fetch. In verify mode the
+  // writer is handed the SINK http, so the only URL it ever sees is the sink — never GHL.
+  const seen: string[] = [];
+  const ghlHttp = async (url: string): Promise<AttemptResult> => {
+    seen.push(url);
+    return { status: 200, data: { captured: true } };
+  };
+  const outcome = await dispatchWrite(
+    { eventId: 'v1', target: 'ghl', entity: 'contact', verb: 'create', body: { name: 'A' } },
+    { mode: 'verify', ghlHttp, retryDelayFactor: 0 },
+  );
+  assert.equal(outcome, 'verified');
+  assert.equal(seen.length, 1); // sink POSTed exactly once
+  assert.equal(seen.filter(hitsEhr).length, 0); // EHR base never hit
+  assert.ok(seen[0].includes('/api/sync/verify-sink'));
+});
+
+test('dispatch verify (ghl->drchrono): EHR never hit, sink hit once, outcome verified, no token', async () => {
+  const seen: string[] = [];
+  const dcHttp = async (url: string): Promise<AttemptResult> => {
+    seen.push(url);
+    return { status: 200, data: { captured: true } };
+  };
+  const outcome = await dispatchWrite(
+    { eventId: 'v2', target: 'drchrono', entity: 'appointment', verb: 'cancel', id: 'd1', body: {} },
+    { mode: 'verify', dcHttp, retryDelayFactor: 0 },
+  );
+  assert.equal(outcome, 'verified');
+  assert.equal(seen.length, 1);
+  assert.equal(seen.filter(hitsEhr).length, 0);
+  assert.ok(seen[0].includes('/api/sync/verify-sink'));
 });
 
 test('dispatch dry => no writer call', async () => {
