@@ -17,6 +17,7 @@ import { config } from '../../../config.js';
 import { fetchJson } from '../../../utils/fetch.js';
 import { tagFor } from '../origin.js';
 import { applyContactSuppression } from '../suppression.js';
+import { resolveLocationSuppressTag, type TagFetch } from '../location-tags.js';
 import {
   withRetry,
   idempotencyKey,
@@ -42,6 +43,13 @@ export interface GhlWriteInput {
   id?: string;
   /** Body for create/update. Origin tag is injected automatically. */
   body?: Record<string, unknown>;
+  /**
+   * GHL location id. Required only to resolve the location's EXACT suppression-tag
+   * spelling for `on`-mode CONTACT writes. When present (with a token) the writer fetches
+   * the location's stored tags and uses the matched spelling; otherwise it falls back to
+   * the configured env literal (dry/verify keep the env literal).
+   */
+  locationId?: string;
 }
 
 /** Injectable HTTP fn so tests can substitute a mock without network. */
@@ -107,15 +115,28 @@ export async function ghlWrite(
   input: GhlWriteInput,
   http: HttpFn = defaultHttp,
   retryOpts: RetryOptions = {},
+  tagFetch?: TagFetch,
 ): Promise<AttemptResult> {
   const route = routeFor(input);
   const idemKey = idempotencyKey(input.eventId, `ghl:${input.entity}:${input.verb}`);
   // SAFETY: CONTACT bodies carry the automation-suppression tag (+ DND backstop) so synced
   // patients never trigger GHL workflows. Appointments are NOT contacts — left untouched.
-  // TODO(on-mode token wiring): pass resolveSuppressTag(GET /locations/{id}/tags) result here
-  // as the 2nd arg so the location's EXACT stored spelling is used (else GHL mints a new tag).
+  //
+  // ON-MODE TAG WIRING (was TODO): for a CONTACT write with a real token + locationId
+  // (i.e. `on` mode), resolve the location's EXACT stored tag spelling via
+  // GET /locations/{id}/tags and pass it into applyContactSuppression so GHL reuses the
+  // canonical tag (no new tag minted, workflow filter still matches). resolveLocationSuppressTag
+  // is DEGRADE-SAFE: on fetch failure / tag-absent it returns the configured literal, so a
+  // contact is NEVER sent untagged and this never throws. dry/verify carry no token → keep
+  // the env literal exactly as before.
+  let resolvedTag: string | undefined;
+  if (route.body && input.entity === 'contact' && input.token && input.locationId) {
+    resolvedTag = await resolveLocationSuppressTag(input.locationId, input.token, tagFetch);
+  }
   const guarded =
-    route.body && input.entity === 'contact' ? applyContactSuppression(route.body) : route.body;
+    route.body && input.entity === 'contact'
+      ? applyContactSuppression(route.body, resolvedTag)
+      : route.body;
   const bodyObj = guarded ? withOrigin(guarded, input.eventId) : undefined;
 
   const options: RequestInit = {

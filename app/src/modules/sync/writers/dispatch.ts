@@ -59,6 +59,9 @@ export interface DispatchInput {
   body?: Record<string, unknown>;
   /** EHR auth token; required only when mode === 'on'. */
   token?: string;
+  /** GHL location id — used to resolve the location's exact suppression-tag spelling
+   *  for `on`-mode contact writes. Ignored for off/dry/verify and for drchrono. */
+  locationId?: string;
 }
 
 export interface DispatchDeps {
@@ -121,6 +124,10 @@ export async function dispatchWrite(
         token,
         id: input.id,
         body: input.body,
+        // Only meaningful in `on` mode (token present); resolves the location's exact
+        // suppression-tag spelling. In verify there's no token, so ghlWrite skips the
+        // live tag fetch and keeps the env literal — sink stays network-isolated.
+        locationId: verify ? undefined : input.locationId,
       },
       http,
       { delayFactor: deps.retryDelayFactor },

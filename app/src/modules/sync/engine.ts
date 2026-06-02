@@ -25,6 +25,7 @@ import { logger } from '../../logger.js';
 import { Leader } from './leader.js';
 import { decide, type SyncSystem } from './decision.js';
 import { dispatchWrite, writeModeFor } from './writers/dispatch.js';
+import { getLocationAccessToken } from './location-token.js';
 import {
   ghlAppointmentToNormalized,
   drchronoAppointmentToNormalized,
@@ -150,6 +151,17 @@ async function processOne(ev: SyncEvent): Promise<Outcome> {
   const targetId =
     target === 'ghl' ? normalized.ghlEventId ?? undefined : normalized.drchronoAppointmentId ?? undefined;
 
+  // ON-MODE TOKEN WIRING: only `on` writes need a live token. off/dry/verify must NOT touch
+  // identity services or the network — resolve lazily and only for target=ghl (the only
+  // direction with a per-location GHL token via identity). A null token leaves dispatch's
+  // existing no-token guard to refuse the live write (degrade-safe). DrChrono on-mode token
+  // wiring is out of scope here (no drchrono token provider yet).
+  const ghlLocationId = target === 'ghl' && normalized.locationId ? normalized.locationId : undefined;
+  let onToken: string | undefined;
+  if (mode === 'on' && target === 'ghl' && ghlLocationId) {
+    onToken = (await getLocationAccessToken(ghlLocationId)) ?? undefined;
+  }
+
   const outcome = await dispatchWrite({
     eventId: ev.id,
     target,
@@ -157,7 +169,8 @@ async function processOne(ev: SyncEvent): Promise<Outcome> {
     verb,
     id: targetId,
     body: decision.payload ?? undefined,
-    // token intentionally omitted — engine has no per-location EHR token in scope yet.
+    token: onToken,
+    locationId: ghlLocationId,
   });
 
   log.info(
