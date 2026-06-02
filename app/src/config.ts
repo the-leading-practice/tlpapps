@@ -44,6 +44,12 @@ export const config = {
     apiUrl: process.env.GHL_API_URL || 'https://services.leadconnectorhq.com',
     apiVersion: process.env.GHL_API_VERSION || '2021-07-28',
     redirectUrl: process.env.REDIRECT_URL || 'https://tlpapps.theleadingpractice.com:8080/oauth',
+    // SAFETY: suppression guard so synced contacts never trigger GHL automation workflows.
+    // Owner's GHL workflows are filtered to exclude this tag — every synced contact carries it.
+    suppressTag: process.env.GHL_SUPPRESS_TAG || 'Existing Patient',
+    // DND backstop: when true, force dnd:true on every synced CONTACT write (engine + legacy),
+    // overriding the hardcoded dnd:false. Default true. When false, legacy keeps dnd:false.
+    suppressAutomation: process.env.GHL_SUPPRESS_AUTOMATION !== 'false',
   },
   drchrono: {
     apiUrl: process.env.DRCHRONO_API || 'https://drchrono.com',

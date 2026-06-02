@@ -16,6 +16,7 @@
 import { config } from '../../../config.js';
 import { fetchJson } from '../../../utils/fetch.js';
 import { tagFor } from '../origin.js';
+import { applyContactSuppression } from '../suppression.js';
 import {
   withRetry,
   idempotencyKey,
@@ -109,7 +110,13 @@ export async function ghlWrite(
 ): Promise<AttemptResult> {
   const route = routeFor(input);
   const idemKey = idempotencyKey(input.eventId, `ghl:${input.entity}:${input.verb}`);
-  const bodyObj = route.body ? withOrigin(route.body, input.eventId) : undefined;
+  // SAFETY: CONTACT bodies carry the automation-suppression tag (+ DND backstop) so synced
+  // patients never trigger GHL workflows. Appointments are NOT contacts — left untouched.
+  // TODO(on-mode token wiring): pass resolveSuppressTag(GET /locations/{id}/tags) result here
+  // as the 2nd arg so the location's EXACT stored spelling is used (else GHL mints a new tag).
+  const guarded =
+    route.body && input.entity === 'contact' ? applyContactSuppression(route.body) : route.body;
+  const bodyObj = guarded ? withOrigin(guarded, input.eventId) : undefined;
 
   const options: RequestInit = {
     method: route.method,

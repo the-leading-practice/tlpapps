@@ -9,6 +9,7 @@ import type {
 	TLPAppointmentData,
 } from './types.js';
 import { config } from '../../config.js';
+import { suppressAutomation } from '../sync/suppression.js';
 
 // GHL custom field for patient ID mapping
 const GHL_CUSTOM_FIELD_ID = 'SEyhHXZR8hzYYpy7qByu';
@@ -132,7 +133,9 @@ export const translateTLPtoGHL = (patient: TLPPatientData, location: string): GH
 		timezone: patient.timezone,
 		companyName: `${patient.patientId}`,
 		tags: ['API', 'Existing Patient'],
-		dnd: false,
+		// SAFETY: DND backstop. dnd:false preserved unless GHL_SUPPRESS_AUTOMATION is on,
+		// then force dnd:true so synced patients never trigger GHL automation workflows.
+		dnd: suppressAutomation() ? true : false,
 		customFields: [
 			{
 				id: GHL_CUSTOM_FIELD_ID,
