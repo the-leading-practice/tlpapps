@@ -14,6 +14,7 @@
     "backfill:config": "tsx scripts/backfill-config.ts",
     "diff:config": "tsx scripts/diff-config.ts",
     "reconcile:patients": "tsx scripts/reconcile-patients.ts",
+    "verify:suppression": "tsx scripts/verify-suppression.ts",
     "demo:verify-sink": "node --import tsx scripts/demo-verify-sink.ts"
   },
   "dependencies": {
