@@ -69,9 +69,27 @@ function headers(token: string, idemKey: string): Record<string, string> {
   };
 }
 
-/** Stamp the loop-prevention origin tag into a custom field carrier on the payload. */
-function withOrigin(body: Record<string, unknown>, eventId: string): Record<string, unknown> {
-  return { ...body, origin_tag: tagFor('ghl', eventId) };
+/**
+ * Stamp the loop-prevention origin tag onto the outbound payload.
+ *
+ * GHL's contact/appointment upsert schemas reject unknown top-level properties (a stray
+ * `origin_tag` 422s — "property origin_tag should not exist"). For CONTACTS the origin
+ * marker therefore rides in the `tags` array: GHL accepts arbitrary tags and echoes them
+ * back in the contact webhook, where `origin.parse()` (which now scans `tags`) recognizes
+ * the self-authored echo and skips it. The marker is a unique `tlp-sync:ghl:<eventId>`
+ * tag — inert to the owner's workflow filters, so it never triggers/suppresses automations.
+ * Appointment loop-guard wiring is still pending (the calendar-event schema has no tags),
+ * so appointment writes go unstamped rather than carry a property GHL rejects.
+ */
+function withOrigin(
+  body: Record<string, unknown>,
+  eventId: string,
+  entity: GhlEntity,
+): Record<string, unknown> {
+  if (entity !== 'contact') return body;
+  const originTag = tagFor('ghl', eventId);
+  const existing = Array.isArray(body.tags) ? (body.tags as unknown[]) : [];
+  return { ...body, tags: Array.from(new Set([...existing, originTag])) };
 }
 
 interface Route {
@@ -137,7 +155,7 @@ export async function ghlWrite(
     route.body && input.entity === 'contact'
       ? applyContactSuppression(route.body, resolvedTag)
       : route.body;
-  const bodyObj = guarded ? withOrigin(guarded, input.eventId) : undefined;
+  const bodyObj = guarded ? withOrigin(guarded, input.eventId, input.entity) : undefined;
 
   const options: RequestInit = {
     method: route.method,

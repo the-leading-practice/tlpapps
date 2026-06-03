@@ -59,7 +59,7 @@ function collectStrings(payload: unknown): string[] {
 
   const out: string[] = [];
   const obj = payload as Record<string, unknown>;
-  for (const key of ['origin_tag', 'originTag', 'notes', 'note', 'customField', 'custom_field']) {
+  for (const key of ['origin_tag', 'originTag', 'notes', 'note', 'customField', 'custom_field', 'tags']) {
     const v = obj[key];
     if (typeof v === 'string') out.push(v);
     else if (Array.isArray(v)) out.push(...v.filter((x): x is string => typeof x === 'string'));

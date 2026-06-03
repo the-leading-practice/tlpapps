@@ -405,6 +405,10 @@ async function main(): Promise<void> {
       console.error('  Phase B requires: --live AND --location wP3Ynm3Z63rIC4zVAgXP');
       process.exit(2);
     }
+    // Phase B reads the demo location's encrypted token from the identity store (Mongo),
+    // so a live DB connection is required before token resolution. Phase A never reaches here.
+    const { connectDB } = await import('../src/db.js');
+    await connectDB();
     const b = await runPhaseB(args.location!, args.count);
     printPhaseB(b);
     bPass = b.pass;

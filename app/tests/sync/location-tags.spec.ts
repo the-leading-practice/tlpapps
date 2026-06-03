@@ -61,7 +61,8 @@ test('on-mode contact: resolved location tag spelling used (not configured liter
       tagFetch,
     );
     // account's exact stored spelling "Existing Patients" — NOT the configured literal.
-    assert.deepEqual(bodies[0].tags, ['Existing Patients']);
+    // (origin loop-guard tag appended after the suppression tag).
+    assert.deepEqual(bodies[0].tags, ['Existing Patients', 'tlp-sync:ghl:lt-a']);
   } finally {
     if (prev === undefined) delete process.env.GHL_SUPPRESS_TAG;
     else process.env.GHL_SUPPRESS_TAG = prev;
@@ -88,7 +89,7 @@ test('on-mode contact: tags-fetch failure degrades to configured literal (no thr
     tagFetch,
   );
   // NEVER untagged — falls back to env literal "Existing Patient".
-  assert.deepEqual(bodies[0].tags, ['Existing Patient']);
+  assert.deepEqual(bodies[0].tags, ['Existing Patient', 'tlp-sync:ghl:lt-b']);
 });
 
 // (c) configured tag ABSENT from location => warn + configured literal used.
@@ -108,7 +109,7 @@ test('on-mode contact: tag absent from location => configured literal used', asy
     { delayFactor: 0 },
     tagFetch,
   );
-  assert.deepEqual(bodies[0].tags, ['Existing Patient']);
+  assert.deepEqual(bodies[0].tags, ['Existing Patient', 'tlp-sync:ghl:lt-c']);
 });
 
 // (d1) dry/verify path via dispatch: no token => env literal, tagFetch never invoked.
@@ -135,7 +136,7 @@ test('verify mode: no token => env literal, no live tag fetch', async () => {
   void tagFetch;
   assert.equal(fetchCalls, 0);
   const envelope = sink.bodies[0];
-  assert.deepEqual(envelope.wouldHaveSent.body.tags, ['Existing Patient']);
+  assert.deepEqual(envelope.wouldHaveSent.body.tags, ['Existing Patient', 'tlp-sync:ghl:lt-d']);
 });
 
 // (d2) on-mode contact WITHOUT locationId => no fetch, env literal (defensive).
@@ -153,7 +154,7 @@ test('on-mode contact: no locationId => env literal, no fetch', async () => {
     tagFetch,
   );
   assert.equal(fetchCalls, 0);
-  assert.deepEqual(bodies[0].tags, ['Existing Patient']);
+  assert.deepEqual(bodies[0].tags, ['Existing Patient', 'tlp-sync:ghl:lt-e']);
 });
 
 // resolver unit: cache returns the first resolved tag without re-fetching.

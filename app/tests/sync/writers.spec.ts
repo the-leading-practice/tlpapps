@@ -34,10 +34,13 @@ function mockHttp(statuses: number[]) {
   return { fn, calls };
 }
 
-test('ghlWrite: success path => 2xx, idempotency-key + origin tag present', async () => {
+test('ghlWrite: success path => 2xx, idempotency-key + origin tag in contact tags', async () => {
   const { fn, calls } = mockHttp([200]);
+  // CONTACT create: origin marker rides in the `tags` array (GHL rejects a top-level
+  // origin_tag property with 422). No token+locationId => no live tag fetch; suppression
+  // applies the env literal "Existing Patient", then withOrigin appends the origin tag.
   const res = await ghlWrite(
-    { eventId: 'ev-1', entity: 'appointment', verb: 'create', token: 'tok', body: { x: 1 } },
+    { eventId: 'ev-1', entity: 'contact', verb: 'create', token: 'tok', body: { firstName: 'P' } },
     fn,
     { delayFactor: 0 },
   );
@@ -46,7 +49,22 @@ test('ghlWrite: success path => 2xx, idempotency-key + origin tag present', asyn
   const headers = calls[0].options.headers as Record<string, string>;
   assert.ok(headers['Idempotency-Key'].includes('ev-1'));
   const body = JSON.parse(calls[0].options.body as string);
-  assert.equal(body.origin_tag, 'tlp-sync:ghl:ev-1');
+  assert.equal(body.origin_tag, undefined); // never a top-level property
+  assert.ok(Array.isArray(body.tags) && body.tags.includes('tlp-sync:ghl:ev-1'));
+});
+
+test('ghlWrite: appointment create carries NO origin tag (GHL schema rejects it)', async () => {
+  const { fn, calls } = mockHttp([200]);
+  const res = await ghlWrite(
+    { eventId: 'ev-1a', entity: 'appointment', verb: 'create', token: 'tok', body: { x: 1 } },
+    fn,
+    { delayFactor: 0 },
+  );
+  assert.equal(res.status, 200);
+  const body = JSON.parse(calls[0].options.body as string);
+  assert.equal(body.origin_tag, undefined);
+  assert.equal(body.tags, undefined); // appointment body left untouched
+  assert.equal(body.x, 1);
 });
 
 test('ghlWrite: 5xx then 200 => retries then succeeds', async () => {

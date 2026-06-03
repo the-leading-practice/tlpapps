@@ -36,7 +36,7 @@ test('engine contact create: suppress tag merged with existing tags, deduped', a
     fn,
     { delayFactor: 0 },
   );
-  assert.deepEqual(bodies[0].tags, ['VIP', 'Existing Patient']);
+  assert.deepEqual(bodies[0].tags, ['VIP', 'Existing Patient', 'tlp-sync:ghl:ev-a']);
 
   // dedupe: pre-existing suppress tag is not duplicated
   const dup = captureHttp();
@@ -51,7 +51,7 @@ test('engine contact create: suppress tag merged with existing tags, deduped', a
     dup.fn,
     { delayFactor: 0 },
   );
-  assert.deepEqual(dup.bodies[0].tags, ['Existing Patient', 'VIP']);
+  assert.deepEqual(dup.bodies[0].tags, ['Existing Patient', 'VIP', 'tlp-sync:ghl:ev-a2']);
 });
 
 // engine contact upsert with NO pre-existing tags still gets the suppress tag.
@@ -62,7 +62,7 @@ test('engine contact create: tag injected when body has no tags array', async ()
     fn,
     { delayFactor: 0 },
   );
-  assert.deepEqual(bodies[0].tags, ['Existing Patient']);
+  assert.deepEqual(bodies[0].tags, ['Existing Patient', 'tlp-sync:ghl:ev-a3']);
 });
 
 // (b) DND backstop: flag on => dnd:true on engine contact; legacy translator dnd:false when off.
@@ -129,7 +129,7 @@ test('verify mode: suppress tag present in captured sink envelope body', async (
   );
   // sink envelope wraps the would-be GHL body under wouldHaveSent.body
   const envelope = sink.bodies[0];
-  assert.deepEqual(envelope.wouldHaveSent.body.tags, ['VIP', 'Existing Patient']);
+  assert.deepEqual(envelope.wouldHaveSent.body.tags, ['VIP', 'Existing Patient', 'tlp-sync:ghl:ev-c']);
 });
 
 // (d) Appointment bodies are unchanged — no suppress tag, no dnd injection.
