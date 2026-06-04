@@ -147,7 +147,6 @@ async function run(args: Args): Promise<Summary> {
   const { PatientModel } = await import('../src/models/patient.js');
   const { db } = await import('../src/db/pg/client.js');
   const { patients, patientExternalIds } = await import('../src/db/pg/schema/patients.js');
-  const { eq } = await import('drizzle-orm');
 
   await mongoose.connect(config.mongoConnString);
 
@@ -211,27 +210,27 @@ async function run(args: Args): Promise<Summary> {
       }
 
       await db.transaction(async (tx) => {
-        // Concurrency guard: never clobber a PG row the live dual-write wrote more
-        // recently than this historical Mongo doc.
-        const existing = await tx
-          .select({ id: patients.id, updatedAt: patients.updatedAt })
-          .from(patients)
-          .where(eq(patients.mongoId, mongoId))
-          .limit(1);
-
-        if (existing.length > 0 && existing[0].updatedAt > mongoUpdatedAt) {
-          summary.skippedNewerPg++;
-          return;
-        }
-
+        // Concurrency guard (review item 1/2): the "PG newer than Mongo" skip lives
+        // in the ON CONFLICT WHERE clause — no separate pre-SELECT needed. The
+        // condition `patients.updatedAt < mongoUpdatedAt` means: only overwrite when
+        // the existing PG row is OLDER than this historical Mongo doc. If the live
+        // dual-write wrote a newer row, WHERE is false, PG does nothing — idempotent.
+        const { lt } = await import('drizzle-orm');
         const [row] = await tx
           .insert(patients)
           .values({ mongoId, locationId, patientId, contactId, updatedAt: mongoUpdatedAt })
           .onConflictDoUpdate({
             target: [patients.locationId, patients.patientId],
             set: { contactId, mongoId, updatedAt: mongoUpdatedAt },
+            where: lt(patients.updatedAt, mongoUpdatedAt),
           })
           .returning({ id: patients.id });
+
+        if (!row) {
+          // ON CONFLICT WHERE false: existing PG row is newer than Mongo doc; skip.
+          summary.skippedNewerPg++;
+          return;
+        }
 
         for (const ext of derived) {
           await tx
