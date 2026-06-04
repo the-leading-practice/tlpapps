@@ -14,15 +14,20 @@
  *
  * The compare path swallows any failure (Mongo hiccup, PG write error): a shadow
  * failure must never affect the served request.
+ *
+ * Review hardening (item 3): the raw Mongo `.lean()` doc is passed through
+ * `normalizeForComparison` first (ObjectId→hex, Date→ISO-8601, strip Mongoose
+ * internals, sort keys) before projecting to the canonical mapping shape via
+ * `normalize`. This ensures no spurious diffs from type representation.
  */
 import { PatientModel as Patient } from '../../models/patient.js';
 import { db } from '../../db/pg/client.js';
 import { syncConflicts } from '../../db/pg/schema/sync.js';
 import { logger } from '../../logger.js';
-import { normalize, diff } from './shadow-diff.js';
+import { normalize, normalizeForComparison, diff } from './shadow-diff.js';
 import type { PatientMapping } from './types.js';
 
-export { normalize, diff } from './shadow-diff.js';
+export { normalize, normalizeForComparison, diff } from './shadow-diff.js';
 export type { FieldDiff, DiffCategory } from './shadow-diff.js';
 
 const log = logger.child({ module: 'patients-shadow' });
@@ -39,13 +44,18 @@ export type PatientQuery = { locationId: string; patientId: number };
 
 /**
  * Run the Mongo side of the query and return the normalized mapping.
+ * Applies normalizeForComparison on the raw .lean() doc first to coerce
+ * ObjectId/Date types and strip Mongoose internals (review hardening item 3).
  */
 async function readMongo(query: PatientQuery): Promise<Record<string, unknown> | null> {
   const doc = await Patient.findOne({
     locationId: query.locationId,
     patientId: query.patientId,
   }).lean<PatientMapping & Record<string, unknown>>();
-  return normalize(doc);
+  if (!doc) return null;
+  // Deep-normalize raw Mongoose doc before projecting to tracked fields.
+  const deepNorm = normalizeForComparison(doc) as (PatientMapping & Record<string, unknown>);
+  return normalize(deepNorm);
 }
 
 /**
