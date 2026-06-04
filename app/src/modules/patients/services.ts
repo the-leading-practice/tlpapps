@@ -12,7 +12,7 @@ import type { PatientMapping, TLPAppointmentData, ApptData } from './types.js';
 
 const createPatientDataService = () => {
 	const getPatients = async (locationId: string) => {
-		const patients = await Patient.find({ LocationId: locationId });
+		const patients = await Patient.find({ locationId: locationId });
 		return patients;
 	};
 
