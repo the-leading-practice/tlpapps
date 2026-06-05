@@ -4,6 +4,11 @@ import { drchronoSyncWebhook } from './webhook.js';
 
 const router = Router();
 
+// Webhook verification challenge -- DrChrono sends GET ?msg=<token>, expects
+// { secret_token: HMAC_SHA256(msg, secret) }. Same handler serves both callback paths.
+router.get('/webhook/drchrono', drChronoController.verifyWebhook);
+router.get('/webhook/drchrono/sync', drChronoController.verifyWebhook);
+
 // Webhook receiver -- DrChrono pushes real-time events here
 router.post('/webhook/drchrono', drChronoController.handleWebhook);
 

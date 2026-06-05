@@ -1,3 +1,4 @@
+import crypto from 'crypto';
 import type { Request, Response } from 'express';
 import {
   drChronoConfigService,
@@ -9,6 +10,7 @@ import {
   syncPatientsAndAppointments,
   runFullPoll,
 } from './services.js';
+import { drchronoVerifyToken } from './webhook.js';
 import { config } from '../../config.js';
 import type {
   DrChronoWebhookPayload,
@@ -99,6 +101,25 @@ const createDrChronoController = () => {
   };
 
   // ---------------------------------------------------------------------------
+  // Webhook verification challenge (DrChrono GET ?msg=...)
+  // ---------------------------------------------------------------------------
+
+  const verifyWebhook = async (req: Request, res: Response) => {
+    const msg = req.query.msg as string | undefined;
+    if (!msg) {
+      res.status(400).send('missing ?msg= query param');
+      return;
+    }
+    const cfg = await drChronoConfigService.getConfig();
+    const secret = cfg?.webhookSecret || process.env.DRCHRONO_WEBHOOK_SECRET;
+    if (!secret) {
+      res.status(500).send('no webhook secret configured');
+      return;
+    }
+    res.status(200).json({ secret_token: drchronoVerifyToken(msg, secret) });
+  };
+
+  // ---------------------------------------------------------------------------
   // OAuth flow
   // ---------------------------------------------------------------------------
 
@@ -176,6 +197,7 @@ const createDrChronoController = () => {
 
   return {
     handleWebhook,
+    verifyWebhook,
     oauthAuthorize,
     oauthCallback,
     triggerPoll,

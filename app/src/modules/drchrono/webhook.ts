@@ -35,6 +35,16 @@ function externalIdOf(obj: Record<string, unknown> | undefined): string | null {
   return null;
 }
 
+/**
+ * DrChrono webhook verification challenge. When a webhook is registered/verified,
+ * DrChrono sends a GET to the callback URL with `?msg=<token>`; the endpoint must
+ * reply 200 with `{ secret_token: HMAC_SHA256_hex(msg, <Secret Token>) }`. This is
+ * the pure HMAC core (no Express), unit-tested directly.
+ */
+export function drchronoVerifyToken(msg: string, secret: string): string {
+  return crypto.createHmac('sha256', secret).update(msg).digest('hex');
+}
+
 /** Timing-safe plaintext secret comparison. */
 export function verifyDrchronoSecret(
   provided: string | undefined,
