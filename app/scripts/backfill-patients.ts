@@ -31,6 +31,7 @@
  *   tsx scripts/backfill-patients.ts --batch-size 1000        # tune page size
  *   tsx scripts/backfill-patients.ts --cursor-file ./x.cursor # custom cursor path
  *   tsx scripts/backfill-patients.ts --reset-cursor           # start from the top
+ *   tsx scripts/backfill-patients.ts --location <ghlLocId>    # only that location's patients
  *
  * The implementing agent does NOT run a non-dry-run against any database — that is
  * the human-gated T04 step.
@@ -47,6 +48,7 @@ export interface Args {
   batchSize: number;
   cursorFile: string;
   resetCursor: boolean;
+  location: string | null;
 }
 
 const DEFAULT_CURSOR_FILE = '.cache/backfill-patients-cursor';
@@ -57,6 +59,7 @@ export function parseArgs(argv: string[]): Args {
     batchSize: 500,
     cursorFile: DEFAULT_CURSOR_FILE,
     resetCursor: false,
+    location: null,
   };
   for (let i = 0; i < argv.length; i++) {
     const a = argv[i];
@@ -66,6 +69,10 @@ export function parseArgs(argv: string[]): Args {
       args.batchSize = Number.isFinite(n) && n > 0 ? n : 500;
     } else if (a === '--cursor-file') args.cursorFile = argv[++i] ?? DEFAULT_CURSOR_FILE;
     else if (a === '--reset-cursor') args.resetCursor = true;
+    else if (a === '--location') {
+      const v = (argv[++i] ?? '').trim();
+      args.location = v.length > 0 ? v : null;
+    }
   }
   return args;
 }
@@ -158,9 +165,16 @@ async function run(args: Args): Promise<Summary> {
     batches: 0,
   };
 
-  let lastId = await readCursor(args.cursorFile, args.resetCursor);
+  // Location-scoped runs get their own cursor namespace so a partial demo run can
+  // never clobber (or resume from) a full-run cursor.
+  const cursorFile =
+    args.location && args.cursorFile === DEFAULT_CURSOR_FILE
+      ? `${DEFAULT_CURSOR_FILE}-${args.location}`
+      : args.cursorFile;
+
+  let lastId = await readCursor(cursorFile, args.resetCursor);
   log.info(
-    { ...args, resumeFrom: lastId, mode: args.dryRun ? 'DRY-RUN' : 'APPLY' },
+    { ...args, cursorFile, resumeFrom: lastId, mode: args.dryRun ? 'DRY-RUN' : 'APPLY' },
     'backfill-patients starting',
   );
 
@@ -168,7 +182,10 @@ async function run(args: Args): Promise<Summary> {
   const { Types } = mongoose;
 
   for (;;) {
-    const filter = lastId ? { _id: { $gt: new Types.ObjectId(lastId) } } : {};
+    const filter: Record<string, unknown> = lastId
+      ? { _id: { $gt: new Types.ObjectId(lastId) } }
+      : {};
+    if (args.location) filter.locationId = args.location;
     const docs = await PatientModel.find(filter)
       .sort({ _id: 1 })
       .limit(args.batchSize)
@@ -246,7 +263,7 @@ async function run(args: Args): Promise<Summary> {
       });
     }
 
-    if (!args.dryRun && lastId) await writeCursor(args.cursorFile, lastId);
+    if (!args.dryRun && lastId) await writeCursor(cursorFile, lastId);
 
     if (summary.scanned % 1000 < args.batchSize) {
       log.info({ ...summary }, 'backfill-patients progress');

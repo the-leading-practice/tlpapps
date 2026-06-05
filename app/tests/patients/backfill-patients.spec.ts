@@ -19,14 +19,20 @@ test('parseArgs: safe defaults', () => {
   assert.equal(a.batchSize, 500);
   assert.equal(a.cursorFile, '.cache/backfill-patients-cursor');
   assert.equal(a.resetCursor, false);
+  assert.equal(a.location, null);
 });
 
 test('parseArgs: flags parse', () => {
-  const a = parseArgs(['--dry-run', '--batch-size', '1000', '--cursor-file', './x', '--reset-cursor']);
+  const a = parseArgs(['--dry-run', '--batch-size', '1000', '--cursor-file', './x', '--reset-cursor', '--location', 'wP3Ynm3Z63rIC4zVAgXP']);
   assert.equal(a.dryRun, true);
   assert.equal(a.batchSize, 1000);
   assert.equal(a.cursorFile, './x');
   assert.equal(a.resetCursor, true);
+  assert.equal(a.location, 'wP3Ynm3Z63rIC4zVAgXP');
+});
+
+test('parseArgs: blank --location stays null', () => {
+  assert.equal(parseArgs(['--location', '   ']).location, null);
 });
 
 test('parseArgs: invalid batch-size falls back to 500', () => {
