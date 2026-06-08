@@ -73,6 +73,7 @@
 							<li class="text-lg"><a href="/sync/events"><Icon icon="mdi:format-list-bulleted" /> Events</a></li>
 							<li class="text-lg"><a href="/sync/conflicts"><Icon icon="mdi:alert-outline" /> Conflicts</a></li>
 							<li class="text-lg"><a href="/sync/dead-letter"><Icon icon="mdi:email-alert-outline" /> Dead Letter</a></li>
+							<li class="text-lg"><a href="/sync/controls"><Icon icon="mdi:toggle-switch-outline" /> Controls</a></li>
 						</ul>
 				</li>
       </ul>
