@@ -1,12 +1,16 @@
-NOTE This repo is considered WIP and not ready for production.
-
 # TLP Apps Mono-repo
 
 ## Overview
 
 Backend Express monolith (`app/`) plus SvelteKit admin frontend (`apps/admin/`)
-plus legacy microservices archived under `services/`. See `app/CLAUDE.md` for
-the server architecture.
+plus legacy microservices archived under `services/`.
+
+### Database architecture (current)
+
+- **Postgres** (`tlp-services-pg` on Coolify) — **primary datastore** for config, patients, and all sync state. ORM: [Drizzle](https://orm.drizzle.team) (`app/src/db/pg/`).
+- **MongoDB** (Coolify `mongo-tlp`) — transitional; retained for identity/auth tokens and DrChrono OAuth config. EOL scheduled in the "Residual Mongo EOL" follow-up milestone. See `.planning/MONGO-EOL.md`.
+
+See `docs/architecture.md` for the full module + data-store layout.
 
 ## Building
 
@@ -21,9 +25,36 @@ pnpm --filter ./apps/admin dev     # admin frontend (SvelteKit + Vite)
 
 ## Deployment
 
-Docker compose at the repo root + per-sub-app Dockerfiles.
+Docker compose at the repo root + per-sub-app Dockerfiles. Coolify builds from GitHub `the-leading-practice/tlpapps main` (see project memory `project_deploy_source_github.md`).
 
-## Development Notes
+### Key environment variables (added P02–P10)
+
+| Variable | Purpose | Default |
+|----------|---------|---------|
+| `DATABASE_URL` | Postgres connection (required) | — |
+| `CONFIG_PRIMARY` | `pg` or `mongo` for config reads | `mongo` |
+| `CONFIG_LEGACY_WRITE` | `off` to stop Mongo config writes | `on` |
+| `PATIENTS_PRIMARY` | `pg` or `mongo` for patient writes | `mongo` |
+| `PATIENTS_LEGACY_WRITE` | `off` to stop Mongo patient writes | `on` |
+| `PATIENTS_READ_PRIMARY` | `pg` or `mongo` for patient reads | `mongo` |
+| `RUN_MIGRATIONS` | Set `true` to apply DB migrations on boot | `false` |
+| `RUN_CRON` | Set `on` to enable sync cron loop | `off` |
+| `SYNC_LEADER_KEY_BASE` | PG advisory lock namespace for cron leader | `910700` |
+| `SYNC_WRITE_DRCHRONO_TO_GHL` | Kill switch: `off`/`dry`/`verify`/`on` | `dry` |
+| `SYNC_WRITE_GHL_TO_DRCHRONO` | Kill switch: `off`/`dry`/`verify`/`on` | `dry` |
+| `SYNC_VERIFY_SINK_URL` | Override verify-mode capture target | built-in |
+| `DRCHRONO_WEBHOOK_SECRET` | HMAC secret for DrChrono webhook verification | — |
+| `GHL_SUPPRESS_TAG` | Tag applied to all synced GHL contacts | `Existing Patient` |
+| `GHL_SUPPRESS_AUTOMATION` | Force dnd on synced contacts | `true` |
+
+## Documentation
+
+- `docs/architecture.md` — full module + data-store layout
+- `docs/sync-architecture.md` — GHL ↔ DrChrono sync flow, kill-switch matrix
+- `docs/database.md` — Drizzle schema, migration policy, dual-write/shadow-read patterns
+- `docs/sync-runbook.md` — operational runbook (flip gates, replay dead-letters, rollback)
+- `docs/api-sync.md` — generated sync API reference
+- `.planning/MONGO-EOL.md` — Mongo retirement schedule
 
 ## Documentation convention (global rule #21)
 
