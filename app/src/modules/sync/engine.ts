@@ -22,6 +22,8 @@ import {
 import type { SyncEvent } from '../../db/pg/schema/sync.js';
 import { config } from '../../config.js';
 import { logger } from '../../logger.js';
+import { syncCounters } from './metrics.js';
+import { triggerAlert } from './alerts.js';
 import { Leader } from './leader.js';
 import { decide, type SyncSystem } from './decision.js';
 import { dispatchWrite, writeModeFor } from './writers/dispatch.js';
@@ -132,10 +134,18 @@ async function processOne(ev: SyncEvent): Promise<Outcome> {
       diffJson: { incomingHash, mappingHash: mapping?.lastHash ?? null },
     });
     await markProcessed(ev);
+    // Check conflict queue size for threshold alert (P10 T03).
+    triggerAlert('conflict_queue', { eventId: ev.id }).catch(() => undefined);
     return 'conflict';
   }
 
-  if (decision.action === 'skip-loop' || decision.action === 'no-op') {
+  if (decision.action === 'skip-loop') {
+    syncCounters.inc('sync_writes_skipped_loop');
+    triggerAlert('loop_detection', { eventId: ev.id, source }).catch(() => undefined);
+    await markProcessed(ev);
+    return 'skipped';
+  }
+  if (decision.action === 'no-op') {
     await markProcessed(ev);
     return 'skipped';
   }
@@ -302,6 +312,9 @@ async function failEvent(ev: SyncEvent, err: unknown): Promise<void> {
     .update(syncEvents)
     .set({ status: 'failed', error: message })
     .where(eq(syncEvents.id, ev.id));
+  // Alert on dead-letter insert (P10 T03 alert rule).
+  syncCounters.inc('sync_dead_letter_count');
+  triggerAlert('dead_letter', { eventId: ev.id, error: message }).catch(() => undefined);
 }
 
 /** Re-arm previously-failed events past the attempt cap as dead (called by loop). */

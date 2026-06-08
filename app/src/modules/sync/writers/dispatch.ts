@@ -16,6 +16,7 @@
 
 import { logger } from '../../../logger.js';
 import type { SyncSystem } from '../decision.js';
+import { syncCounters, type Direction } from '../metrics.js';
 import { ghlWrite, type GhlEntity, type GhlVerb, type HttpFn as GhlHttp } from './ghl.js';
 import {
   drchronoWrite,
@@ -73,7 +74,8 @@ export interface DispatchDeps {
 
 export type DispatchOutcome = 'skipped-off' | 'dry-logged' | 'verified' | 'written';
 
-/** In-memory counter for skipped-off writes (surfaced by engine batch logs). */
+/** In-memory counter for skipped-off writes (surfaced by engine batch logs).
+ * @deprecated Use syncCounters from metrics.ts; kept for backwards compat. */
 export const counters = { sync_writes_skipped_off: 0 };
 
 /**
@@ -87,13 +89,18 @@ export async function dispatchWrite(
   const mode = deps.mode ?? writeModeFor(input.target);
   const op = `${input.target}:${input.entity}:${input.verb}`;
 
+  const direction: Direction =
+    input.target === 'ghl' ? 'drchrono_to_ghl' : 'ghl_to_drchrono';
+
   if (mode === 'off') {
     counters.sync_writes_skipped_off++;
+    syncCounters.inc('sync_writes_skipped_off');
     log.info({ op, eventId: input.eventId }, 'write skipped — kill switch off');
     return 'skipped-off';
   }
 
   if (mode === 'dry') {
+    syncCounters.inc('sync_dry_run_actions');
     log.info({ op, eventId: input.eventId, dryRun: true }, 'dry-run: write intent only (no API call)');
     return 'dry-logged';
   }
@@ -111,50 +118,60 @@ export async function dispatchWrite(
 
   const token = input.token ?? '';
 
-  if (input.target === 'ghl') {
-    const direction: VerifyDirection = 'drchrono→ghl';
-    const http = verify
-      ? makeSinkHttp({ sinkUrl: sink!, direction, eventId: input.eventId, http: deps.ghlHttp })
-      : deps.ghlHttp;
-    await ghlWrite(
-      {
-        eventId: input.eventId,
-        entity: input.entity as GhlEntity,
-        verb: input.verb as GhlVerb,
-        token,
-        id: input.id,
-        body: input.body,
-        // Only meaningful in `on` mode (token present); resolves the location's exact
-        // suppression-tag spelling. In verify there's no token, so ghlWrite skips the
-        // live tag fetch and keeps the env literal — sink stays network-isolated.
-        locationId: verify ? undefined : input.locationId,
-      },
-      http,
-      { delayFactor: deps.retryDelayFactor },
-    );
-  } else {
-    const direction: VerifyDirection = 'ghl→drchrono';
-    const http = verify
-      ? makeSinkHttp({ sinkUrl: sink!, direction, eventId: input.eventId, http: deps.dcHttp })
-      : deps.dcHttp;
-    await drchronoWrite(
-      {
-        eventId: input.eventId,
-        entity: input.entity as DcEntity,
-        verb: input.verb as DcVerb,
-        token,
-        id: input.id,
-        body: input.body,
-      },
-      http,
-      { delayFactor: deps.retryDelayFactor },
-    );
+  try {
+    if (input.target === 'ghl') {
+      const verifyDir: VerifyDirection = 'drchrono→ghl';
+      const http = verify
+        ? makeSinkHttp({ sinkUrl: sink!, direction: verifyDir, eventId: input.eventId, http: deps.ghlHttp })
+        : deps.ghlHttp;
+      await ghlWrite(
+        {
+          eventId: input.eventId,
+          entity: input.entity as GhlEntity,
+          verb: input.verb as GhlVerb,
+          token,
+          id: input.id,
+          body: input.body,
+          // Only meaningful in `on` mode (token present); resolves the location's exact
+          // suppression-tag spelling. In verify there's no token, so ghlWrite skips the
+          // live tag fetch and keeps the env literal — sink stays network-isolated.
+          locationId: verify ? undefined : input.locationId,
+        },
+        http,
+        { delayFactor: deps.retryDelayFactor },
+      );
+    } else {
+      const verifyDir: VerifyDirection = 'ghl→drchrono';
+      const http = verify
+        ? makeSinkHttp({ sinkUrl: sink!, direction: verifyDir, eventId: input.eventId, http: deps.dcHttp })
+        : deps.dcHttp;
+      await drchronoWrite(
+        {
+          eventId: input.eventId,
+          entity: input.entity as DcEntity,
+          verb: input.verb as DcVerb,
+          token,
+          id: input.id,
+          body: input.body,
+        },
+        http,
+        { delayFactor: deps.retryDelayFactor },
+      );
+    }
+  } catch (writeErr) {
+    syncCounters.inc('sync_writes_attempted', direction);
+    syncCounters.inc('sync_writes_failed', direction);
+    throw writeErr;
   }
 
   if (verify) {
+    syncCounters.inc('sync_writes_attempted', direction);
+    syncCounters.inc('sync_writes_succeeded', direction);
     log.info({ op, eventId: input.eventId, sink }, 'verify: captured outbound write (no EHR call)');
     return 'verified';
   }
+  syncCounters.inc('sync_writes_attempted', direction);
+  syncCounters.inc('sync_writes_succeeded', direction);
   log.info({ op, eventId: input.eventId }, 'live write completed');
   return 'written';
 }
