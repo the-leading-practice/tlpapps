@@ -26,11 +26,19 @@ import {
 } from './drchrono.js';
 import { makeSinkHttp, type VerifyDirection } from './verify-sink.js';
 
-const log = logger.child({ module: 'writer-dispatch' });
+// ---------------------------------------------------------------------------
+// Core types + env-only mode resolver (must precede writeModeForEntity)
+// ---------------------------------------------------------------------------
 
 export type WriteMode = 'off' | 'dry' | 'verify' | 'on';
 
-/** Resolve the kill-switch mode for a write INTO `target`. */
+/**
+ * Resolve the kill-switch mode for a write INTO `target` using only env vars.
+ * Use this as a synchronous shim when the DB-backed `writeModeForEntity` is not
+ * available (e.g. unit tests without a DB). Engine.ts uses `writeModeForEntity`.
+ *
+ * @deprecated Prefer `writeModeForEntity` for new code — it reads the DB toggle.
+ */
 export function writeModeFor(target: SyncSystem, env: NodeJS.ProcessEnv = process.env): WriteMode {
   const v =
     target === 'ghl' ? env.SYNC_WRITE_DRCHRONO_TO_GHL : env.SYNC_WRITE_GHL_TO_DRCHRONO;
@@ -39,6 +47,103 @@ export function writeModeFor(target: SyncSystem, env: NodeJS.ProcessEnv = proces
   if (v === 'verify') return 'verify';
   return 'dry';
 }
+
+// ---------------------------------------------------------------------------
+// writeModeForEntity — DB-backed per-(direction × entity) toggle with cache
+// ---------------------------------------------------------------------------
+
+type CacheEntry = { mode: WriteMode; expiresAt: number };
+const controlCache = new Map<string, CacheEntry>();
+const CACHE_TTL_MS = 5_000;
+
+/** Test-only: clear the control mode cache. */
+export function invalidateControlCache(): void {
+  controlCache.clear();
+}
+
+let listenerInitialized = false;
+
+/** Lazily start a LISTEN subscriber for sync_controls_changed channel. */
+async function ensureListener(): Promise<void> {
+  if (listenerInitialized) return;
+  listenerInitialized = true;
+  try {
+    const { sql: pgSql } = await import('../../../db/pg/client.js');
+    await pgSql.listen('sync_controls_changed', () => {
+      invalidateControlCache();
+    });
+  } catch (err) {
+    // If LISTEN fails (e.g. unit test env), fall back to TTL-only mode — never crash.
+    logger.warn({ err }, 'writeModeForEntity: LISTEN/NOTIFY setup failed; using TTL fallback');
+  }
+}
+
+/**
+ * Async, DB-backed per-(direction × entity) mode resolution with 5s TTL cache.
+ * Clamps: effective = min(db_mode, env_ceiling). Fails CLOSED (off/dry) on all
+ * error paths — DB unreachable → safe default (writeModeFor env-only shim).
+ *
+ * @param direction drchrono_to_ghl | ghl_to_drchrono
+ * @param entity    patients | appointments
+ * @param env       process.env override (injected in tests)
+ */
+export async function writeModeForEntity(
+  direction: Direction,
+  entity: 'patients' | 'appointments',
+  env: NodeJS.ProcessEnv = process.env,
+): Promise<WriteMode> {
+  const key = `${direction}:${entity}`;
+  const now = Date.now();
+  const cached = controlCache.get(key);
+  if (cached && cached.expiresAt > now) {
+    return cached.mode;
+  }
+
+  // Lazy listener setup (no-op if already running)
+  ensureListener().catch(() => undefined);
+
+  // Compute env ceiling
+  const envRaw = direction === 'drchrono_to_ghl'
+    ? env.SYNC_WRITE_DRCHRONO_TO_GHL
+    : env.SYNC_WRITE_GHL_TO_DRCHRONO;
+  const ceiling: WriteMode =
+    envRaw === 'on' ? 'on' :
+    envRaw === 'off' ? 'off' :
+    envRaw === 'verify' ? 'verify' :
+    'dry';
+
+  try {
+    const { db } = await import('../../../db/pg/client.js');
+    const { syncControls } = await import('../../../db/pg/schema/sync.js');
+    const { eq, and } = await import('drizzle-orm');
+
+    const [row] = await db
+      .select({ mode: syncControls.mode })
+      .from(syncControls)
+      .where(and(eq(syncControls.direction, direction), eq(syncControls.entity, entity)));
+
+    if (!row) {
+      // Row missing (pre-migration race) — fall back to env-only
+      const fallback = writeModeFor(direction === 'drchrono_to_ghl' ? 'ghl' : 'drchrono', env);
+      return fallback;
+    }
+
+    // Clamp: effective = min(db_mode, ceiling)
+    const modeOrder: Record<WriteMode, number> = { off: 0, dry: 1, verify: 2, on: 3 };
+    const dbMode = row.mode as WriteMode;
+    const effective: WriteMode =
+      modeOrder[dbMode] <= modeOrder[ceiling] ? dbMode : ceiling;
+
+    controlCache.set(key, { mode: effective, expiresAt: now + CACHE_TTL_MS });
+    return effective;
+  } catch (err) {
+    // DB unreachable → fail CLOSED: return env ceiling (already clamped to dry/off by default)
+    logger.warn({ err, key }, 'writeModeForEntity: DB query failed; returning env ceiling (fail-closed)');
+    return ceiling;
+  }
+}
+
+const log = logger.child({ module: 'writer-dispatch' });
 
 /**
  * Resolve the verification sink URL: explicit env (config.sync.verifySinkUrl), else the

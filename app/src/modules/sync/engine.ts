@@ -26,7 +26,7 @@ import { syncCounters } from './metrics.js';
 import { triggerAlert } from './alerts.js';
 import { Leader } from './leader.js';
 import { decide, type SyncSystem } from './decision.js';
-import { dispatchWrite, writeModeFor } from './writers/dispatch.js';
+import { dispatchWrite, writeModeFor, writeModeForEntity } from './writers/dispatch.js';
 import { getLocationAccessToken } from './location-token.js';
 import {
   ghlAppointmentToNormalized,
@@ -156,7 +156,13 @@ async function processOne(ev: SyncEvent): Promise<Outcome> {
   // wires per-location credentials. Loop prevention already handled by decision.ts
   // (skip-loop) above via the inbound origin-tag check.
   const target = decision.target as SyncSystem;
-  const mode = writeModeFor(target);
+  // Derive entity + direction for per-(direction×entity) toggle lookup (T03 / P14).
+  // controlEntity uses plural (sync_controls schema); dispatchEntity uses singular (writer types).
+  const isPatient = String(ev.action).startsWith('patient');
+  const controlEntity: 'patients' | 'appointments' = isPatient ? 'patients' : 'appointments';
+  const dispatchEntity = isPatient ? 'patient' : 'appointment' as const;
+  const direction = target === 'ghl' ? 'drchrono_to_ghl' : 'ghl_to_drchrono' as const;
+  const mode = await writeModeForEntity(direction, controlEntity);
   const verb = mapVerb(String((decision.payload as Record<string, unknown>)?._verb ?? ev.action));
   const targetId =
     target === 'ghl' ? normalized.ghlEventId ?? undefined : normalized.drchronoAppointmentId ?? undefined;
@@ -175,7 +181,7 @@ async function processOne(ev: SyncEvent): Promise<Outcome> {
   const outcome = await dispatchWrite({
     eventId: ev.id,
     target,
-    entity: 'appointment',
+    entity: dispatchEntity,
     verb,
     id: targetId,
     body: decision.payload ?? undefined,
