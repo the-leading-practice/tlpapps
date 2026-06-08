@@ -5,9 +5,10 @@
  */
 
 import { Router, type Request, type Response } from 'express';
-import { and, count, desc, eq } from 'drizzle-orm';
+import { and, count, desc, eq, sql } from 'drizzle-orm';
 import { db } from '../../db/pg/client.js';
-import { syncEvents, syncConflicts } from '../../db/pg/schema/sync.js';
+import { syncEvents, syncConflicts, syncControls } from '../../db/pg/schema/sync.js';
+import type { WriteMode } from './writers/dispatch.js';
 import { logger } from '../../logger.js';
 import { syncCounters } from './metrics.js';
 
@@ -125,5 +126,167 @@ function clampLimit(raw: unknown): number {
   if (!Number.isFinite(n) || n <= 0) return 50;
   return Math.min(n, 500);
 }
+
+// ---------------------------------------------------------------------------
+// Sync control helpers
+// ---------------------------------------------------------------------------
+
+const MODE_ORDER: Record<string, number> = { off: 0, dry: 1, verify: 2, on: 3 };
+
+/** Resolve env ceiling for a direction. Returns off|dry|on (verify treated as dry for UI). */
+function envCeiling(direction: string, env: NodeJS.ProcessEnv = process.env): 'off' | 'dry' | 'on' {
+  const raw = direction === 'drchrono_to_ghl'
+    ? env.SYNC_WRITE_DRCHRONO_TO_GHL
+    : env.SYNC_WRITE_GHL_TO_DRCHRONO;
+  if (raw === 'on') return 'on';
+  if (raw === 'off') return 'off';
+  // 'verify' or 'dry' → display as 'dry'
+  return 'dry';
+}
+
+/** Min of two modes using MODE_ORDER (lower = safer). */
+function minMode(a: string, b: string): 'off' | 'dry' | 'on' {
+  const order = (m: string) => (m === 'verify' ? 2 : (MODE_ORDER[m] ?? 0));
+  const result = order(a) <= order(b) ? a : b;
+  if (result === 'on') return 'on';
+  if (result === 'dry' || result === 'verify') return 'dry';
+  return 'off';
+}
+
+const VALID_DIRECTIONS = ['drchrono_to_ghl', 'ghl_to_drchrono'] as const;
+const VALID_ENTITIES = ['patients', 'appointments'] as const;
+const VALID_MODES = ['off', 'dry', 'on'] as const;
+
+/** GET /api/sync/controls — return all 4 rows + computed env_ceiling + effective_mode. */
+router.get('/sync/controls', async (req: Request, res: Response) => {
+  try {
+    const rows = await db.select().from(syncControls);
+    const controls = rows.map((r) => {
+      const ceiling = envCeiling(r.direction);
+      const effective = minMode(r.mode, ceiling);
+      return { ...r, env_ceiling: ceiling, effective_mode: effective };
+    });
+    res.json({ controls });
+  } catch (err) {
+    log.error({ err }, 'GET /sync/controls failed');
+    res.status(500).json({ error: 'internal error' });
+  }
+});
+
+/** PATCH /api/sync/controls/:direction/:entity — update toggle mode. */
+router.patch('/sync/controls/:direction/:entity', async (req: Request, res: Response) => {
+  const direction = String(req.params.direction);
+  const entity = String(req.params.entity);
+
+  if (!(VALID_DIRECTIONS as readonly string[]).includes(direction)) {
+    res.status(400).json({ error: 'invalid direction' });
+    return;
+  }
+  if (!(VALID_ENTITIES as readonly string[]).includes(entity)) {
+    res.status(400).json({ error: 'invalid entity' });
+    return;
+  }
+
+  const mode = req.body?.mode;
+  if (!(VALID_MODES as readonly string[]).includes(mode)) {
+    res.status(400).json({ error: 'mode must be off|dry|on' });
+    return;
+  }
+
+  const ceiling = envCeiling(direction);
+  if (MODE_ORDER[mode] > MODE_ORDER[ceiling]) {
+    res.status(409).json({ error: 'exceeds env ceiling', effective: ceiling });
+    return;
+  }
+
+  const updatedBy = (req as any).payload?.location ?? 'admin';
+  try {
+    const [updated] = await db
+      .update(syncControls)
+      .set({ mode: mode as 'off' | 'dry' | 'on', updatedAt: new Date(), updatedBy })
+      .where(
+        and(
+          eq(syncControls.direction, direction as 'drchrono_to_ghl' | 'ghl_to_drchrono'),
+          eq(syncControls.entity, entity as 'patients' | 'appointments'),
+        ),
+      )
+      .returning();
+
+    if (!updated) {
+      res.status(404).json({ error: 'row not found' });
+      return;
+    }
+
+    // Notify cache listeners to invalidate
+    await db.execute(sql`SELECT pg_notify('sync_controls_changed', ${direction + ':' + entity})`);
+
+    const effective = minMode(updated.mode, ceiling);
+    res.json({ ...updated, env_ceiling: ceiling, effective_mode: effective });
+  } catch (err) {
+    log.error({ err }, 'PATCH /sync/controls failed');
+    res.status(500).json({ error: 'internal error' });
+  }
+});
+
+// ---------------------------------------------------------------------------
+// SSE activity stream
+// ---------------------------------------------------------------------------
+
+/** GET /api/sync/activity/stream — server-sent events for live sync activity. */
+router.get('/sync/activity/stream', async (req: Request, res: Response) => {
+  res.setHeader('Content-Type', 'text/event-stream');
+  res.setHeader('Cache-Control', 'no-cache');
+  res.setHeader('Connection', 'keep-alive');
+  res.flushHeaders();
+
+  let lastSeenAt = new Date();
+
+  // Send initial snapshot of last 50 events
+  try {
+    const snapshot = await db
+      .select()
+      .from(syncEvents)
+      .orderBy(desc(syncEvents.receivedAt))
+      .limit(50);
+    if (!res.writableEnded) {
+      res.write(`event: snapshot\ndata: ${JSON.stringify(snapshot)}\n\n`);
+    }
+    if (snapshot.length > 0) {
+      lastSeenAt = new Date(snapshot[0].receivedAt);
+    }
+  } catch (err) {
+    log.warn({ err }, 'SSE snapshot failed');
+  }
+
+  const interval = setInterval(async () => {
+    if (res.writableEnded) {
+      clearInterval(interval);
+      return;
+    }
+    try {
+      const newRows = await db
+        .select()
+        .from(syncEvents)
+        .where(
+          // receivedAt > lastSeenAt
+          sql`${syncEvents.receivedAt} > ${lastSeenAt.toISOString()}`,
+        )
+        .orderBy(syncEvents.receivedAt)
+        .limit(20);
+      if (newRows.length > 0) {
+        lastSeenAt = new Date(newRows[newRows.length - 1].receivedAt);
+        if (!res.writableEnded) {
+          res.write(`event: update\ndata: ${JSON.stringify(newRows)}\n\n`);
+        }
+      }
+    } catch (err) {
+      log.warn({ err }, 'SSE poll failed — continuing');
+    }
+  }, 2000);
+
+  req.on('close', () => {
+    clearInterval(interval);
+  });
+});
 
 export default router;
