@@ -25,6 +25,7 @@ import {
   type HttpFn as DcHttp,
 } from './drchrono.js';
 import { makeSinkHttp, type VerifyDirection } from './verify-sink.js';
+import { isLocationAllowed } from './allowlist.js';
 
 // ---------------------------------------------------------------------------
 // Core types + env-only mode resolver (must precede writeModeForEntity)
@@ -208,6 +209,17 @@ export async function dispatchWrite(
     syncCounters.inc('sync_dry_run_actions');
     log.info({ op, eventId: input.eventId, dryRun: true }, 'dry-run: write intent only (no API call)');
     return 'dry-logged';
+  }
+
+  // Allowlist guard — last-line-of-defense before any live/verify write.
+  // Forbidden real-practice IDs are hard-blocked here regardless of mode.
+  if (!isLocationAllowed(input.locationId)) {
+    log.error(
+      { op, eventId: input.eventId, locationId: input.locationId },
+      'write blocked — location not in allowlist (or is a forbidden real-practice ID)',
+    );
+    syncCounters.inc('sync_writes_skipped_off');
+    return 'skipped-off';
   }
 
   // mode === 'verify' — build the REAL write but POST it to the sink, never the EHR.

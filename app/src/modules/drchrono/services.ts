@@ -1,4 +1,7 @@
 import { config } from '../../config.js';
+import { writeModeForEntity } from '../sync/writers/dispatch.js';
+import { isLocationAllowed } from '../sync/writers/allowlist.js';
+import { logger } from '../../logger.js';
 import { DrChronoConfigModel } from '../../models/drchronoConfig.js';
 import type {
   DrChronoTokenResponse,
@@ -232,8 +235,30 @@ export const drChronoAPIClient = (token: string) => {
 // Patient Service Client (sends data to TLP patient-service)
 // ---------------------------------------------------------------------------
 
+const dcLog = logger.child({ module: 'drchrono-service-client' });
+
 const createPatientServiceClient = () => {
   const sendPatients = async (patients: TLPPatientPayload[], headers: LocationHeaders) => {
+    const locationId = headers.tlpLocation;
+
+    // Toggle guard: check sync_controls mode for drchrono→ghl/patients direction.
+    const mode = await writeModeForEntity('drchrono_to_ghl', 'patients').catch(() => 'dry' as const);
+    if (mode === 'off') {
+      dcLog.info({ locationId }, 'sendPatients skipped — sync_controls mode=off');
+      return { status: 200, data: { skipped: true, reason: 'mode-off' } };
+    }
+
+    // Allowlist guard: hard-block forbidden real-practice IDs.
+    if (!isLocationAllowed(locationId)) {
+      dcLog.error({ locationId }, 'sendPatients blocked — location not in allowlist');
+      return { status: 200, data: { skipped: true, reason: 'allowlist-blocked' } };
+    }
+
+    if (mode === 'dry') {
+      dcLog.info({ locationId, count: patients.length }, 'sendPatients dry-run — would send patients (no call)');
+      return { status: 200, data: { skipped: true, reason: 'mode-dry' } };
+    }
+
     const url = `${TLP_PATIENT_API}/patient`;
 
     const resp = await fetch(url, {
@@ -260,6 +285,26 @@ const createPatientServiceClient = () => {
     appointments: TLPAppointmentPayload[],
     headers: LocationHeaders,
   ) => {
+    const locationId = headers.tlpLocation;
+
+    // Toggle guard: check sync_controls mode for drchrono→ghl/appointments direction.
+    const mode = await writeModeForEntity('drchrono_to_ghl', 'appointments').catch(() => 'dry' as const);
+    if (mode === 'off') {
+      dcLog.info({ locationId }, 'sendAppointments skipped — sync_controls mode=off');
+      return { status: 200, data: { skipped: true, reason: 'mode-off' } };
+    }
+
+    // Allowlist guard: hard-block forbidden real-practice IDs.
+    if (!isLocationAllowed(locationId)) {
+      dcLog.error({ locationId }, 'sendAppointments blocked — location not in allowlist');
+      return { status: 200, data: { skipped: true, reason: 'allowlist-blocked' } };
+    }
+
+    if (mode === 'dry') {
+      dcLog.info({ locationId, count: appointments.length }, 'sendAppointments dry-run — would send appointments (no call)');
+      return { status: 200, data: { skipped: true, reason: 'mode-dry' } };
+    }
+
     const url = `${TLP_PATIENT_API}/appt`;
 
     const resp = await fetch(url, {
