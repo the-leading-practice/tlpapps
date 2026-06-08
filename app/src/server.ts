@@ -6,6 +6,8 @@ import mongoose from 'mongoose';
 import { errorHandler, notFoundHandler } from './middleware/errors.js';
 import { authToken } from './middleware/auth.js';
 import { sql } from './db/pg/client.js';
+import { apiReference } from '@scalar/express-api-reference';
+import { syncOpenApiSpec } from './modules/sync/openapi.js';
 
 // Module routers
 import identityRoutes from './modules/identity/routes.js';
@@ -53,6 +55,12 @@ export function createServer() {
     const status = mongo === 'ok' && pg === 'ok' ? 'ok' : 'degraded';
     res.status(status === 'ok' ? 200 : 503).json({ mongo, pg, status });
   });
+
+  // P10 T01 — Sync-only OpenAPI spec (D-03: sync routes only) + Scalar UI
+  app.get('/openapi.json', (_req, res) => {
+    res.json(syncOpenApiSpec);
+  });
+  app.use('/docs', apiReference({ spec: { url: '/openapi.json' } }));
 
   // Public routes (no auth required)
   app.use('/api', identityRoutes);

@@ -5,13 +5,40 @@
  */
 
 import { Router, type Request, type Response } from 'express';
-import { and, desc, eq } from 'drizzle-orm';
+import { and, count, desc, eq } from 'drizzle-orm';
 import { db } from '../../db/pg/client.js';
 import { syncEvents, syncConflicts } from '../../db/pg/schema/sync.js';
 import { logger } from '../../logger.js';
+import { syncCounters } from './metrics.js';
 
 const log = logger.child({ module: 'sync-routes' });
 const router = Router();
+
+/** GET /api/sync/metrics — in-process counters; ?format=prom for Prometheus text. */
+router.get('/sync/metrics', async (req: Request, res: Response) => {
+  if (req.query.format === 'prom') {
+    res.setHeader('Content-Type', 'text/plain; version=0.0.4');
+    res.send(syncCounters.toPrometheus());
+    return;
+  }
+  // Hydrate live PG counts for dead-letter + conflict queue so the gauge is fresh.
+  try {
+    const [dlRow] = await db
+      .select({ n: count() })
+      .from(syncEvents)
+      .where(eq(syncEvents.status, 'dead'));
+    syncCounters.set('sync_dead_letter_count', Number(dlRow?.n ?? 0));
+
+    const [cqRow] = await db
+      .select({ n: count() })
+      .from(syncConflicts)
+      .where(eq(syncConflicts.resolution, 'pending'));
+    syncCounters.set('sync_conflict_queue_size', Number(cqRow?.n ?? 0));
+  } catch (err) {
+    log.warn({ err }, 'metrics: failed to hydrate PG counts');
+  }
+  res.json(syncCounters.snapshot());
+});
 
 /** GET /api/sync/events?status=&limit= — recent sync events. */
 router.get('/sync/events', async (req: Request, res: Response) => {
