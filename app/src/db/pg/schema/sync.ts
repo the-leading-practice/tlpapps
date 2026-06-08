@@ -213,6 +213,31 @@ export const syncVerifyCaptures = pgTable('sync_verify_captures', {
   createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
 });
 
+// --- P14 sync_controls — per-(direction × entity) runtime toggles ---------------
+
+export const syncDirectionEnum = pgEnum('sync_direction', ['drchrono_to_ghl', 'ghl_to_drchrono']);
+export const syncEntityEnum = pgEnum('sync_entity', ['patients', 'appointments']);
+export const syncControlModeEnum = pgEnum('sync_control_mode', ['off', 'dry', 'on']);
+
+import { primaryKey } from 'drizzle-orm/pg-core';
+
+export const syncControls = pgTable(
+  'sync_controls',
+  {
+    direction: syncDirectionEnum('direction').notNull(),
+    entity: syncEntityEnum('entity').notNull(),
+    mode: syncControlModeEnum('mode').notNull().default('off'),
+    updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
+    updatedBy: text('updated_by'),
+  },
+  (t) => ({
+    pk: primaryKey({ columns: [t.direction, t.entity] }),
+  }),
+);
+
+export type SyncControl = typeof syncControls.$inferSelect;
+export type NewSyncControl = typeof syncControls.$inferInsert;
+
 // --- Inferred types (the row/insert contracts the P08 engine builds against) ---
 
 export type SyncJob = typeof syncJobs.$inferSelect;

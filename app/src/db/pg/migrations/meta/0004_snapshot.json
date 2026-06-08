@@ -1,0 +1,92 @@
+{
+  "id": "b2e1f03e-a8b8-5fee-938f-4b226f0fe2ef",
+  "prevId": "a1d0f92d-e7a7-4fdd-827f-3a115e9ed1de",
+  "version": "7",
+  "dialect": "postgresql",
+  "tables": {
+    "public.config": {
+      "name": "config",
+      "schema": "",
+      "columns": {
+        "id": { "name": "id", "type": "serial", "primaryKey": true, "notNull": true },
+        "mongo_id": { "name": "mongo_id", "type": "text", "primaryKey": false, "notNull": false },
+        "location_id": { "name": "location_id", "type": "integer", "primaryKey": false, "notNull": true },
+        "last_run": { "name": "last_run", "type": "text", "primaryKey": false, "notNull": false },
+        "db_provider": { "name": "db_provider", "type": "text", "primaryKey": false, "notNull": false },
+        "use_cache_table": { "name": "use_cache_table", "type": "boolean", "primaryKey": false, "notNull": false },
+        "token_refresh_milliseconds": { "name": "token_refresh_milliseconds", "type": "integer", "primaryKey": false, "notNull": false },
+        "auth_endpoint": { "name": "auth_endpoint", "type": "text", "primaryKey": false, "notNull": false },
+        "notification_endpoint": { "name": "notification_endpoint", "type": "text", "primaryKey": false, "notNull": false },
+        "patient_endpoint": { "name": "patient_endpoint", "type": "text", "primaryKey": false, "notNull": false },
+        "appointment_endpoint": { "name": "appointment_endpoint", "type": "text", "primaryKey": false, "notNull": false },
+        "connection_string": { "name": "connection_string", "type": "text", "primaryKey": false, "notNull": false },
+        "repeat_milliseconds": { "name": "repeat_milliseconds", "type": "integer", "primaryKey": false, "notNull": false },
+        "max_batch_size": { "name": "max_batch_size", "type": "integer", "primaryKey": false, "notNull": false },
+        "software": { "name": "software", "type": "text", "primaryKey": false, "notNull": false }
+      },
+      "indexes": {
+        "config_location_id_unique": {
+          "name": "config_location_id_unique",
+          "columns": [{ "expression": "location_id", "isExpression": false, "asc": true, "nulls": "last" }],
+          "isUnique": true, "concurrently": false, "method": "btree", "with": {}
+        }
+      },
+      "foreignKeys": {
+        "config_location_id_locations_id_fk": {
+          "name": "config_location_id_locations_id_fk", "tableFrom": "config", "tableTo": "locations",
+          "columnsFrom": ["location_id"], "columnsTo": ["id"], "onDelete": "cascade", "onUpdate": "no action"
+        }
+      },
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": { "config_mongo_id_unique": { "name": "config_mongo_id_unique", "nullsNotDistinct": false, "columns": ["mongo_id"] } },
+      "policies": {}, "checkConstraints": {}, "isRLSEnabled": false
+    },
+    "public.sync_controls": {
+      "name": "sync_controls",
+      "schema": "",
+      "columns": {
+        "direction": { "name": "direction", "type": "sync_direction", "typeSchema": "public", "primaryKey": false, "notNull": true },
+        "entity": { "name": "entity", "type": "sync_entity", "typeSchema": "public", "primaryKey": false, "notNull": true },
+        "mode": { "name": "mode", "type": "sync_control_mode", "typeSchema": "public", "primaryKey": false, "notNull": true, "default": "'off'" },
+        "updated_at": { "name": "updated_at", "type": "timestamp with time zone", "primaryKey": false, "notNull": true, "default": "now()" },
+        "updated_by": { "name": "updated_by", "type": "text", "primaryKey": false, "notNull": false }
+      },
+      "indexes": {},
+      "foreignKeys": {},
+      "compositePrimaryKeys": {
+        "sync_controls_direction_entity_pk": {
+          "name": "sync_controls_direction_entity_pk",
+          "columns": ["direction", "entity"]
+        }
+      },
+      "uniqueConstraints": {},
+      "policies": {}, "checkConstraints": {}, "isRLSEnabled": false
+    }
+  },
+  "enums": {
+    "public.sync_direction": {
+      "name": "sync_direction", "schema": "public",
+      "values": ["drchrono_to_ghl", "ghl_to_drchrono"]
+    },
+    "public.sync_entity": {
+      "name": "sync_entity", "schema": "public",
+      "values": ["patients", "appointments"]
+    },
+    "public.sync_control_mode": {
+      "name": "sync_control_mode", "schema": "public",
+      "values": ["off", "dry", "on"]
+    },
+    "public.sync_conflict_resolution": { "name": "sync_conflict_resolution", "schema": "public", "values": ["pending", "auto-resolved", "manual-resolved"] },
+    "public.sync_conflict_source": { "name": "sync_conflict_source", "schema": "public", "values": ["shadow", "sync", "reconcile"] },
+    "public.sync_event_status": { "name": "sync_event_status", "schema": "public", "values": ["pending", "processed", "failed", "dead"] },
+    "public.sync_job_status": { "name": "sync_job_status", "schema": "public", "values": ["running", "succeeded", "failed"] },
+    "public.sync_mapping_kind": { "name": "sync_mapping_kind", "schema": "public", "values": ["patient", "appointment"] },
+    "public.sync_source": { "name": "sync_source", "schema": "public", "values": ["ghl", "drchrono"] }
+  },
+  "schemas": {},
+  "sequences": {},
+  "roles": {},
+  "policies": {},
+  "views": {},
+  "_meta": { "columns": {}, "schemas": {}, "tables": {} }
+}
