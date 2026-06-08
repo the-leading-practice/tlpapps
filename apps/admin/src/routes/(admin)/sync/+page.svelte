@@ -3,10 +3,16 @@
   import { apiGet } from '$lib/api';
   import Icon from '@iconify/svelte';
 
+  type DirectionVals = { attempted: number; succeeded: number; failed: number };
+
   let loading = true;
   let error = '';
   let metrics: Record<string, any> = {};
   let recentEvents: any[] = [];
+
+  $: perDirectionEntries = metrics.per_direction
+    ? (Object.entries(metrics.per_direction) as [string, DirectionVals][])
+    : ([] as [string, DirectionVals][]);
 
   onMount(async () => {
     try {
@@ -73,7 +79,7 @@
   </div>
 
   <!-- Per-direction breakdown -->
-  {#if metrics.per_direction}
+  {#if perDirectionEntries.length > 0}
     <div class="card bg-base-200 shadow-lg mb-8">
       <div class="card-body">
         <h3 class="card-title text-lg">Per-Direction Writes</h3>
@@ -88,12 +94,12 @@
               </tr>
             </thead>
             <tbody>
-              {#each Object.entries(metrics.per_direction) as [dir, vals]}
+              {#each perDirectionEntries as [dir, vals]}
                 <tr>
                   <td class="font-mono text-sm">{dir.replace(/_/g, ' → ')}</td>
-                  <td>{(vals as any).attempted}</td>
-                  <td>{(vals as any).succeeded}</td>
-                  <td>{(vals as any).failed}</td>
+                  <td>{vals.attempted}</td>
+                  <td>{vals.succeeded}</td>
+                  <td>{vals.failed}</td>
                 </tr>
               {/each}
             </tbody>
