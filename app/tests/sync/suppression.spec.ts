@@ -123,6 +123,7 @@ test('verify mode: suppress tag present in captured sink envelope body', async (
       target: 'ghl',
       entity: 'contact',
       verb: 'create',
+      locationId: 'DEMO_LOC_TEST',
       body: { tags: ['VIP'] },
     },
     { mode: 'verify', ghlHttp: sink.fn, retryDelayFactor: 0 },

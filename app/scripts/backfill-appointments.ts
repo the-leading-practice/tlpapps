@@ -120,15 +120,171 @@ async function defaultInsert(a: RawAppointment, key: string): Promise<boolean> {
 }
 
 /**
- * Fetch appointments from both EHRs for the window. READ-ONLY. Returns [] here as a
- * placeholder — the concrete paginated GHL/DrChrono read wiring lands when the user
- * enables backfill against a real location (it reuses the per-location tokens the live
- * sync uses). Kept explicit + empty so dry-run is safe to run anywhere and a reviewer
- * can confirm no write endpoint is touched.
+ * Fetch appointments from both EHRs for the window. READ-ONLY.
+ *
+ * Sources:
+ *   DrChrono — paginated GET /api/appointments?date_range=START/END via
+ *               `drChronoAPIClient`, using the stored per-location OAuth token.
+ *   GHL       — paginated GET /calendars/events?locationId=...&startTime=...&endTime=...
+ *               using the per-location GHL access token from the identity module.
+ *
+ * Errors for a single location are caught, logged, and skipped — they do NOT abort
+ * the entire fetch so the backfill is resilient to individual location auth failures.
  */
-export async function fetchWindow(_days: number, _location: string | null): Promise<RawAppointment[]> {
-  log.warn('fetchWindow: live EHR read wiring is gated to enablement — returning empty set');
-  return [];
+export async function fetchWindow(days: number, locationFilter: string | null): Promise<RawAppointment[]> {
+  const results: RawAppointment[] = [];
+
+  const pad = (n: number) => String(n).padStart(2, '0');
+  const fmtDate = (d: Date) =>
+    `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
+  const now = new Date();
+  const start = new Date(now);
+  start.setDate(now.getDate() - days);
+  const startDate = fmtDate(start);
+  const endDate = fmtDate(now);
+  const startEpoch = start.getTime();
+  const endEpoch = now.getTime();
+
+  // ---- DrChrono ---------------------------------------------------------------
+  try {
+    const { DrChronoConfigModel } = await import('../src/models/drchronoConfig.js');
+    const { drChronoAPIClient, drChronoAuth } = await import('../src/modules/drchrono/services.js');
+    // DrChrono has a single config document with an embedded locations array.
+    const cfg = await DrChronoConfigModel.findOne({});
+    const clientId = String(cfg?.clientId ?? '');
+    const clientSecret = String(cfg?.clientSecret ?? '');
+    const locations = (cfg?.locations ?? []) as Array<{
+      locationId?: string;
+      name?: string;
+      accessToken?: string;
+      refreshToken?: string;
+      tokenExpiry?: number;
+    }>;
+
+    for (const loc of locations) {
+      const locationId = String(loc.locationId ?? loc.name ?? '');
+      if (!locationId) continue;
+      if (locationFilter && locationId !== locationFilter) continue;
+
+      try {
+        const tokenResp = await drChronoAuth.getValidToken(
+          String(loc.name ?? locationId),
+          clientId,
+          clientSecret,
+          loc.accessToken ?? '',
+          loc.refreshToken ?? '',
+          loc.tokenExpiry ?? 0,
+        );
+        if (tokenResp.status !== 200 || !tokenResp.accessToken) {
+          log.warn({ locationId }, 'backfill: DrChrono token refresh failed — skipping');
+          continue;
+        }
+
+        const client = drChronoAPIClient(tokenResp.accessToken);
+        const resp = await client.getAppointments(startDate, endDate);
+        if (resp.status < 200 || resp.status >= 300) {
+          log.warn({ locationId, status: resp.status }, 'backfill: DrChrono appointment fetch failed — skipping');
+          continue;
+        }
+
+        const appts = resp.data as Array<Record<string, unknown>>;
+        for (const a of appts) {
+          results.push({
+            source: 'drchrono',
+            action: 'appointment.create',
+            externalId: String(a.id),
+            payload: a,
+          });
+        }
+        log.info({ locationId, count: appts.length }, 'backfill: DrChrono appointments fetched');
+      } catch (locErr) {
+        log.warn({ locationId, err: locErr }, 'backfill: DrChrono location error — skipping');
+      }
+    }
+  } catch (err) {
+    log.warn({ err }, 'backfill: DrChrono config load failed — skipping DrChrono');
+  }
+
+  // ---- GHL --------------------------------------------------------------------
+  try {
+    const { AccessTokenModel } = await import('../src/models/accessToken.js');
+    const { cryptoService } = await import('../src/utils/crypto.js');
+    const { ghlTokenService } = await import('../src/modules/identity/services.js');
+    const GHL_API_URL = process.env.GHL_API_URL || 'https://services.leadconnectorhq.com';
+
+    const tokenRows = await AccessTokenModel.find({}).lean();
+    for (const row of tokenRows) {
+      const locationId = String(row.location ?? '');
+      if (!locationId) continue;
+      if (locationFilter && locationId !== locationFilter) continue;
+
+      try {
+        let decrypted: { access_token: string; refresh_token: string };
+        try {
+          decrypted = cryptoService.decrypt(row.token as string) as typeof decrypted;
+        } catch {
+          log.warn({ locationId }, 'backfill: GHL token decrypt failed — skipping');
+          continue;
+        }
+
+        // Attempt refresh to get a fresh access token; fall back to cached on failure.
+        let accessToken = decrypted.access_token;
+        try {
+          const renewed = await ghlTokenService.renewAuthToken(decrypted.refresh_token);
+          accessToken = renewed.access_token;
+        } catch {
+          log.warn({ locationId }, 'backfill: GHL token refresh failed — using cached token');
+        }
+
+        // Paginate GHL calendar events.
+        let page = 1;
+        let hasMore = true;
+        const locationAppts: RawAppointment[] = [];
+        while (hasMore) {
+          const params = new URLSearchParams({
+            locationId,
+            startTime: String(startEpoch),
+            endTime: String(endEpoch),
+            page: String(page),
+          });
+          const resp = await fetch(`${GHL_API_URL}/calendars/events?${params}`, {
+            headers: {
+              Authorization: `Bearer ${accessToken}`,
+              Version: '2021-04-15',
+            },
+          });
+          if (!resp.ok) {
+            log.warn({ locationId, status: resp.status, page }, 'backfill: GHL events fetch failed — stopping pagination');
+            break;
+          }
+          const body = (await resp.json()) as { events?: Array<Record<string, unknown>>; meta?: { currentPage?: number; nextPage?: number } };
+          const events = body.events ?? [];
+          for (const e of events) {
+            locationAppts.push({
+              source: 'ghl',
+              action: 'AppointmentCreate',
+              externalId: String(e.id),
+              payload: e,
+            });
+          }
+          const meta = body.meta;
+          if (meta?.nextPage && Number(meta.nextPage) > page) {
+            page = Number(meta.nextPage);
+          } else {
+            hasMore = false;
+          }
+        }
+        results.push(...locationAppts);
+        log.info({ locationId, count: locationAppts.length }, 'backfill: GHL appointments fetched');
+      } catch (locErr) {
+        log.warn({ locationId, err: locErr }, 'backfill: GHL location error — skipping');
+      }
+    }
+  } catch (err) {
+    log.warn({ err }, 'backfill: GHL token load failed — skipping GHL');
+  }
+
+  return results;
 }
 
 async function main(): Promise<void> {

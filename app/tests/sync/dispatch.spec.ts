@@ -46,7 +46,7 @@ test('dispatch verify (drchrono->ghl): EHR never hit, sink hit once, outcome ver
     return { status: 200, data: { captured: true } };
   };
   const outcome = await dispatchWrite(
-    { eventId: 'v1', target: 'ghl', entity: 'contact', verb: 'create', body: { name: 'A' } },
+    { eventId: 'v1', target: 'ghl', entity: 'contact', verb: 'create', locationId: 'DEMO_LOC_TEST', body: { name: 'A' } },
     { mode: 'verify', ghlHttp, retryDelayFactor: 0 },
   );
   assert.equal(outcome, 'verified');
@@ -62,7 +62,7 @@ test('dispatch verify (ghl->drchrono): EHR never hit, sink hit once, outcome ver
     return { status: 200, data: { captured: true } };
   };
   const outcome = await dispatchWrite(
-    { eventId: 'v2', target: 'drchrono', entity: 'appointment', verb: 'cancel', id: 'd1', body: {} },
+    { eventId: 'v2', target: 'drchrono', entity: 'appointment', verb: 'cancel', id: 'd1', locationId: 'DEMO_LOC_TEST', body: {} },
     { mode: 'verify', dcHttp, retryDelayFactor: 0 },
   );
   assert.equal(outcome, 'verified');
@@ -84,7 +84,7 @@ test('dispatch dry => no writer call', async () => {
 test('dispatch on => writer called once', async () => {
   const m = mockHttp();
   const outcome = await dispatchWrite(
-    { eventId: 'e2', target: 'ghl', entity: 'appointment', verb: 'create', token: 'tok', body: {} },
+    { eventId: 'e2', target: 'ghl', entity: 'appointment', verb: 'create', token: 'tok', locationId: 'DEMO_LOC_TEST', body: {} },
     { mode: 'on', ghlHttp: m.fn, retryDelayFactor: 0 },
   );
   assert.equal(outcome, 'written');
@@ -94,7 +94,7 @@ test('dispatch on => writer called once', async () => {
 test('dispatch on without token => refuses live write (treated as dry)', async () => {
   const m = mockHttp();
   const outcome = await dispatchWrite(
-    { eventId: 'e3', target: 'ghl', entity: 'appointment', verb: 'create', body: {} },
+    { eventId: 'e3', target: 'ghl', entity: 'appointment', verb: 'create', locationId: 'DEMO_LOC_TEST', body: {} },
     { mode: 'on', ghlHttp: m.fn, retryDelayFactor: 0 },
   );
   assert.equal(outcome, 'dry-logged');
