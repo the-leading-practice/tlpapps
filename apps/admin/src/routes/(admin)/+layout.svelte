@@ -65,6 +65,16 @@
 							<li class="text-lg"><a href="/server/monitor"><Icon icon="mdi:monitor" /> Monitor</a></li>
 						</ul>
 				</li>
+				<li>
+					<details>
+						<summary class="text-lg"><Icon icon="mdi:sync" /> Sync</summary>
+						<ul>
+							<li class="text-lg"><a href="/sync"><Icon icon="mdi:view-dashboard-outline" /> Dashboard</a></li>
+							<li class="text-lg"><a href="/sync/events"><Icon icon="mdi:format-list-bulleted" /> Events</a></li>
+							<li class="text-lg"><a href="/sync/conflicts"><Icon icon="mdi:alert-outline" /> Conflicts</a></li>
+							<li class="text-lg"><a href="/sync/dead-letter"><Icon icon="mdi:email-alert-outline" /> Dead Letter</a></li>
+						</ul>
+				</li>
       </ul>
     </svelte:fragment> 
 
