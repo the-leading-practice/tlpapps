@@ -23,6 +23,7 @@ import { cryptoService } from '../../utils/crypto.js';
 import { accessTokenService, ghlTokenService } from '../identity/services.js';
 import type { Token } from '../identity/types.js';
 import { logger } from '../../logger.js';
+import { triggerAlert } from './alerts.js';
 
 const log = logger.child({ module: 'sync-location-token' });
 
@@ -87,6 +88,7 @@ export async function getLocationAccessToken(locationId: string): Promise<string
   const renewed = await ghlTokenService.renewAuthToken(decoded.refresh_token);
   if (!renewed || renewed.status < 0 || renewed.status >= 400 || !renewed.data?.access_token) {
     log.error({ locationId, status: renewed?.status }, 'token renew failed — no usable access token');
+    triggerAlert('oauth_failure', { system: 'ghl', locationId }).catch(() => undefined);
     return null;
   }
 
