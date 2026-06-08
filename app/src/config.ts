@@ -17,6 +17,18 @@ export const config = {
   // P04 patients dual-write: when 'on', patient mutations mirror Mongo -> PG (shadow).
   // Default off so merging P04 is behavior-neutral. PG failures log but never fail the request.
   pgDualWritePatients: process.env.PG_DUAL_WRITE_PATIENTS === 'on',
+  // P06 patients write primary: which store is authoritative for patient mutations.
+  // Default 'mongo' so merging P06 is behavior-neutral until the orchestrator flips it.
+  // When 'pg', PG write is required (throws on failure); Mongo is best-effort post-PG.
+  // Re-read from env on every call so a Coolify env flip is seamless (no restart).
+  get patientsPrimary() {
+    return (process.env.PATIENTS_PRIMARY === 'pg' ? 'pg' : 'mongo') as 'mongo' | 'pg';
+  },
+  // After flipping PATIENTS_PRIMARY=pg, mirror patient writes back to Mongo as a warm
+  // standby for the 14-day rollback window. Set "off" to stop legacy writes after soak.
+  get patientsLegacyWrite() {
+    return process.env.PATIENTS_LEGACY_WRITE !== 'off';
+  },
   // P05 patients read source: which store serves patient reads. Default 'mongo'
   // so merging P05 is behavior-neutral. When 'pg', reads come from Postgres and an
   // async (never-awaited) shadow-compare against Mongo logs drift to sync_conflicts.
