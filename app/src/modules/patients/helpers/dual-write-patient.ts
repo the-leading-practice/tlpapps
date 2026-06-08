@@ -23,6 +23,7 @@ import { db } from '../../../db/pg/client.js';
 import { patients, patientExternalIds } from '../../../db/pg/schema/patients.js';
 import { config } from '../../../config.js';
 import { logger } from '../../../logger.js';
+import { syncCounters } from '../../sync/metrics.js';
 import type { PatientMapping } from '../types.js';
 
 export type WritePatientOp = 'upsert';
@@ -162,6 +163,7 @@ export async function writePatientWithDeps(
         deps.counters.patients_dual_write_pg_ok++;
       } catch (err) {
         deps.counters.patients_dual_write_pg_fail++;
+        syncCounters.inc('patients_dual_write_pg_fail');
         deps.log.error(
           {
             module: 'patients',
