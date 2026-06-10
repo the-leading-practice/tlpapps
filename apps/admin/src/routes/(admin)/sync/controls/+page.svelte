@@ -42,7 +42,20 @@
     };
   }
 
-  onMount(connectSSE);
+  async function loadControls() {
+    try {
+      const res = await apiFetch<{ controls: SyncControlRow[] }>('/sync/controls');
+      controls = res.controls ?? [];
+      error = null;
+    } catch (err: any) {
+      error = err?.message ?? 'Failed to load controls';
+    }
+  }
+
+  onMount(() => {
+    loadControls();
+    connectSSE();
+  });
   onDestroy(() => {
     eventSource?.close();
     eventSource = null;

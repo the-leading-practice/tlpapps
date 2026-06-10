@@ -1,10 +1,10 @@
-import { apiGet } from '$lib/api';
-
 export const ssr = false;
 
-export async function load() {
-  const data = await apiGet<{ controls: SyncControlRow[] }>('/sync/controls');
-  return { controls: data.controls };
+// No server/universal data fetch here: controls + live feed load client-side in
+// the component (onMount) so a transient auth/network error renders inline instead
+// of a 500. Matches the other sync pages (events/conflicts/dead-letter).
+export function load() {
+  return { controls: [] as SyncControlRow[] };
 }
 
 export interface SyncControlRow {
