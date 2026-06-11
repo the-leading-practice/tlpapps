@@ -56,13 +56,15 @@ test('dispatch verify (drchrono->ghl): EHR never hit, sink hit once, outcome ver
 });
 
 test('dispatch verify (ghl->drchrono): EHR never hit, sink hit once, outcome verified, no token', async () => {
+  // NOTE: appointment verify-mode is blocked by WR-06 guard. Use patient entity
+  // for the ghl→drchrono path to test the verify path is network-isolated.
   const seen: string[] = [];
   const dcHttp = async (url: string): Promise<AttemptResult> => {
     seen.push(url);
     return { status: 200, data: { captured: true } };
   };
   const outcome = await dispatchWrite(
-    { eventId: 'v2', target: 'drchrono', entity: 'appointment', verb: 'cancel', id: 'd1', locationId: 'DEMO_LOC_TEST', body: {} },
+    { eventId: 'v2', target: 'drchrono', entity: 'patient', verb: 'update', id: 'd1', locationId: 'DEMO_LOC_TEST', body: {} },
     { mode: 'verify', dcHttp, retryDelayFactor: 0 },
   );
   assert.equal(outcome, 'verified');
@@ -81,10 +83,12 @@ test('dispatch dry => no writer call', async () => {
   assert.equal(m.calls, 0);
 });
 
-test('dispatch on => writer called once', async () => {
+test('dispatch on => writer called once (contact entity)', async () => {
+  // NOTE: appointment on-mode is blocked by WR-06 guard until loop tag is implemented.
+  // Use contact entity here to test the on-mode path.
   const m = mockHttp();
   const outcome = await dispatchWrite(
-    { eventId: 'e2', target: 'ghl', entity: 'appointment', verb: 'create', token: 'tok', locationId: 'DEMO_LOC_TEST', body: {} },
+    { eventId: 'e2', target: 'ghl', entity: 'contact', verb: 'create', token: 'tok', locationId: 'DEMO_LOC_TEST', body: {} },
     { mode: 'on', ghlHttp: m.fn, retryDelayFactor: 0 },
   );
   assert.equal(outcome, 'written');
