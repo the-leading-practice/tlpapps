@@ -1,5 +1,8 @@
-export const SUPABASE_URL="https://fuobrebyszcshbdxmaxr.supabase.co";
-export const SUPABASE_KEY="sb_publishable_ip8ehFtp7yQ1MGRtn9XsTw_T22R-2XD";
+// Supabase is deprecated (2026-05). These constants have been removed from the
+// source to prevent credential exposure in the client bundle.
+// ACTION REQUIRED (owner): rotate the old anon key in the Supabase dashboard —
+// it was previously committed and is therefore compromised.
+// New auth path: GHL SSO → POST /api/crm/sso → tlp_token (see /embed route).
 
 export const PALETTE_COLORS = [
   '#122230',
