@@ -97,13 +97,13 @@
 
   <div class="setting-panel {settingPanelClass}">
     <div class="setting-panel__details {settingDetailClass}">
-      <Avatar image={avatarUrl} name={displayname} margin='mx-auto mb-[10px]' on:click={()=>{location.href = "/a/profile"}} background={color} />
-      <div class="w-fit m-auto"><a href="/a/profile" on:click={toggleMenu}>{displayname}</a></div>
+      <Avatar image={avatarUrl} name={displayname} margin='mx-auto mb-[10px]' on:click={()=>{location.href = "/profile"}} background={color} />
+      <div class="w-fit m-auto"><a href="/profile" on:click={toggleMenu}>{displayname}</a></div>
       <div class="w-fit m-auto">{email}</div>
     </div>
     <div class="divider"></div>
     <ul class="{settingMenuClass}">
-      <li><a href="/a/profile/options" on:click={toggleMenu}><Icon icon="mdi:cog" />Options</a></li>
+      <li><a href="/profile/options" on:click={toggleMenu}><Icon icon="mdi:cog" />Options</a></li>
       <li><button on:click={handleLogOut}><Icon icon="mdi:logout" />Log Out</button></li>
     </ul>
   </div>

@@ -11,13 +11,13 @@
 
 	userSession.subscribe( (sess) => {
 		if( sess ) {
-			goto( '/a/dashboard' );
+			goto( '/' );
 		}
 	} );
 
   profile.subscribe( (p) => {
     if( p && p.id ) {
-      goto( '/a/dashboard' );
+      goto( '/' );
     }
   } );
 
