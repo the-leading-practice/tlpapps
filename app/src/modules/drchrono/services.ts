@@ -239,18 +239,26 @@ const dcLog = logger.child({ module: 'drchrono-service-client' });
 
 const createPatientServiceClient = () => {
   const sendPatients = async (patients: TLPPatientPayload[], headers: LocationHeaders) => {
-    const locationId = headers.tlpLocation;
+    const tlpLocationId = headers.tlpLocation;
+    // Use the GHL location ID for allowlist checks — the allowlist is keyed on GHL IDs,
+    // not TLP location IDs.  If ghlLocationId is absent we cannot verify the ID space,
+    // so fail closed (skip the write) rather than fall through.
+    const ghlLocationId = headers.ghlLocationId;
 
     // Toggle guard: check sync_controls mode for drchrono→ghl/patients direction.
-    const mode = await writeModeForEntity('drchrono_to_ghl', 'patients').catch(() => 'dry' as const);
+    const mode = await writeModeForEntity('drchrono_to_ghl', 'patients').catch(() => 'off' as const);
     if (mode === 'off') {
-      dcLog.info({ locationId }, 'sendPatients skipped — sync_controls mode=off');
+      dcLog.info({ tlpLocationId }, 'sendPatients skipped — sync_controls mode=off');
       return { status: 200, data: { skipped: true, reason: 'mode-off' } };
     }
 
-    // Allowlist guard: hard-block forbidden real-practice IDs.
-    if (!isLocationAllowed(locationId)) {
-      dcLog.error({ locationId }, 'sendPatients blocked — location not in allowlist');
+    // Allowlist guard: check GHL location ID namespace.  Fail closed if GHL ID unavailable.
+    if (!ghlLocationId) {
+      dcLog.error({ tlpLocationId }, 'sendPatients blocked — ghlLocationId not set; cannot verify allowlist (fail-closed)');
+      return { status: 200, data: { skipped: true, reason: 'allowlist-blocked' } };
+    }
+    if (!isLocationAllowed(ghlLocationId)) {
+      dcLog.error({ ghlLocationId, tlpLocationId }, 'sendPatients blocked — location not in allowlist');
       return { status: 200, data: { skipped: true, reason: 'allowlist-blocked' } };
     }
 
@@ -285,18 +293,26 @@ const createPatientServiceClient = () => {
     appointments: TLPAppointmentPayload[],
     headers: LocationHeaders,
   ) => {
-    const locationId = headers.tlpLocation;
+    const tlpLocationId = headers.tlpLocation;
+    // Use the GHL location ID for allowlist checks — the allowlist is keyed on GHL IDs,
+    // not TLP location IDs.  If ghlLocationId is absent we cannot verify the ID space,
+    // so fail closed (skip the write) rather than fall through.
+    const ghlLocationId = headers.ghlLocationId;
 
     // Toggle guard: check sync_controls mode for drchrono→ghl/appointments direction.
-    const mode = await writeModeForEntity('drchrono_to_ghl', 'appointments').catch(() => 'dry' as const);
+    const mode = await writeModeForEntity('drchrono_to_ghl', 'appointments').catch(() => 'off' as const);
     if (mode === 'off') {
-      dcLog.info({ locationId }, 'sendAppointments skipped — sync_controls mode=off');
+      dcLog.info({ tlpLocationId }, 'sendAppointments skipped — sync_controls mode=off');
       return { status: 200, data: { skipped: true, reason: 'mode-off' } };
     }
 
-    // Allowlist guard: hard-block forbidden real-practice IDs.
-    if (!isLocationAllowed(locationId)) {
-      dcLog.error({ locationId }, 'sendAppointments blocked — location not in allowlist');
+    // Allowlist guard: check GHL location ID namespace.  Fail closed if GHL ID unavailable.
+    if (!ghlLocationId) {
+      dcLog.error({ tlpLocationId }, 'sendAppointments blocked — ghlLocationId not set; cannot verify allowlist (fail-closed)');
+      return { status: 200, data: { skipped: true, reason: 'allowlist-blocked' } };
+    }
+    if (!isLocationAllowed(ghlLocationId)) {
+      dcLog.error({ ghlLocationId, tlpLocationId }, 'sendAppointments blocked — location not in allowlist');
       return { status: 200, data: { skipped: true, reason: 'allowlist-blocked' } };
     }
 
@@ -371,6 +387,8 @@ export const buildLocationHeaders = (location: DrChronoConfigLocation): Location
   tlpToken: location.tlpToken,
   tlpJwt: location.tlpJwt,
   tlpCalendarId: location.tlpCalendarId,
+  // Carry the GHL location ID so allowlist checks use the correct namespace.
+  ghlLocationId: location.ghlLocationId,
   timezone: location.timezone,
 });
 

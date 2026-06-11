@@ -35,6 +35,12 @@ export type DrChronoConfigLocation = {
   tlpJwt: string;
   /** GHL calendar ID for appointment sync */
   tlpCalendarId: string;
+  /**
+   * GHL location ID (e.g. "wP3Ynm3Z63rIC4zVAgXP").  Used to check the write
+   * allowlist in the correct ID namespace.  If absent the legacy path fails
+   * closed — no write is issued.
+   */
+  ghlLocationId?: string;
   /** IANA timezone string e.g. "America/New_York" */
   timezone: string;
 };
@@ -119,5 +125,10 @@ export type LocationHeaders = {
   tlpToken: string;
   tlpJwt: string;
   tlpCalendarId: string;
+  /**
+   * GHL location ID in the correct namespace for the write allowlist check.
+   * If absent the legacy drchrono write path fails closed (no write issued).
+   */
+  ghlLocationId?: string;
   timezone: string;
 };
