@@ -14,4 +14,8 @@ router.get('/verify/:email', accountController.verify);
 router.post('/update', accountController.update);
 router.post('/register', accountController.register);
 
+// EMBED-03a — SSO exchange (unauthenticated; establishes auth from GHL iframe context)
+router.post('/crm/sso', controller.ssoLogin);
+router.get('/crm/sso-status', controller.ssoStatus);
+
 export default router;

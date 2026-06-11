@@ -21,7 +21,16 @@ export interface AuthenticatedRequest extends Request {
 
 export function authToken(req: AuthenticatedRequest, res: Response, next: NextFunction): void {
   const authHeader = req.headers['authorization'];
-  const token = authHeader && authHeader.split(' ')[1];
+  let token = authHeader && authHeader.split(' ')[1];
+
+  // EMBED-03b: EventSource (browser SSE) cannot send Authorization headers, so GET requests
+  // may carry the JWT via ?token= query param. Accept it ONLY for GET — mutating routes
+  // (POST/PATCH/PUT/DELETE) must always use the Authorization header.
+  // The same JWT verification (signature + expiry) runs regardless of the token source.
+  // Never log the token value.
+  if (!token && req.method === 'GET' && typeof req.query.token === 'string') {
+    token = req.query.token;
+  }
 
   if (!token) {
     res.sendStatus(401);

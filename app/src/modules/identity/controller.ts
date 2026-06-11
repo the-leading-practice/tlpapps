@@ -5,6 +5,10 @@ import { config } from '../../config.js';
 import { cryptoService } from '../../utils/crypto.js';
 import { accessTokenService, appConfigService, ghlTokenService } from './services.js';
 import type { AccessToken, Token } from './types.js';
+import { decryptCrmSso } from '../../utils/crmSso.js';
+import { logger } from '../../logger.js';
+
+const log = logger.child({ module: 'identity-crm-sso' });
 
 // ---------------------------------------------------------------------------
 // mintTokenForLocation
@@ -345,12 +349,86 @@ const createController = () => {
     }
   };
 
+  // -------------------------------------------------------------------------
+  // EMBED-03a — POST /api/crm/sso
+  // Decrypts the GHL SSO blob, derives the locationId, mints a TLP JWT.
+  // Mounted UNAUTHENTICATED (same tier as /api/login).
+  // -------------------------------------------------------------------------
+  const ssoLogin = async (req: express.Request, res: express.Response): Promise<void> => {
+    // 1. Validate input — never log raw ssoData.
+    const { ssoData } = req.body as { ssoData?: unknown };
+    if (!ssoData || typeof ssoData !== 'string' || ssoData.trim().length === 0) {
+      res.status(400).json({ error: 'sso_missing_data' });
+      return;
+    }
+
+    // 2. SSO key must be configured.
+    if (!config.ghl.ssoKey) {
+      log.warn('POST /api/crm/sso called but GHL_APP_SSO_KEY is not configured');
+      res.status(503).json({ error: 'sso_not_configured' });
+      return;
+    }
+
+    // 3. Decrypt the blob.
+    let activeLocation: string;
+    try {
+      const payload = decryptCrmSso(ssoData, config.ghl.ssoKey);
+      if (!payload.activeLocation) {
+        res.status(400).json({ error: 'sso_no_location' });
+        return;
+      }
+      activeLocation = payload.activeLocation;
+      // Log safe context only — no raw ssoData, no PII values.
+      log.info({ activeLocation }, 'SSO decrypt succeeded');
+    } catch (err) {
+      log.warn({ err: (err as Error).message }, 'SSO decrypt failed');
+      res.status(401).json({ error: 'sso_decrypt_failed' });
+      return;
+    }
+
+    // 4. Mint JWT from the stored accessTokens record.
+    try {
+      const minted = await mintTokenForLocation(activeLocation);
+      // Never log the minted token.
+      log.info({ location: activeLocation, name: minted.name }, 'SSO login minted');
+      res.status(200).json({
+        token: minted.token,
+        config: minted.config,
+        location: minted.location,
+        name: minted.name,
+      });
+    } catch (err: any) {
+      if (err.code === 'location_not_onboarded') {
+        res.status(409).json({ error: 'location_not_onboarded', location: activeLocation });
+        return;
+      }
+      if (err.code === 'token_unavailable') {
+        log.error({ err: err.message, location: activeLocation }, 'SSO: stored token unavailable');
+        res.status(500).json({ error: 'token_unavailable' });
+        return;
+      }
+      log.error({ err: err.message, location: activeLocation }, 'SSO: unexpected mint error');
+      res.status(500).json({ error: 'internal_error' });
+    }
+  };
+
+  // -------------------------------------------------------------------------
+  // EMBED-03a — GET /api/crm/sso-status
+  // Returns whether the SSO key is configured so the embed shell can surface
+  // a helpful message if the owner hasn't set GHL_APP_SSO_KEY yet.
+  // -------------------------------------------------------------------------
+  const ssoStatus = (_req: express.Request, res: express.Response): void => {
+    res.json({ configured: Boolean(config.ghl.ssoKey) });
+  };
+
   return {
     index,
     login,
     auth,
     oauth,
     locationAuth,
+    ssoLogin,
+    ssoStatus,
   };
 };
 
