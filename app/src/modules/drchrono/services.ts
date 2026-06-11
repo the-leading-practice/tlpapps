@@ -237,7 +237,24 @@ export const drChronoAPIClient = (token: string) => {
 
 const dcLog = logger.child({ module: 'drchrono-service-client' });
 
-const createPatientServiceClient = () => {
+export type PatientServiceClientDeps = {
+  /** Override writeModeForEntity — for unit tests only. */
+  getModePatients?: () => Promise<import('../sync/writers/dispatch.js').WriteMode>;
+  getModeAppointments?: () => Promise<import('../sync/writers/dispatch.js').WriteMode>;
+  /** Override isLocationAllowed — for unit tests only. */
+  checkAllowlist?: (id: string) => boolean;
+  /** Override the HTTP fetch function — for unit tests only. */
+  httpFetch?: typeof fetch;
+};
+
+export const createPatientServiceClient = (deps: PatientServiceClientDeps = {}) => {
+  const resolveMode = deps.getModePatients ?? (() =>
+    writeModeForEntity('drchrono_to_ghl', 'patients').catch(() => 'off' as const));
+  const resolveModeAppt = deps.getModeAppointments ?? (() =>
+    writeModeForEntity('drchrono_to_ghl', 'appointments').catch(() => 'off' as const));
+  const checkAllowlist = deps.checkAllowlist ?? isLocationAllowed;
+  const httpFetch = deps.httpFetch ?? fetch;
+
   const sendPatients = async (patients: TLPPatientPayload[], headers: LocationHeaders) => {
     const tlpLocationId = headers.tlpLocation;
     // Use the GHL location ID for allowlist checks — the allowlist is keyed on GHL IDs,
@@ -246,7 +263,7 @@ const createPatientServiceClient = () => {
     const ghlLocationId = headers.ghlLocationId;
 
     // Toggle guard: check sync_controls mode for drchrono→ghl/patients direction.
-    const mode = await writeModeForEntity('drchrono_to_ghl', 'patients').catch(() => 'off' as const);
+    const mode = await resolveMode();
     if (mode === 'off') {
       dcLog.info({ tlpLocationId }, 'sendPatients skipped — sync_controls mode=off');
       return { status: 200, data: { skipped: true, reason: 'mode-off' } };
@@ -257,19 +274,25 @@ const createPatientServiceClient = () => {
       dcLog.error({ tlpLocationId }, 'sendPatients blocked — ghlLocationId not set; cannot verify allowlist (fail-closed)');
       return { status: 200, data: { skipped: true, reason: 'allowlist-blocked' } };
     }
-    if (!isLocationAllowed(ghlLocationId)) {
+    if (!checkAllowlist(ghlLocationId)) {
       dcLog.error({ ghlLocationId, tlpLocationId }, 'sendPatients blocked — location not in allowlist');
       return { status: 200, data: { skipped: true, reason: 'allowlist-blocked' } };
     }
 
     if (mode === 'dry') {
-      dcLog.info({ locationId, count: patients.length }, 'sendPatients dry-run — would send patients (no call)');
+      dcLog.info({ tlpLocationId, count: patients.length }, 'sendPatients dry-run — would send patients (no call)');
       return { status: 200, data: { skipped: true, reason: 'mode-dry' } };
+    }
+
+    // verify mode: capture intent only — no live write (fail-closed like dry).
+    if (mode === 'verify') {
+      dcLog.info({ tlpLocationId, count: patients.length }, 'sendPatients verify — captured intent, no live write');
+      return { status: 200, data: { skipped: true, reason: 'mode-verify' } };
     }
 
     const url = `${TLP_PATIENT_API}/patient`;
 
-    const resp = await fetch(url, {
+    const resp = await httpFetch(url, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
@@ -300,7 +323,7 @@ const createPatientServiceClient = () => {
     const ghlLocationId = headers.ghlLocationId;
 
     // Toggle guard: check sync_controls mode for drchrono→ghl/appointments direction.
-    const mode = await writeModeForEntity('drchrono_to_ghl', 'appointments').catch(() => 'off' as const);
+    const mode = await resolveModeAppt();
     if (mode === 'off') {
       dcLog.info({ tlpLocationId }, 'sendAppointments skipped — sync_controls mode=off');
       return { status: 200, data: { skipped: true, reason: 'mode-off' } };
@@ -311,38 +334,26 @@ const createPatientServiceClient = () => {
       dcLog.error({ tlpLocationId }, 'sendAppointments blocked — ghlLocationId not set; cannot verify allowlist (fail-closed)');
       return { status: 200, data: { skipped: true, reason: 'allowlist-blocked' } };
     }
-    if (!isLocationAllowed(ghlLocationId)) {
+    if (!checkAllowlist(ghlLocationId)) {
       dcLog.error({ ghlLocationId, tlpLocationId }, 'sendAppointments blocked — location not in allowlist');
       return { status: 200, data: { skipped: true, reason: 'allowlist-blocked' } };
     }
 
     if (mode === 'dry') {
-      dcLog.info({ locationId, count: appointments.length }, 'sendAppointments dry-run — would send appointments (no call)');
+      dcLog.info({ tlpLocationId, count: appointments.length }, 'sendAppointments dry-run — would send appointments (no call)');
       return { status: 200, data: { skipped: true, reason: 'mode-dry' } };
     }
 
-    const url = `${TLP_PATIENT_API}/appt`;
-
-    const resp = await fetch(url, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'x-tlp-app-location': `${headers.tlpLocation} ${headers.tlpToken}`,
-        'x-tlp-app-calendar': headers.tlpCalendarId,
-        'x-tlp-app-timezone': headers.timezone,
-        'x-tlp-app-jwt': headers.tlpJwt,
-        'x-tlp-app-pushghl': '1',
-        'x-tlp-app-pushappt': '1',
-        'x-tlp-app-software': 'DrChrono',
-      },
-      body: JSON.stringify({ appointments }),
-    });
-
-    if (resp.status >= 200 && resp.status < 300) {
-      const data = await resp.json();
-      return { status: resp.status, data };
+    // verify mode: capture intent only — no live write (fail-closed like dry).
+    if (mode === 'verify') {
+      dcLog.info({ tlpLocationId, count: appointments.length }, 'sendAppointments verify — captured intent, no live write');
+      return { status: 200, data: { skipped: true, reason: 'mode-verify' } };
     }
-    return { status: resp.status, data: resp.statusText };
+
+    // WR-06: Appointment writes blocked in ALL modes until loop-prevention exists.
+    // Even mode=on must not issue a live write for appointments (mirror engine WR-06 block).
+    dcLog.error({ tlpLocationId, count: appointments.length }, 'sendAppointments blocked — appointment writes require loop-prevention (WR-06); no live write issued');
+    return { status: 200, data: { skipped: true, reason: 'appt-wr06-blocked' } };
   };
 
   return {
