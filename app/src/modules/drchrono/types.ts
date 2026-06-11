@@ -118,6 +118,13 @@ export type TLPAppointmentPayload = {
   patientId: number;
   apptTime: string;
   apptStatus: string;
+  /**
+   * Loop-prevention origin tag stamped by the sync engine before any outbound write.
+   * Carried through the legacy appointment pipeline so the final GHL call includes
+   * it in the `notes` field — inbound webhook echo is then recognized as self-authored
+   * and skipped (origin.isSelfAuthored check in decision.ts).
+   */
+  syncOriginTag?: string;
 };
 
 export type LocationHeaders = {

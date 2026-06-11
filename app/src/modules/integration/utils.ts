@@ -223,6 +223,9 @@ export const translateApptTLPtoGHL = (
 		appointmentStatus: appt.status,
 		toNotify: false,
 		address: `${appt.apptId}`,
+		// Carry the loop-prevention origin tag into GHL's `notes` field so that the
+		// resulting webhook echo is recognized as self-authored and skipped.
+		...(appt.syncOriginTag ? { notes: appt.syncOriginTag } : {}),
 	};
 
 	console.log('translateApptTLPtoGHL');

@@ -70,6 +70,8 @@ export type TLPAppointmentData = {
 	address?: string;
 	calendarId?: string;
 	locationId?: string;
+	/** Loop-prevention origin tag forwarded into GHL appointment `notes`. */
+	syncOriginTag?: string;
 };
 
 export type GHLAppointmentData = {
@@ -84,6 +86,8 @@ export type GHLAppointmentData = {
 	title?: string;
 	toNotify?: boolean;
 	address?: string;
+	/** Loop-prevention origin tag carried in GHL's `notes` field. */
+	notes?: string;
 };
 
 export type GHLCalendarBlock = {

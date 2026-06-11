@@ -226,21 +226,6 @@ export async function dispatchWrite(
     return 'skipped-off';
   }
 
-  // Loop-prevention guard — appointment `on`-mode writes are blocked until a
-  // loop-prevention origin tag can be stamped on the outbound payload.  The GHL
-  // calendar-event schema has no `tags` field, so the contact-style `tlp-sync:`
-  // tag mechanism cannot be used as-is.  Allowing `on` without a tag would cause
-  // an echo ping-pong loop between GHL and DrChrono.  Block at this layer so
-  // accidentally enabling the toggle cannot cause data-integrity damage.
-  if (input.entity === 'appointment' && (mode === 'on' || mode === 'verify')) {
-    log.error(
-      { op, eventId: input.eventId },
-      'appointment on/verify write blocked — loop-prevention tag not yet implemented for appointments; downgrading to dry',
-    );
-    syncCounters.inc('sync_dry_run_actions');
-    return 'dry-logged';
-  }
-
   // mode === 'verify' — build the REAL write but POST it to the sink, never the EHR.
   // No token is required; writers stamp a placeholder so the payload is fully built.
   const verify = mode === 'verify';

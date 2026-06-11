@@ -1,6 +1,7 @@
 import { config } from '../../config.js';
 import { writeModeForEntity } from '../sync/writers/dispatch.js';
 import { isLocationAllowed } from '../sync/writers/allowlist.js';
+import { tagFor } from '../sync/origin.js';
 import { logger } from '../../logger.js';
 import { DrChronoConfigModel } from '../../models/drchronoConfig.js';
 import type {
@@ -350,10 +351,32 @@ export const createPatientServiceClient = (deps: PatientServiceClientDeps = {}) 
       return { status: 200, data: { skipped: true, reason: 'mode-verify' } };
     }
 
-    // WR-06: Appointment writes blocked in ALL modes until loop-prevention exists.
-    // Even mode=on must not issue a live write for appointments (mirror engine WR-06 block).
-    dcLog.error({ tlpLocationId, count: appointments.length }, 'sendAppointments blocked — appointment writes require loop-prevention (WR-06); no live write issued');
-    return { status: 200, data: { skipped: true, reason: 'appt-wr06-blocked' } };
+    // mode=on: stamp each appointment with the loop-prevention origin tag so the
+    // downstream GHL write carries it in `notes`. The resulting webhook echo will
+    // be recognized as self-authored (origin.isSelfAuthored) and skipped.
+    const originTag = tagFor('ghl', `legacy-appt-${Date.now()}`);
+    const taggedAppointments = appointments.map((a) => ({ ...a, syncOriginTag: originTag }));
+
+    const url = `${TLP_PATIENT_API}/appt`;
+
+    const resp = await httpFetch(url, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'x-tlp-app-location': `${headers.tlpLocation} ${headers.tlpToken}`,
+        'x-tlp-app-timezone': headers.timezone,
+        'x-tlp-app-jwt': headers.tlpJwt,
+        'x-tlp-app-pushghl': '1',
+        'x-tlp-app-pushappt': '1',
+      },
+      body: JSON.stringify({ appointments: taggedAppointments }),
+    });
+
+    if (resp.status >= 200 && resp.status < 300) {
+      const data = await resp.json();
+      return { status: resp.status, data };
+    }
+    return { status: resp.status, data: resp.statusText };
   };
 
   return {

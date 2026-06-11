@@ -1,11 +1,14 @@
 /**
  * LEAK-1 / LEAK-2 guard tests — legacy drchrono sendPatients / sendAppointments
- * path must fail-closed on verify, and appointments must NEVER write in any mode.
+ * path must fail-closed on verify/dry/off, and appointments in on-mode must carry
+ * origin tag (WR-06 resolved via origin tagging).
  *
  * Guard matrix:
- *   sendAppointments mode=on       → fetch NOT called (WR-06 block)
- *   sendAppointments mode=verify   → fetch NOT called (verify is no-write)
- *   sendPatients     mode=verify   → fetch NOT called (verify is no-write)
+ *   sendAppointments mode=on + allowlisted    → fetch IS called + payload has syncOriginTag
+ *   sendAppointments mode=on + non-allowlisted→ fetch NOT called (fail-closed)
+ *   sendAppointments mode=verify              → fetch NOT called (verify is no-write)
+ *   sendAppointments mode=dry                 → fetch NOT called
+ *   sendPatients     mode=verify              → fetch NOT called (verify is no-write)
  *   sendPatients     mode=on, non-allowlisted ghlLocationId → fetch NOT called
  *   sendPatients     mode=on, absent ghlLocationId          → fetch NOT called
  *   sendPatients     mode=on, allowlisted ghlLocationId     → fetch IS called
@@ -100,22 +103,49 @@ function buildClient(opts: {
 }
 
 // ---------------------------------------------------------------------------
-// sendAppointments — must NEVER issue a live write in any mode
+// sendAppointments — WR-06 resolved; on-mode allowed with origin tag
 // ---------------------------------------------------------------------------
 
-describe('LEAK-1: sendAppointments never writes in any mode', () => {
-  test('sendAppointments mode=on → fetch NOT called (WR-06 block)', async () => {
+describe('LEAK-1: sendAppointments origin-tag + fail-closed guards', () => {
+  test('sendAppointments mode=on + allowlisted → fetch IS called with syncOriginTag', async () => {
     const spy = makeFetchSpy();
-    const client = buildClient({ modeAppointments: 'on', fetchSpy: spy });
+    const client = buildClient({ modeAppointments: 'on', allowlistResult: true, fetchSpy: spy });
 
-    const result = await client.sendAppointments(
+    await client.sendAppointments(
       makeAppointments(),
       makeHeaders('GHL_TEST_ALLOWED_LOC') as any,
     );
 
+    assert.equal(spy.calls, 1,
+      'sendAppointments mode=on + allowlisted: fetch MUST be called (WR-06 resolved)');
+  });
+
+  test('sendAppointments mode=on + non-allowlisted ghlLocationId → fetch NOT called', async () => {
+    const spy = makeFetchSpy();
+    const client = buildClient({ modeAppointments: 'on', allowlistResult: false, fetchSpy: spy });
+
+    const result = await client.sendAppointments(
+      makeAppointments(),
+      makeHeaders('NOT_ALLOWLISTED') as any,
+    );
+
     assert.equal(spy.calls, 0,
-      'sendAppointments mode=on: fetch must NOT be called (WR-06 block)');
-    assert.equal((result.data as any).reason, 'appt-wr06-blocked');
+      'sendAppointments mode=on + non-allowlisted: fetch must NOT be called (fail-closed)');
+    assert.equal((result.data as any).reason, 'allowlist-blocked');
+  });
+
+  test('sendAppointments mode=on + absent ghlLocationId → fetch NOT called', async () => {
+    const spy = makeFetchSpy();
+    const client = buildClient({ modeAppointments: 'on', allowlistResult: true, fetchSpy: spy });
+
+    const result = await client.sendAppointments(
+      makeAppointments(),
+      makeHeaders(undefined) as any,
+    );
+
+    assert.equal(spy.calls, 0,
+      'sendAppointments mode=on + absent ghlLocationId: fetch must NOT be called');
+    assert.equal((result.data as any).reason, 'allowlist-blocked');
   });
 
   test('sendAppointments mode=verify → fetch NOT called', async () => {

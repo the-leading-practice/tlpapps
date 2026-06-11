@@ -1,5 +1,5 @@
 /**
- * Adversarial safety tests — guard the CR-01/02/03/04 + WR-06 fixes.
+ * Adversarial safety tests — guard the CR-01/02/03/04 fixes + WR-06 resolution.
  *
  * Each test is named after the finding it guards.  These tests FAIL on the
  * pre-fix code and PASS after the fix.
@@ -8,8 +8,11 @@
  * CR-02: legacy drchrono path — non-allowlisted location → fetch NOT called
  * CR-03: writeModeForEntity DB error → resolves to 'off', never env ceiling
  * CR-04: per-call re-evaluation (covered in allowlist.spec.ts test 6)
- * WR-06: appointment on-mode → blocked at dispatchWrite (dry-logged outcome)
- *         and appointment write payload for verify mode → also blocked
+ * WR-06 (resolved): appointments now allowed in on-mode WITH origin tag in payload.
+ *   - appointment on + allowlisted ghlLocationId → writer IS called + payload has origin tag
+ *   - appointment on + non-allowlisted ghlLocationId → NOT called (fail-closed)
+ *   - appointment verify → no live write (verify mode unchanged)
+ *   - self-authored inbound appointment → skip-loop (origin.isSelfAuthored check)
  */
 
 import { test, describe } from 'node:test';
@@ -169,24 +172,24 @@ describe('CR-02: legacy drchrono path uses correct ID namespace', () => {
 });
 
 // ---------------------------------------------------------------------------
-// WR-06: appointment on/verify mode blocked at dispatch
+// WR-06 (resolved): appointment writes now allowed with origin tag
 // ---------------------------------------------------------------------------
 
-describe('WR-06: appointment on-mode blocked until loop tag implemented', () => {
-  test('dispatchWrite entity=appointment mode=on → dry-logged (not written)', async () => {
+describe('WR-06 resolved: appointment writes enabled with origin/loop tag', () => {
+  test('dispatchWrite entity=appointment mode=on + allowlisted → written + payload has notes origin tag', async () => {
     const { dispatchWrite } = await import(
       '../../src/modules/sync/writers/dispatch.js'
     );
 
-    let fetchCalled = false;
-    const mockHttp = async () => {
-      fetchCalled = true;
+    let capturedBody: unknown;
+    const mockHttp = async (_url: string, opts: RequestInit) => {
+      capturedBody = opts.body ? JSON.parse(opts.body as string) : undefined;
       return { status: 200, data: {} };
     };
 
     const outcome = await dispatchWrite(
       {
-        eventId: 'wr06-test-1',
+        eventId: 'wr06-res-1',
         target: 'ghl',
         entity: 'appointment',
         verb: 'create',
@@ -201,13 +204,15 @@ describe('WR-06: appointment on-mode blocked until loop tag implemented', () => 
       },
     );
 
-    assert.equal(outcome, 'dry-logged',
-      'WR-06: appointment on-mode must be downgraded to dry-logged (no live write)');
-    assert.equal(fetchCalled, false,
-      'WR-06: the GHL HTTP function must NOT be called for appointment on-mode');
+    assert.equal(outcome, 'written',
+      'WR-06 resolved: appointment on-mode must now write (not dry-logged)');
+    assert.ok(capturedBody && typeof (capturedBody as any).notes === 'string',
+      'WR-06 resolved: outbound appointment payload must carry origin tag in notes');
+    assert.match((capturedBody as any).notes as string, /tlp-sync:ghl:/,
+      'WR-06 resolved: notes must contain the tlp-sync:ghl: origin tag');
   });
 
-  test('dispatchWrite entity=appointment mode=verify → dry-logged (not verified)', async () => {
+  test('dispatchWrite entity=appointment mode=on + non-allowlisted → skipped (fail-closed)', async () => {
     const { dispatchWrite } = await import(
       '../../src/modules/sync/writers/dispatch.js'
     );
@@ -220,7 +225,43 @@ describe('WR-06: appointment on-mode blocked until loop tag implemented', () => 
 
     const outcome = await dispatchWrite(
       {
-        eventId: 'wr06-test-2',
+        eventId: 'wr06-res-2',
+        target: 'ghl',
+        entity: 'appointment',
+        verb: 'create',
+        token: 'test-token',
+        locationId: undefined, // no locationId → not in allowlist
+        body: { calendarId: 'cal1', contactId: 'c1' },
+      },
+      {
+        mode: 'on',
+        ghlHttp: mockHttp,
+        retryDelayFactor: 0,
+      },
+    );
+
+    assert.equal(outcome, 'skipped-off',
+      'WR-06: absent/non-allowlisted locationId must fail closed (skipped-off)');
+    assert.equal(fetchCalled, false,
+      'WR-06: GHL HTTP must NOT be called when location not in allowlist');
+  });
+
+  test('dispatchWrite entity=appointment mode=verify → verified (no live write)', async () => {
+    const { dispatchWrite } = await import(
+      '../../src/modules/sync/writers/dispatch.js'
+    );
+
+    // verify mode routes through the verify-sink, not the live GHL endpoint.
+    // The sink http mock just records the call.
+    let sinkCalled = false;
+    const mockHttp = async () => {
+      sinkCalled = true;
+      return { status: 200, data: {} };
+    };
+
+    const outcome = await dispatchWrite(
+      {
+        eventId: 'wr06-res-3',
         target: 'ghl',
         entity: 'appointment',
         verb: 'update',
@@ -236,13 +277,29 @@ describe('WR-06: appointment on-mode blocked until loop tag implemented', () => 
       },
     );
 
-    assert.equal(outcome, 'dry-logged',
-      'WR-06: appointment verify-mode must be downgraded to dry-logged');
-    assert.equal(fetchCalled, false,
-      'WR-06: the GHL HTTP function must NOT be called for appointment verify-mode');
+    assert.equal(outcome, 'verified',
+      'WR-06: appointment verify-mode must now go to sink (verified outcome)');
   });
 
-  test('dispatchWrite entity=contact mode=on → written (contacts not affected by WR-06 guard)', async () => {
+  test('self-authored inbound appointment → isSelfAuthored returns true (loop guard active)', async () => {
+    const { isSelfAuthored } = await import(
+      '../../src/modules/sync/origin.js'
+    );
+
+    // Simulate a GHL webhook body carrying the notes origin tag we stamp on outbound writes
+    const webhookBody = {
+      appointmentId: 'appt-echo-1',
+      notes: 'tlp-sync:ghl:some-event-id-123',
+    };
+
+    assert.equal(
+      isSelfAuthored(webhookBody, 'ghl'),
+      true,
+      'self-authored appointment echo (notes tag) must be recognized as self-authored',
+    );
+  });
+
+  test('dispatchWrite entity=contact mode=on → written (contacts unaffected)', async () => {
     const { dispatchWrite } = await import(
       '../../src/modules/sync/writers/dispatch.js'
     );
@@ -255,7 +312,7 @@ describe('WR-06: appointment on-mode blocked until loop tag implemented', () => 
 
     const outcome = await dispatchWrite(
       {
-        eventId: 'wr06-test-3',
+        eventId: 'wr06-res-4',
         target: 'ghl',
         entity: 'contact',
         verb: 'create',
@@ -271,8 +328,8 @@ describe('WR-06: appointment on-mode blocked until loop tag implemented', () => 
     );
 
     assert.equal(outcome, 'written',
-      'WR-06: contact on-mode must still proceed (only appointments are gated)');
+      'contacts must still write normally');
     assert.equal(fetchCalled, true,
-      'WR-06: the GHL HTTP function must be called for contact on-mode');
+      'GHL HTTP must be called for contact on-mode');
   });
 });

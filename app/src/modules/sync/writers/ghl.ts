@@ -73,23 +73,33 @@ function headers(token: string, idemKey: string): Record<string, string> {
  * Stamp the loop-prevention origin tag onto the outbound payload.
  *
  * GHL's contact/appointment upsert schemas reject unknown top-level properties (a stray
- * `origin_tag` 422s — "property origin_tag should not exist"). For CONTACTS the origin
- * marker therefore rides in the `tags` array: GHL accepts arbitrary tags and echoes them
- * back in the contact webhook, where `origin.parse()` (which now scans `tags`) recognizes
- * the self-authored echo and skips it. The marker is a unique `tlp-sync:ghl:<eventId>`
- * tag — inert to the owner's workflow filters, so it never triggers/suppresses automations.
- * Appointment loop-guard wiring is still pending (the calendar-event schema has no tags),
- * so appointment writes go unstamped rather than carry a property GHL rejects.
+ * `origin_tag` 422s — "property origin_tag should not exist"). The origin marker is
+ * therefore embedded in schema-accepted carrier fields:
+ *
+ * CONTACTS: `tags` array — GHL accepts arbitrary tags and echoes them back in the contact
+ *   webhook, where `origin.parse()` (which scans `tags`) recognizes the self-authored echo
+ *   and skips it. The marker is a unique `tlp-sync:ghl:<eventId>` tag — inert to the
+ *   owner's workflow filters, so it never triggers/suppresses automations.
+ *
+ * APPOINTMENTS: `notes` field — GHL's calendar-event schema accepts `notes` (plain text)
+ *   and includes it in appointment webhooks. `origin.parse()` scans `notes`, so the
+ *   self-authored echo is recognized and skipped (loop guard). The tag is appended after
+ *   any existing notes content so it does not discard user-supplied notes.
  */
 function withOrigin(
   body: Record<string, unknown>,
   eventId: string,
   entity: GhlEntity,
 ): Record<string, unknown> {
-  if (entity !== 'contact') return body;
   const originTag = tagFor('ghl', eventId);
-  const existing = Array.isArray(body.tags) ? (body.tags as unknown[]) : [];
-  return { ...body, tags: Array.from(new Set([...existing, originTag])) };
+  if (entity === 'contact') {
+    const existing = Array.isArray(body.tags) ? (body.tags as unknown[]) : [];
+    return { ...body, tags: Array.from(new Set([...existing, originTag])) };
+  }
+  // appointment — stamp tag into `notes` (appended, never clobbering)
+  const existingNotes = typeof body.notes === 'string' ? body.notes : '';
+  const notes = existingNotes ? `${existingNotes}\n${originTag}` : originTag;
+  return { ...body, notes };
 }
 
 interface Route {
