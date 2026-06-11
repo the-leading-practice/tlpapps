@@ -81,8 +81,10 @@ async function ensureListener(): Promise<void> {
 
 /**
  * Async, DB-backed per-(direction × entity) mode resolution with 5s TTL cache.
- * Clamps: effective = min(db_mode, env_ceiling). Fails CLOSED (off/dry) on all
- * error paths — DB unreachable → safe default (writeModeFor env-only shim).
+ * Clamps: effective = min(db_mode, env_ceiling). Fails CLOSED to `off` on ALL
+ * error paths — DB unreachable / missing row / cache miss → `'off'` regardless
+ * of what the env ceiling says.  The env ceiling is only applied when a confirmed
+ * DB row exists.
  *
  * @param direction drchrono_to_ghl | ghl_to_drchrono
  * @param entity    patients | appointments
@@ -124,9 +126,9 @@ export async function writeModeForEntity(
       .where(and(eq(syncControls.direction, direction), eq(syncControls.entity, entity)));
 
     if (!row) {
-      // Row missing (pre-migration race) — fall back to env-only
-      const fallback = writeModeFor(direction === 'drchrono_to_ghl' ? 'ghl' : 'drchrono', env);
-      return fallback;
+      // Row missing (pre-migration race or schema not yet applied) — fail CLOSED.
+      logger.warn({ key }, 'writeModeForEntity: no DB row found; returning off (fail-closed)');
+      return 'off';
     }
 
     // Clamp: effective = min(db_mode, ceiling)
@@ -138,9 +140,11 @@ export async function writeModeForEntity(
     controlCache.set(key, { mode: effective, expiresAt: now + CACHE_TTL_MS });
     return effective;
   } catch (err) {
-    // DB unreachable → fail CLOSED: return env ceiling (already clamped to dry/off by default)
-    logger.warn({ err, key }, 'writeModeForEntity: DB query failed; returning env ceiling (fail-closed)');
-    return ceiling;
+    // DB unreachable / query error → fail CLOSED to 'off' (safe floor).
+    // NEVER return the env ceiling here — a transient DB failure must not escalate
+    // a toggled-off/dry row to 'on'.
+    logger.warn({ err, key }, 'writeModeForEntity: DB query failed; returning off (fail-closed)');
+    return 'off';
   }
 }
 
@@ -220,6 +224,21 @@ export async function dispatchWrite(
     );
     syncCounters.inc('sync_writes_skipped_off');
     return 'skipped-off';
+  }
+
+  // Loop-prevention guard — appointment `on`-mode writes are blocked until a
+  // loop-prevention origin tag can be stamped on the outbound payload.  The GHL
+  // calendar-event schema has no `tags` field, so the contact-style `tlp-sync:`
+  // tag mechanism cannot be used as-is.  Allowing `on` without a tag would cause
+  // an echo ping-pong loop between GHL and DrChrono.  Block at this layer so
+  // accidentally enabling the toggle cannot cause data-integrity damage.
+  if (input.entity === 'appointment' && (mode === 'on' || mode === 'verify')) {
+    log.error(
+      { op, eventId: input.eventId },
+      'appointment on/verify write blocked — loop-prevention tag not yet implemented for appointments; downgrading to dry',
+    );
+    syncCounters.inc('sync_dry_run_actions');
+    return 'dry-logged';
   }
 
   // mode === 'verify' — build the REAL write but POST it to the sink, never the EHR.
