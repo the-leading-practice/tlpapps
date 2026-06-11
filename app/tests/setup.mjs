@@ -30,3 +30,10 @@ process.env.MONGO_USER ||= '';
 process.env.MONGO_PASS ||= '';
 process.env.MONGO_DB ||= '';
 process.env.TOKEN_KEY ||= 'test-token-key';
+
+// Allowlist sentinel for tests that exercise on/verify write paths.
+// Only synthetic test IDs; never a real-practice GHL location ID.
+// Per CR-01 fix, an empty allowlist denies all — tests that issue on/verify
+// writes must have the target locationId present here.
+process.env.SYNC_WRITE_LOCATION_ALLOWLIST ||=
+  'DEMO_LOC_TEST,DEMO_LOC_TEST_A,DEMO_LOC_TEST_B,SAFE_TEST_LOC_001';
