@@ -44,7 +44,7 @@
       if (res.status === 503) {
         throw new Error('Sync admin SSO is not configured yet (awaiting GHL_APP_SSO_KEY).');
       } else if (res.status === 409) {
-        throw new Error('This location isn\'t onboarded.');
+        throw new Error("This location isn't onboarded.");
       } else if (res.status === 401) {
         throw new Error('SSO verification failed.');
       } else {
@@ -126,27 +126,122 @@
   });
 </script>
 
-{#if state === 'loading'}
-  <div class="embed-shell">
-    <p class="status">{statusMessage}</p>
-  </div>
-{:else}
-  <div class="embed-shell embed-shell--error">
-    <p class="error-msg">{errorMessage}</p>
-  </div>
-{/if}
+<div class="embed-root">
+  {#if state === 'loading'}
+    <div class="embed-card">
+      <!-- Spinner -->
+      <div class="spinner" aria-label="Loading" role="status">
+        <div class="spinner-ring"></div>
+        <div class="spinner-ring spinner-ring--delay"></div>
+      </div>
+      <p class="embed-status">{statusMessage}</p>
+    </div>
+  {:else}
+    <div class="embed-card embed-card--error">
+      <!-- Error icon -->
+      <div class="error-icon" aria-hidden="true">
+        <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+          <circle cx="12" cy="12" r="10"/>
+          <line x1="12" y1="8" x2="12" y2="12"/>
+          <line x1="12" y1="16" x2="12.01" y2="16"/>
+        </svg>
+      </div>
+      <p class="embed-error-title" role="alert">Authentication failed</p>
+      <p class="embed-error-msg">{errorMessage}</p>
+    </div>
+  {/if}
+</div>
 
 <style>
-  .embed-shell {
+  /* Intentionally scoped vanilla CSS — no daisyUI tokens here since
+     this page may load before the admin shell and has no outer layout. */
+  .embed-root {
     display: flex;
     align-items: center;
     justify-content: center;
     min-height: 100vh;
-    font-family: sans-serif;
-    font-size: 0.95rem;
-    color: #444;
+    background: #0f172a;
+    font-family: system-ui, -apple-system, sans-serif;
+    padding: 1.5rem;
   }
-  .embed-shell--error {
-    color: #b91c1c;
+
+  .embed-card {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 1rem;
+    background: #1e293b;
+    border: 1px solid rgba(148, 163, 184, 0.12);
+    border-radius: 1rem;
+    padding: 2.5rem 3rem;
+    box-shadow: 0 4px 24px rgba(0, 0, 0, 0.3);
+    max-width: 22rem;
+    width: 100%;
+    text-align: center;
+  }
+
+  .embed-card--error {
+    border-color: rgba(239, 68, 68, 0.25);
+    background: #1e1520;
+  }
+
+  /* Spinner */
+  .spinner {
+    position: relative;
+    width: 2.5rem;
+    height: 2.5rem;
+  }
+
+  .spinner-ring {
+    position: absolute;
+    inset: 0;
+    border-radius: 50%;
+    border: 2.5px solid transparent;
+    border-top-color: #3b82f6;
+    animation: spin 0.9s linear infinite;
+  }
+
+  .spinner-ring--delay {
+    border-top-color: rgba(59, 130, 246, 0.3);
+    animation-delay: -0.45s;
+    animation-direction: reverse;
+  }
+
+  @keyframes spin {
+    to { transform: rotate(360deg); }
+  }
+
+  .embed-status {
+    font-size: 0.875rem;
+    color: #94a3b8;
+    margin: 0;
+  }
+
+  /* Error state */
+  .error-icon {
+    color: #f87171;
+    opacity: 0.9;
+  }
+
+  .embed-error-title {
+    font-size: 0.9375rem;
+    font-weight: 600;
+    color: #fca5a5;
+    margin: 0;
+  }
+
+  .embed-error-msg {
+    font-size: 0.8125rem;
+    color: #94a3b8;
+    line-height: 1.5;
+    margin: 0;
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    .spinner-ring {
+      animation: none;
+      border-top-color: #3b82f6;
+      border-right-color: rgba(59, 130, 246, 0.3);
+    }
   }
 </style>

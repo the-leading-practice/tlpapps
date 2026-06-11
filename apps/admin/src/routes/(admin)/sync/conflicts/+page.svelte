@@ -2,6 +2,8 @@
   import { onMount } from 'svelte';
   import { apiGet, apiPost } from '$lib/api';
   import Icon from '@iconify/svelte';
+  import SyncCard from '$lib/components/Sync/SyncCard.svelte';
+  import StatusPill from '$lib/components/Sync/StatusPill.svelte';
 
   let loading = true;
   let error = '';
@@ -45,95 +47,117 @@
   <title>Sync Conflicts</title>
 </svelte:head>
 
-<div class="flex items-center justify-between mb-5">
-  <h2 class="text-2xl uppercase">Sync Conflicts</h2>
-  <a href="/sync" class="btn btn-xs btn-ghost">← Dashboard</a>
-</div>
+<div class="flex flex-col gap-5">
 
-<div class="flex flex-wrap gap-3 mb-4">
-  <select class="select select-bordered select-sm" bind:value={resolutionFilter} on:change={load}>
-    <option value="pending">Pending</option>
-    <option value="manual-resolved">Manual-resolved</option>
-    <option value="auto-resolved">Auto-resolved</option>
-    <option value="skip">Skipped</option>
-  </select>
-  <button class="btn btn-sm btn-outline" on:click={load}>
-    <Icon icon="mdi:refresh" /> Refresh
-  </button>
-</div>
+  <div class="flex items-center justify-between">
+    <h2 class="text-xl font-semibold text-base-content">Sync Conflicts</h2>
+  </div>
 
-{#if resolveError}
-  <div class="alert alert-error mb-4">
-    <Icon icon="mdi:alert-circle-outline" />
-    <span>{resolveError}</span>
+  <!-- Filters -->
+  <div class="flex flex-wrap items-center gap-2">
+    <select
+      class="select select-sm bg-base-200 border border-base-content/15 rounded-lg text-sm focus:ring-2 focus:ring-blue-500 focus:outline-none"
+      bind:value={resolutionFilter}
+      on:change={load}
+    >
+      <option value="pending">Pending</option>
+      <option value="manual-resolved">Manual-resolved</option>
+      <option value="auto-resolved">Auto-resolved</option>
+      <option value="skip">Skipped</option>
+    </select>
+    <button
+      class="btn btn-sm bg-base-200 border border-base-content/15 hover:bg-base-content/10 rounded-lg flex items-center gap-1.5 text-sm"
+      on:click={load}
+      aria-label="Refresh conflicts"
+    >
+      <Icon icon="mdi:refresh" class="text-base" />
+      Refresh
+    </button>
   </div>
-{/if}
 
-{#if loading}
-  <div class="flex justify-center py-12">
-    <span class="loading loading-spinner loading-lg"></span>
-  </div>
-{:else if error}
-  <div class="alert alert-error mb-4">
-    <Icon icon="mdi:alert-circle-outline" />
-    <span>{error}</span>
-  </div>
-{:else}
-  <div class="card bg-base-200 shadow-lg">
-    <div class="card-body p-0">
+  {#if resolveError}
+    <div class="rounded-xl border border-rose-500/30 bg-rose-500/10 px-4 py-3 flex items-center gap-3 text-sm text-rose-300">
+      <Icon icon="mdi:alert-circle-outline" class="text-lg shrink-0" />
+      <span>{resolveError}</span>
+    </div>
+  {/if}
+
+  {#if loading}
+    <div class="flex justify-center py-16">
+      <span class="loading loading-spinner loading-lg text-blue-400"></span>
+    </div>
+  {:else if error}
+    <div class="rounded-xl border border-rose-500/30 bg-rose-500/10 px-4 py-3 flex items-center gap-3 text-sm text-rose-300">
+      <Icon icon="mdi:alert-circle-outline" class="text-lg shrink-0" />
+      <span>{error}</span>
+    </div>
+  {:else}
+    <SyncCard padBody={false}>
       <div class="overflow-x-auto">
-        <table class="table table-zebra">
+        <table class="w-full text-sm">
           <thead>
-            <tr>
-              <th>ID</th>
-              <th>Source</th>
-              <th>Entity</th>
-              <th>Resolution</th>
-              <th>Resolved By</th>
-              <th>Created</th>
+            <tr class="text-xs text-base-content/50 uppercase tracking-wide border-b border-base-content/10">
+              <th class="text-left px-5 py-3 font-medium">ID</th>
+              <th class="text-left px-4 py-3 font-medium">Source</th>
+              <th class="text-left px-4 py-3 font-medium">Entity</th>
+              <th class="text-left px-4 py-3 font-medium">Resolution</th>
+              <th class="text-left px-4 py-3 font-medium">Resolved By</th>
+              <th class="text-left px-4 py-3 font-medium">Created</th>
               {#if resolutionFilter === 'pending'}
-                <th>Actions</th>
+                <th class="text-left px-4 py-3 font-medium">Actions</th>
               {/if}
             </tr>
           </thead>
-          <tbody>
+          <tbody class="divide-y divide-base-content/5">
             {#if conflicts.length === 0}
-              <tr><td colspan="7" class="text-center py-8 opacity-60">No {resolutionFilter} conflicts</td></tr>
+              <tr>
+                <td colspan="7" class="py-12 text-center text-base-content/40 text-sm">
+                  No {resolutionFilter} conflicts
+                </td>
+              </tr>
             {:else}
               {#each conflicts as c}
-                <tr>
-                  <td class="font-mono text-xs">{c.id?.slice(0, 8)}…</td>
-                  <td><span class="badge badge-outline badge-sm">{c.source}</span></td>
-                  <td class="text-sm">{c.entity}</td>
-                  <td>
-                    <span class="badge badge-sm {c.resolution === 'pending' ? 'badge-warning' : 'badge-success'}">
-                      {c.resolution}
-                    </span>
+                <tr class="hover:bg-base-content/5 transition-colors">
+                  <td class="px-5 py-2.5 font-mono text-xs text-base-content/60">{c.id?.slice(0, 8)}…</td>
+                  <td class="px-4 py-2.5">
+                    <span class="inline-flex px-1.5 py-0.5 rounded text-xs border border-base-content/20 text-base-content/70 font-mono">{c.source}</span>
                   </td>
-                  <td class="text-xs opacity-70">{c.resolvedBy ?? '—'}</td>
-                  <td class="text-xs opacity-70 whitespace-nowrap">
+                  <td class="px-4 py-2.5 text-sm">{c.entity}</td>
+                  <td class="px-4 py-2.5">
+                    <StatusPill
+                      status={c.resolution}
+                      variant={c.resolution === 'pending' ? 'mode' : 'status'}
+                    />
+                  </td>
+                  <td class="px-4 py-2.5 text-xs text-base-content/50">{c.resolvedBy ?? '—'}</td>
+                  <td class="px-4 py-2.5 text-xs text-base-content/50 whitespace-nowrap">
                     {new Date(c.createdAt ?? c.created_at).toLocaleString()}
                   </td>
                   {#if resolutionFilter === 'pending'}
-                    <td class="flex gap-1">
-                      <button
-                        class="btn btn-xs btn-success"
-                        disabled={resolving === c.id}
-                        on:click={() => resolve(c.id, 'apply-source')}
-                      >
-                        {#if resolving === c.id}<span class="loading loading-xs"></span>{/if}
-                        Source
-                      </button>
-                      <button
-                        class="btn btn-xs btn-info"
-                        disabled={resolving === c.id}
-                        on:click={() => resolve(c.id, 'apply-target')}
-                      >Target</button>
-                      <button
-                        class="btn btn-xs btn-ghost"
-                        disabled={resolving === c.id}
-                        on:click={() => resolve(c.id, 'skip')}
-                      >Skip</button>
+                    <td class="px-4 py-2.5">
+                      <div class="flex items-center gap-1.5">
+                        <button
+                          class="px-2.5 py-1 rounded-lg text-xs font-medium bg-emerald-500/15 ring-1 ring-emerald-500/30 text-emerald-300 hover:bg-emerald-500/25 transition-colors disabled:opacity-40"
+                          disabled={resolving === c.id}
+                          on:click={() => resolve(c.id, 'apply-source')}
+                          aria-label="Apply source for conflict {c.id}"
+                        >
+                          {#if resolving === c.id}<span class="loading loading-xs mr-1"></span>{/if}
+                          Source
+                        </button>
+                        <button
+                          class="px-2.5 py-1 rounded-lg text-xs font-medium bg-blue-500/15 ring-1 ring-blue-500/30 text-blue-300 hover:bg-blue-500/25 transition-colors disabled:opacity-40"
+                          disabled={resolving === c.id}
+                          on:click={() => resolve(c.id, 'apply-target')}
+                          aria-label="Apply target for conflict {c.id}"
+                        >Target</button>
+                        <button
+                          class="px-2.5 py-1 rounded-lg text-xs font-medium bg-base-content/10 ring-1 ring-base-content/20 text-base-content/60 hover:bg-base-content/15 transition-colors disabled:opacity-40"
+                          disabled={resolving === c.id}
+                          on:click={() => resolve(c.id, 'skip')}
+                          aria-label="Skip conflict {c.id}"
+                        >Skip</button>
+                      </div>
                     </td>
                   {/if}
                 </tr>
@@ -142,6 +166,7 @@
           </tbody>
         </table>
       </div>
-    </div>
-  </div>
-{/if}
+    </SyncCard>
+  {/if}
+
+</div>
