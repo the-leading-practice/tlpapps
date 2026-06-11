@@ -62,6 +62,9 @@ export const config = {
     // DND backstop: when true, force dnd:true on every synced CONTACT write (engine + legacy),
     // overriding the hardcoded dnd:false. Default true. When false, legacy keeps dnd:false.
     suppressAutomation: process.env.GHL_SUPPRESS_AUTOMATION !== 'false',
+    // GHL Marketplace SSO key (App Settings → SSO). Required for POST /api/crm/sso.
+    // Set via Coolify env; never commit a real value here.
+    ssoKey: process.env.GHL_APP_SSO_KEY || '',
   },
   drchrono: {
     apiUrl: process.env.DRCHRONO_API || 'https://drchrono.com',
