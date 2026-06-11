@@ -6,6 +6,86 @@ import { cryptoService } from '../../utils/crypto.js';
 import { accessTokenService, appConfigService, ghlTokenService } from './services.js';
 import type { AccessToken, Token } from './types.js';
 
+// ---------------------------------------------------------------------------
+// mintTokenForLocation
+// ---------------------------------------------------------------------------
+// Shared JWT-mint helper: looks up the accessTokens record for a location,
+// decrypts the stored GHL access_token, and signs a JWT in the exact payload
+// shape that authToken (middleware/auth.ts) requires.
+//
+// Uses the stored access_token directly (no token renewal) — fast + read-only.
+// Callers that need renewal (i.e. /api/login) perform it before calling this.
+//
+// Returns { token: <signed JWT>, config: <appConfig.config> } on success.
+// Throws with a coded error on failure so callers can map to HTTP status codes:
+//   'location_not_onboarded' — no accessTokens row for this location
+//   'token_unavailable'      — stored token decrypt / parse failed
+// ---------------------------------------------------------------------------
+
+export interface MintResult {
+  token: string;
+  config: unknown;
+  location: string;
+  name: string;
+}
+
+export async function mintTokenForLocation(location: string): Promise<MintResult> {
+  const record = await accessTokenService.getTokenByLocation(location);
+  if (!record || !record.token) {
+    const err = new Error(`No accessTokens record for location: ${location}`);
+    (err as any).code = 'location_not_onboarded';
+    throw err;
+  }
+
+  let accessTokenStr: string;
+  try {
+    const buf = Buffer.from(record.token, 'hex');
+    const json = cryptoService.decrypt(buf);
+    const parsed: Token = JSON.parse(json);
+    accessTokenStr = parsed.access_token;
+  } catch (e: any) {
+    const err = new Error(`Failed to decrypt/parse stored GHL token for location: ${location}`);
+    (err as any).code = 'token_unavailable';
+    throw err;
+  }
+
+  // Fill timezone if empty (same guard as /api/login and /api/auth)
+  let timezone = record.timezone || '';
+  if (!timezone) {
+    try {
+      const locationData = await ghlTokenService.getLocationData(location, accessTokenStr);
+      timezone = locationData.data.location.timezone || '';
+    } catch {
+      // Non-fatal — proceed with empty timezone
+    }
+  }
+
+  const webToken = jwt.sign(
+    {
+      location: record.location,
+      calendar: record.calendar,
+      timezone,
+      name: record.name,
+      token: accessTokenStr,
+      pushGHL: record.pushGHL ?? false,
+      pushAppt: record.pushAppt ?? false,
+      pushPat: record.pushPat ?? false,
+      software: record.software,
+    },
+    config.tokenKey,
+    { expiresIn: '86400s' },
+  );
+
+  const conf = await appConfigService.getConfig(location);
+
+  return {
+    token: webToken,
+    config: conf ? conf.config : null,
+    location: record.location,
+    name: record.name,
+  };
+}
+
 const createController = () => {
   const index = async (req: any, res: express.Response) => {
     res.status(200).json({ status: 'ok' });
@@ -79,46 +159,13 @@ const createController = () => {
       };
 
       if (refToken.status > -1) {
-        accessTokenService.updateToken(updateToken);
+        await accessTokenService.updateToken(updateToken);
       }
 
-      // generate jwt
-      console.log(`generating jwt`);
-      const webToken = jwt.sign(
-        {
-          location: location,
-          calendar: token.calendar,
-          timezone: token.timezone,
-          name: token.name,
-          token: refToken.data.access_token,
-          pushGHL: token.pushGHL,
-          pushAppt: token.pushAppt,
-          pushPat: token.pushPat,
-          software: token.software,
-        },
-        config.tokenKey,
-        { expiresIn: '86400s' },
-      );
-
-      // get the config for this location
-      console.log(`getting config for location ${location}`);
-      const conf = await appConfigService.getConfig(location);
-
-      console.log(conf);
-
-      if (conf && webToken) {
-        console.log(`sending jwt back to client`);
-        console.log(webToken);
-        const ret = {
-          config: conf.config,
-          token: webToken,
-        };
-
-        res.status(200).json(ret);
-        return;
-      }
-
-      res.status(200).json({});
+      // mint JWT via shared helper (reads refreshed record from DB)
+      console.log(`minting jwt for location ${location}`);
+      const minted = await mintTokenForLocation(location);
+      res.status(200).json({ config: minted.config, token: minted.token });
       return;
     }
 
@@ -145,55 +192,11 @@ const createController = () => {
       console.log(`refresh token: `);
       console.log(accessToken.refresh_token);
 
-      // check for timezone
-      if (!token.timezone || token.timezone.length === 0) {
-        token.timezone = '';
-
-        console.log('grabbing location data');
-        const locationData = await ghlTokenService.getLocationData(
-          token.location,
-          accessToken.access_token,
-        );
-        token.timezone = locationData.data.location.timezone;
-      }
-
-      // generate jwt
-      console.log(`generating jwt`);
-      const webToken = jwt.sign(
-        {
-          location: location,
-          calendar: token.calendar,
-          timezone: token.timezone,
-          name: token.name,
-          token: accessToken.access_token,
-          pushGHL: token.pushGHL,
-          pushAppt: token.pushAppt,
-          pushPat: token.pushPat,
-          software: token.software,
-        },
-        config.tokenKey,
-        { expiresIn: '86400s' },
-      );
-
-      console.log(`token: ${accessToken.access_token}`);
-
-      // get the config for this location
-      console.log(`getting config for location ${location}`);
-      const conf = await appConfigService.getConfig(location);
-
-      if (conf && webToken) {
-        console.log(`sending jwt back to client`);
-        console.log(webToken);
-        const ret = {
-          config: conf.config,
-          token: webToken,
-        };
-
-        res.status(200).json(ret);
-        return;
-      }
-
-      res.status(200).json({});
+      // mint JWT via shared helper (handles timezone fill + appConfig lookup)
+      console.log(`minting jwt for location ${location}`);
+      const minted = await mintTokenForLocation(location);
+      res.status(200).json({ config: minted.config, token: minted.token });
+      return;
     }
 
     res.sendStatus(403);
