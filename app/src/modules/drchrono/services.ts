@@ -4,6 +4,7 @@ import { isLocationAllowed } from '../sync/writers/allowlist.js';
 import { tagFor } from '../sync/origin.js';
 import { logger } from '../../logger.js';
 import { DrChronoConfigModel } from '../../models/drchronoConfig.js';
+import { mintTokenForLocation } from '../identity/controller.js';
 import type {
   DrChronoTokenResponse,
   DrChronoPatient,
@@ -293,10 +294,17 @@ export const createPatientServiceClient = (deps: PatientServiceClientDeps = {}) 
 
     const url = `${TLP_PATIENT_API}/patient`;
 
+    // Self-call to /api/patient is authToken-protected; authToken reads ONLY the
+    // Authorization: Bearer header. Mint a fresh location JWT (stored tlpJwt is stale).
+    let authJwt = headers.tlpJwt;
+    try { authJwt = (await mintTokenForLocation(ghlLocationId)).token; }
+    catch { dcLog.warn({ ghlLocationId }, 'mintTokenForLocation failed; using stored tlpJwt'); }
+
     const resp = await httpFetch(url, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
+        'Authorization': `Bearer ${authJwt}`,
         'x-tlp-app-location': `${headers.tlpLocation} ${headers.tlpToken}`,
         'x-tlp-app-timezone': headers.timezone,
         'x-tlp-app-jwt': headers.tlpJwt,
@@ -359,10 +367,15 @@ export const createPatientServiceClient = (deps: PatientServiceClientDeps = {}) 
 
     const url = `${TLP_PATIENT_API}/appt`;
 
+    let authJwt = headers.tlpJwt;
+    try { authJwt = (await mintTokenForLocation(ghlLocationId)).token; }
+    catch { dcLog.warn({ ghlLocationId }, 'mintTokenForLocation failed; using stored tlpJwt'); }
+
     const resp = await httpFetch(url, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
+        'Authorization': `Bearer ${authJwt}`,
         'x-tlp-app-location': `${headers.tlpLocation} ${headers.tlpToken}`,
         'x-tlp-app-timezone': headers.timezone,
         'x-tlp-app-jwt': headers.tlpJwt,
@@ -436,7 +449,8 @@ export const syncPatientsAndAppointments = async (
   location: DrChronoConfigLocation,
   locationHeaders: LocationHeaders,
 ) => {
-  const patientIds = [...new Set(appointments.map((a) => a.patient))];
+  // Skip appointments with no patient (availability blocks / breaks) — getPatient(null) 404s.
+  const patientIds = [...new Set(appointments.map((a) => a.patient).filter((id): id is number => id != null))];
   const patients: TLPPatientPayload[] = [];
 
   for (const patientId of patientIds) {
