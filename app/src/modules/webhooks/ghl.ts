@@ -17,35 +17,9 @@
 import type { Request, Response } from 'express';
 import { ingestEvent } from '../sync/ingest.js';
 import { logger } from '../../logger.js';
+import { normalizeAction, externalIdOf } from './crm.js';
 
 const log = logger.child({ module: 'webhook-ghl' });
-
-/** Map GHL webhook event types to normalized sync verbs. */
-function normalizeAction(raw: string | undefined): string {
-  const t = (raw ?? '').toLowerCase();
-  if (t.includes('delete')) return 'deleted';
-  if (t.includes('cancel')) return 'cancelled';
-  if (t.includes('reschedul') || t.includes('moved')) return 'rescheduled';
-  if (t.includes('create')) return 'created';
-  if (t.includes('update') || t.includes('modify')) return 'updated';
-  return t || 'updated';
-}
-
-/** Best-effort external id extraction across GHL appointment/contact payload shapes. */
-function externalIdOf(body: Record<string, unknown>): string | null {
-  const candidates = [
-    body.appointmentId,
-    body.id,
-    body.eventId,
-    body.contactId,
-    (body.appointment as Record<string, unknown> | undefined)?.id,
-  ];
-  for (const c of candidates) {
-    if (typeof c === 'string' && c) return c;
-    if (typeof c === 'number') return String(c);
-  }
-  return null;
-}
 
 export async function ghlSyncWebhook(req: Request, res: Response): Promise<void> {
   const body = (req.body ?? {}) as Record<string, unknown>;
