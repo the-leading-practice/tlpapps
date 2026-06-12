@@ -9,6 +9,8 @@ const accessTokenSchema = new mongoose.Schema(
     timezone: { type: String, required: true },
     secret: { type: String, required: true },
     token: { type: String, required: false },
+    /** Epoch ms when the stored GHL access_token expires (set on each refresh). */
+    expiresAt: { type: Number, required: false },
     pushGHL: { type: Boolean, required: false },
     pushAppt: { type: Boolean, required: false },
     pushPat: { type: Boolean, required: false },

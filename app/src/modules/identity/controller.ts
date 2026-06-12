@@ -17,8 +17,9 @@ const log = logger.child({ module: 'identity-crm-sso' });
 // decrypts the stored GHL access_token, and signs a JWT in the exact payload
 // shape that authToken (middleware/auth.ts) requires.
 //
-// Uses the stored access_token directly (no token renewal) — fast + read-only.
-// Callers that need renewal (i.e. /api/login) perform it before calling this.
+// Auto-refreshes the stored GHL access_token via ensureFreshAccessToken when it
+// is missing/expired/near expiry, persisting the rotated blob — so the sync
+// engine, webhooks, and SSO never push with a dead token.
 //
 // Returns { token: <signed JWT>, config: <appConfig.config> } on success.
 // Throws with a coded error on failure so callers can map to HTTP status codes:
@@ -33,6 +34,74 @@ export interface MintResult {
   name: string;
 }
 
+// Refresh the access token this many ms BEFORE its stored expiry (safety margin
+// for clock skew + in-flight requests). GHL access tokens live ~24h.
+const REFRESH_SKEW_MS = 10 * 60 * 1000; // 10 minutes
+
+// Per-location in-flight refresh promises — collapses concurrent mint calls
+// (cron + webhook + SSO) into a single GHL refresh round-trip, avoiding a
+// refresh-token rotation race (GHL rotates the refresh_token on every use).
+const inFlightRefresh = new Map<string, Promise<string>>();
+
+// ---------------------------------------------------------------------------
+// ensureFreshAccessToken
+// ---------------------------------------------------------------------------
+// Returns a valid GHL access_token for a location, transparently refreshing it
+// via the stored refresh_token when the current one is missing/expired/near
+// expiry. Persists the rotated token blob + new expiresAt back to Mongo so the
+// refresh only happens once per token lifetime (not per call). Fail-soft: if
+// the refresh call errors but we still hold a decryptable access_token, return
+// it (the caller's own GHL request will surface a hard 401 if it's truly dead).
+// ---------------------------------------------------------------------------
+export async function ensureFreshAccessToken(record: any): Promise<string> {
+  const location: string = record.location;
+
+  let parsed: Token;
+  try {
+    parsed = JSON.parse(cryptoService.decrypt(Buffer.from(record.token, 'hex')));
+  } catch {
+    const err = new Error(`Failed to decrypt/parse stored GHL token for location: ${location}`);
+    (err as any).code = 'token_unavailable';
+    throw err;
+  }
+
+  const expiresAt: number | undefined = record.get('expiresAt');
+  const fresh = typeof expiresAt === 'number' && Date.now() < expiresAt - REFRESH_SKEW_MS;
+  if (fresh) return parsed.access_token;
+
+  // Stale / unknown expiry — refresh (deduped per location).
+  const existing = inFlightRefresh.get(location);
+  if (existing) return existing;
+
+  const p = (async (): Promise<string> => {
+    try {
+      const resp = await ghlTokenService.renewAuthToken(parsed.refresh_token);
+      if (resp.status >= 400 || !resp?.data?.access_token) {
+        log.warn(
+          { location, status: resp.status },
+          'GHL token refresh failed; using existing stored access_token',
+        );
+        return parsed.access_token; // fail-soft
+      }
+      const newBlob: Token = resp.data;
+      record.token = cryptoService.encrypt(JSON.stringify(newBlob));
+      const ttlSec = typeof newBlob.expires_in === 'number' ? newBlob.expires_in : 86400;
+      record.set('expiresAt', Date.now() + ttlSec * 1000);
+      await record.save();
+      log.info({ location }, 'GHL access token auto-refreshed');
+      return newBlob.access_token;
+    } catch (e: any) {
+      log.warn({ location, err: e?.message }, 'GHL token refresh threw; using existing token');
+      return parsed.access_token; // fail-soft
+    } finally {
+      inFlightRefresh.delete(location);
+    }
+  })();
+
+  inFlightRefresh.set(location, p);
+  return p;
+}
+
 export async function mintTokenForLocation(location: string): Promise<MintResult> {
   const record = await accessTokenService.getTokenByLocation(location);
   if (!record || !record.token) {
@@ -41,17 +110,7 @@ export async function mintTokenForLocation(location: string): Promise<MintResult
     throw err;
   }
 
-  let accessTokenStr: string;
-  try {
-    const buf = Buffer.from(record.token, 'hex');
-    const json = cryptoService.decrypt(buf);
-    const parsed: Token = JSON.parse(json);
-    accessTokenStr = parsed.access_token;
-  } catch (e: any) {
-    const err = new Error(`Failed to decrypt/parse stored GHL token for location: ${location}`);
-    (err as any).code = 'token_unavailable';
-    throw err;
-  }
+  const accessTokenStr = await ensureFreshAccessToken(record);
 
   // Fill timezone if empty (same guard as /api/login and /api/auth)
   let timezone = record.timezone || '';
