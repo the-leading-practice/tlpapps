@@ -26,6 +26,8 @@ const drChronoConfigSchema = new mongoose.Schema(
         tlpJwt: { type: String, required: true },
         tlpCalendarId: { type: String, required: true },
         timezone: { type: String, required: true },
+        /** GHL location id this DrChrono location maps to — used for sync allowlist checks. */
+        ghlLocationId: { type: String },
       },
     ],
   },
