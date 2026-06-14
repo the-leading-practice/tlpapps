@@ -238,6 +238,9 @@ const createIntegrationService = () => {
 	const upsertContact = async (patient: any, jwt: string) => {
 		const { translateTLPtoGHL } = await import('./utils.js');
 		const ghlContact = translateTLPtoGHL(patient, patient.locationId || '');
+		// GHL /contacts/upsert rejects a body with `id` ("property id should not exist").
+		// It dedupes by email/phone within the location, so id is unnecessary here.
+		delete (ghlContact as any).id;
 		return contact.upsertContact(ghlContact, jwt);
 	};
 

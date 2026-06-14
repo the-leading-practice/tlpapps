@@ -293,11 +293,17 @@ export const generateAppointment = async (
 			settings.jwt,
 		);
 		if (resp.status >= 200 && resp.status < 300) {
-			ghlAppt = resp.data.find((a: TLPAppointmentData) => {
-				return new Date(a.startTime).getTime() === new Date(newAppt.startTime).getTime();
-			});
-			if (ghlAppt) {
-				logger.writeLog('debug', `found ${ghlAppt?.ghlApptId} merging with ${tlpAppt.apptId}`);
+			// GHL /contacts/{id}/appointments returns { events: [...] }, not a bare array.
+			const events: any[] = Array.isArray(resp.data)
+				? resp.data
+				: resp.data?.events || resp.data?.appointments || [];
+			const match = events.find(
+				(a: any) =>
+					new Date(a.startTime).getTime() === new Date(newAppt.startTime).getTime(),
+			);
+			if (match) {
+				ghlAppt = { ...match, ghlApptId: match.ghlApptId || match.id } as TLPAppointmentData;
+				logger.writeLog('debug', `found ${ghlAppt.ghlApptId} merging with ${tlpAppt.apptId}`);
 			}
 		}
 	}
