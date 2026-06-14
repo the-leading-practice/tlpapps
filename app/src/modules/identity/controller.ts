@@ -32,6 +32,8 @@ export interface MintResult {
   config: unknown;
   location: string;
   name: string;
+  /** Fresh raw GHL access_token (post auto-refresh) — for direct GHL API calls. */
+  ghlAccessToken: string;
 }
 
 // Refresh the access token this many ms BEFORE its stored expiry (safety margin
@@ -148,6 +150,7 @@ export async function mintTokenForLocation(location: string): Promise<MintResult
     config: conf ? conf.config : null,
     location: record.location,
     name: record.name,
+    ghlAccessToken: accessTokenStr,
   };
 }
 
@@ -344,15 +347,16 @@ const createController = () => {
           };
 
           console.log('updating accessToken');
-          console.log(updateToken);
           const access = await accessTokenService.updateToken(updateToken);
 
-          // send response
+          // Never render the locationSecret (login credential) in the browser.
+          log.info({ location: access.location, name: access.name }, 'GHL OAuth install/refresh completed');
           res.status(200);
           res.set('Content-Security-Policy', 'img-src https://media.theleadingpractice.com');
           res.json({
+            status: 'ok',
             locationId: access.location,
-            locationSecret: access.secret,
+            message: 'Authorization complete. You can close this window.',
           });
         }
       });

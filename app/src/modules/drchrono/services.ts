@@ -297,11 +297,20 @@ export const createPatientServiceClient = (deps: PatientServiceClientDeps = {}) 
     // Self-call to /api/patient is authToken-protected; authToken reads ONLY the
     // Authorization: Bearer header. Mint a fresh location JWT (stored tlpJwt is stale).
     let authJwt: string;
-    try { authJwt = (await mintTokenForLocation(ghlLocationId)).token; }
-    catch (e: any) {
+    let ghlAccessToken: string;
+    try {
+      const minted = await mintTokenForLocation(ghlLocationId);
+      authJwt = minted.token;
+      ghlAccessToken = minted.ghlAccessToken;
+    } catch (e: any) {
       dcLog.error({ ghlLocationId, err: e?.message }, 'sendPatients: mintTokenForLocation failed — GHL token may need re-authorization');
       return { status: 401, data: { error: 'no_valid_jwt', reason: e?.message } };
     }
+
+    // The patient controller pushes to GHL using the raw access_token from the
+    // x-tlp-app-jwt header and the contact's own locationId — populate both with
+    // fresh values (the stored headers.tlpJwt is stale and patients carry no GHL id).
+    const ghlPatients = patients.map((p) => ({ ...p, locationId: ghlLocationId }));
 
     const resp = await httpFetch(url, {
       method: 'POST',
@@ -310,11 +319,11 @@ export const createPatientServiceClient = (deps: PatientServiceClientDeps = {}) 
         'Authorization': `Bearer ${authJwt}`,
         'x-tlp-app-location': `${headers.tlpLocation} ${headers.tlpToken}`,
         'x-tlp-app-timezone': headers.timezone,
-        'x-tlp-app-jwt': headers.tlpJwt,
+        'x-tlp-app-jwt': ghlAccessToken,
         'x-tlp-app-pushghl': '1',
         'x-tlp-app-pushpat': '1',
       },
-      body: JSON.stringify({ patients }),
+      body: JSON.stringify({ patients: ghlPatients }),
     });
 
     if (resp.status >= 200 && resp.status < 300) {
@@ -366,13 +375,24 @@ export const createPatientServiceClient = (deps: PatientServiceClientDeps = {}) 
     // downstream GHL write carries it in `notes`. The resulting webhook echo will
     // be recognized as self-authored (origin.isSelfAuthored) and skipped.
     const originTag = tagFor('ghl', `legacy-appt-${Date.now()}`);
-    const taggedAppointments = appointments.map((a) => ({ ...a, syncOriginTag: originTag }));
+    // Populate locationId + calendarId so translateApptTLPtoGHL produces a valid
+    // GHL appointment (the appt controller builds the GHL payload from these).
+    const taggedAppointments = appointments.map((a) => ({
+      ...a,
+      syncOriginTag: originTag,
+      locationId: ghlLocationId,
+      calendarId: a.calendarId || headers.tlpCalendarId,
+    }));
 
     const url = `${TLP_PATIENT_API}/appt`;
 
     let authJwt: string;
-    try { authJwt = (await mintTokenForLocation(ghlLocationId)).token; }
-    catch (e: any) {
+    let ghlAccessToken: string;
+    try {
+      const minted = await mintTokenForLocation(ghlLocationId);
+      authJwt = minted.token;
+      ghlAccessToken = minted.ghlAccessToken;
+    } catch (e: any) {
       dcLog.error({ ghlLocationId, err: e?.message }, 'sendAppointments: mintTokenForLocation failed — GHL token may need re-authorization');
       return { status: 401, data: { error: 'no_valid_jwt', reason: e?.message } };
     }
@@ -384,7 +404,7 @@ export const createPatientServiceClient = (deps: PatientServiceClientDeps = {}) 
         'Authorization': `Bearer ${authJwt}`,
         'x-tlp-app-location': `${headers.tlpLocation} ${headers.tlpToken}`,
         'x-tlp-app-timezone': headers.timezone,
-        'x-tlp-app-jwt': headers.tlpJwt,
+        'x-tlp-app-jwt': ghlAccessToken,
         'x-tlp-app-pushghl': '1',
         'x-tlp-app-pushappt': '1',
       },

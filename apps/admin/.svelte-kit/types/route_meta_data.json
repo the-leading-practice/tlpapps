@@ -1,24 +1,79 @@
 {
 	"/(admin)": [
-		"src/routes/(admin)/+page.ts"
+		"src/routes/(admin)/+page.ts",
+		"src/routes/+layout.ts",
+		"src/routes/+layout.ts"
 	],
-	"/": [],
+	"/": [
+		"src/routes/+layout.ts"
+	],
+	"/embed": [
+		"src/routes/embed/+page.ts",
+		"src/routes/+layout.ts"
+	],
+	"/(admin)/practice": [
+		"src/routes/+layout.ts"
+	],
 	"/(admin)/practice/config": [
-		"src/routes/(admin)/practice/config/+page.ts"
+		"src/routes/(admin)/practice/config/+page.ts",
+		"src/routes/+layout.ts"
 	],
 	"/(admin)/practice/config/[slug]": [
-		"src/routes/(admin)/practice/config/[slug]/+page.ts"
+		"src/routes/(admin)/practice/config/[slug]/+page.ts",
+		"src/routes/+layout.ts"
 	],
-	"/(admin)/practice/onboard": [],
-	"/(admin)/practice/settings": [],
-	"/(admin)/profile": [],
+	"/(admin)/practice/new": [
+		"src/routes/+layout.ts"
+	],
+	"/(admin)/practice/onboard": [
+		"src/routes/+layout.ts"
+	],
+	"/(admin)/practice/settings": [
+		"src/routes/+layout.ts"
+	],
+	"/(admin)/practice/[location]": [
+		"src/routes/+layout.ts"
+	],
+	"/(admin)/profile": [
+		"src/routes/+layout.ts"
+	],
 	"/(admin)/profile/options": [
-		"src/routes/(admin)/profile/options/+page.ts"
+		"src/routes/(admin)/profile/options/+page.ts",
+		"src/routes/+layout.ts"
 	],
-	"/(admin)/server": [],
-	"/(admin)/server/monitor": [],
-	"/sign-in": [],
-	"/sign-up": [],
-	"/sign-up/confirm": [],
-	"/welcome": []
+	"/(admin)/server": [
+		"src/routes/+layout.ts"
+	],
+	"/(admin)/server/monitor": [
+		"src/routes/+layout.ts"
+	],
+	"/sign-in": [
+		"src/routes/+layout.ts"
+	],
+	"/sign-up": [
+		"src/routes/+layout.ts"
+	],
+	"/sign-up/confirm": [
+		"src/routes/+layout.ts"
+	],
+	"/(admin)/sync": [
+		"src/routes/+layout.ts",
+		"src/routes/+layout.ts"
+	],
+	"/(admin)/sync/conflicts": [
+		"src/routes/+layout.ts"
+	],
+	"/(admin)/sync/controls": [
+		"src/routes/(admin)/sync/controls/+page.ts",
+		"src/routes/+layout.ts"
+	],
+	"/(admin)/sync/dead-letter": [
+		"src/routes/+layout.ts"
+	],
+	"/(admin)/sync/events": [
+		"src/routes/+layout.ts"
+	],
+	"/welcome": [
+		"src/routes/+layout.ts"
+	]
 }

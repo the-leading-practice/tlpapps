@@ -111,6 +111,8 @@ export type TLPPatientPayload = {
   country: string;
   dob: string;
   timezone: string;
+  /** GHL location id, injected before the outbound /api/patient call. */
+  locationId?: string;
 };
 
 export type TLPAppointmentPayload = {
@@ -118,6 +120,10 @@ export type TLPAppointmentPayload = {
   patientId: number;
   apptTime: string;
   apptStatus: string;
+  /** GHL location id, injected before the outbound /api/appt call. */
+  locationId?: string;
+  /** GHL calendar id for the appointment write. */
+  calendarId?: string;
   /**
    * Loop-prevention origin tag stamped by the sync engine before any outbound write.
    * Carried through the legacy appointment pipeline so the final GHL call includes
