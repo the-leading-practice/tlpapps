@@ -77,11 +77,13 @@ export async function ensureFreshAccessToken(record: any): Promise<string> {
     try {
       const resp = await ghlTokenService.renewAuthToken(parsed.refresh_token);
       if (resp.status >= 400 || !resp?.data?.access_token) {
-        log.warn(
-          { location, status: resp.status },
-          'GHL token refresh failed; using existing stored access_token',
+        log.error(
+          { location, status: resp.status, body: resp.data },
+          'GHL token refresh failed — refresh_token may be dead (invalid_grant); re-authorize the GHL app for this location',
         );
-        return parsed.access_token; // fail-soft
+        const err = new Error(`GHL token refresh failed for location ${location}: status=${resp.status}`);
+        (err as any).code = 'ghl_refresh_failed';
+        throw err;
       }
       const newBlob: Token = resp.data;
       record.token = cryptoService.encrypt(JSON.stringify(newBlob));

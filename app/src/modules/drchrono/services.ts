@@ -296,9 +296,12 @@ export const createPatientServiceClient = (deps: PatientServiceClientDeps = {}) 
 
     // Self-call to /api/patient is authToken-protected; authToken reads ONLY the
     // Authorization: Bearer header. Mint a fresh location JWT (stored tlpJwt is stale).
-    let authJwt = headers.tlpJwt;
+    let authJwt: string;
     try { authJwt = (await mintTokenForLocation(ghlLocationId)).token; }
-    catch { dcLog.warn({ ghlLocationId }, 'mintTokenForLocation failed; using stored tlpJwt'); }
+    catch (e: any) {
+      dcLog.error({ ghlLocationId, err: e?.message }, 'sendPatients: mintTokenForLocation failed — GHL token may need re-authorization');
+      return { status: 401, data: { error: 'no_valid_jwt', reason: e?.message } };
+    }
 
     const resp = await httpFetch(url, {
       method: 'POST',
@@ -367,9 +370,12 @@ export const createPatientServiceClient = (deps: PatientServiceClientDeps = {}) 
 
     const url = `${TLP_PATIENT_API}/appt`;
 
-    let authJwt = headers.tlpJwt;
+    let authJwt: string;
     try { authJwt = (await mintTokenForLocation(ghlLocationId)).token; }
-    catch { dcLog.warn({ ghlLocationId }, 'mintTokenForLocation failed; using stored tlpJwt'); }
+    catch (e: any) {
+      dcLog.error({ ghlLocationId, err: e?.message }, 'sendAppointments: mintTokenForLocation failed — GHL token may need re-authorization');
+      return { status: 401, data: { error: 'no_valid_jwt', reason: e?.message } };
+    }
 
     const resp = await httpFetch(url, {
       method: 'POST',
