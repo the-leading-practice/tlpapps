@@ -252,11 +252,15 @@ const createController = () => {
 				}
 			}
 
-			if (isNewMapping) {
-				// this is a new map - we will add it now
+			// Persist the mapping whenever we now hold a contactId — covers brand-new
+			// mappings AND pre-existing rows whose contactId was empty (e.g. left behind
+			// by an earlier failed run) and has just been populated. Without this, a
+			// contact created on a retry never has its id saved, so appointment sync can
+			// never resolve the contactId.
+			if (isNewMapping || (mapping && mapping.contactId.length > 0)) {
 				logger.writeLog(
 					'debug',
-					`adding new patient mapping ${mapping.contactId} ${mapping.patientId}`,
+					`saving patient mapping ${mapping.contactId} ${mapping.patientId}`,
 				);
 				await patientDataService.upsertPatient(loc.location, mapping);
 			}
