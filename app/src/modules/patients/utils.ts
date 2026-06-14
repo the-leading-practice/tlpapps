@@ -53,7 +53,11 @@ export const getLocationSettings = (headers: IncomingHttpHeaders): LocationSetti
 	const timezone = (headers['x-tlp-app-timezone'] as string) || '';
 	const software = (headers['x-tlp-app-software'] as string) || '';
 
-	const jwt = (headers['x-tlp-app-jwt'] as string) || '';
+	// GHL auth token: the authToken middleware overwrites x-tlp-app-jwt with the signed
+	// TLP JWT (not a GHL token). The real GHL access_token rides in x-tlp-app-location
+	// as "<location> <ghlAccessToken>". Prefer that; fall back to the header for any
+	// non-middleware caller that still passes the GHL token directly.
+	const jwt = getLocation(locHeader).token || (headers['x-tlp-app-jwt'] as string) || '';
 	const pushGHL = headers['x-tlp-app-pushghl'] !== undefined;
 	const pushAppt = headers['x-tlp-app-pushappt'] !== undefined;
 	const pushPat = headers['x-tlp-app-pushPat'] !== undefined;

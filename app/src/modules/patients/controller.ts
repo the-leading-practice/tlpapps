@@ -57,7 +57,11 @@ const createController = () => {
 		const locHeader = (req.headers['x-tlp-app-location'] as string) || '';
 		const loc = getLocation(locHeader);
 
-		const jwt = (req.headers['x-tlp-app-jwt'] as string) || '';
+		// GHL auth token: the authToken middleware overwrites x-tlp-app-jwt with the
+		// signed TLP JWT, so it is NOT a GHL token. The real GHL access_token rides in
+		// x-tlp-app-location ("<location> <ghlAccessToken>") as loc.token. Use that for
+		// outbound GHL calls; fall back to the header only for non-middleware callers.
+		const jwt = loc.token || (req.headers['x-tlp-app-jwt'] as string) || '';
 		const pushGHL = req.headers['x-tlp-app-pushghl'] !== undefined;
 		const pushPat = req.headers['x-tlp-app-pushpat'] !== undefined;
 
