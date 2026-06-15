@@ -36,6 +36,7 @@ declare module '$env/static/private' {
 	export const ChocolateyLastPathUpdate: string;
 	export const CLAUDECODE: string;
 	export const CLAUDE_AUTOCOMPACT_PCT_OVERRIDE: string;
+	export const CLAUDE_CODE_CHILD_SESSION: string;
 	export const CLAUDE_CODE_ENTRYPOINT: string;
 	export const CLAUDE_CODE_EXECPATH: string;
 	export const CLAUDE_CODE_EXPERIMENTAL_AGENT_TEAMS: string;
@@ -54,14 +55,12 @@ declare module '$env/static/private' {
 	export const DATAFORSEO_LOGIN: string;
 	export const DATAFORSEO_PASSWORD: string;
 	export const DriverData: string;
-	export const EFC_13364_1592913036: string;
-	export const EFC_13364_4126798990: string;
+	export const EFC_13528_1592913036: string;
+	export const EFC_13528_4126798990: string;
 	export const ENABLE_TOOL_SEARCH: string;
 	export const EXEPATH: string;
 	export const FIGMA_TOKEN: string;
 	export const FIRECRAWL_API_KEY: string;
-	export const FPS_BROWSER_APP_PROFILE_STRING: string;
-	export const FPS_BROWSER_USER_PROFILE_STRING: string;
 	export const GHL_APP_AGENCY_API_KEY: string;
 	export const GHL_APP_API_KEY: string;
 	export const GHL_CLIENT_ID: string;
@@ -96,6 +95,7 @@ declare module '$env/static/private' {
 	export const NGROK_API_KEY: string;
 	export const NODE: string;
 	export const NoDefaultCurrentDirectoryInExePath: string;
+	export const NODE_ENV: string;
 	export const NODE_PATH: string;
 	export const npm_command: string;
 	export const npm_config_auto_install_peers: string;
@@ -222,6 +222,7 @@ declare module '$env/dynamic/private' {
 		ChocolateyLastPathUpdate: string;
 		CLAUDECODE: string;
 		CLAUDE_AUTOCOMPACT_PCT_OVERRIDE: string;
+		CLAUDE_CODE_CHILD_SESSION: string;
 		CLAUDE_CODE_ENTRYPOINT: string;
 		CLAUDE_CODE_EXECPATH: string;
 		CLAUDE_CODE_EXPERIMENTAL_AGENT_TEAMS: string;
@@ -240,14 +241,12 @@ declare module '$env/dynamic/private' {
 		DATAFORSEO_LOGIN: string;
 		DATAFORSEO_PASSWORD: string;
 		DriverData: string;
-		EFC_13364_1592913036: string;
-		EFC_13364_4126798990: string;
+		EFC_13528_1592913036: string;
+		EFC_13528_4126798990: string;
 		ENABLE_TOOL_SEARCH: string;
 		EXEPATH: string;
 		FIGMA_TOKEN: string;
 		FIRECRAWL_API_KEY: string;
-		FPS_BROWSER_APP_PROFILE_STRING: string;
-		FPS_BROWSER_USER_PROFILE_STRING: string;
 		GHL_APP_AGENCY_API_KEY: string;
 		GHL_APP_API_KEY: string;
 		GHL_CLIENT_ID: string;
@@ -282,6 +281,7 @@ declare module '$env/dynamic/private' {
 		NGROK_API_KEY: string;
 		NODE: string;
 		NoDefaultCurrentDirectoryInExePath: string;
+		NODE_ENV: string;
 		NODE_PATH: string;
 		npm_command: string;
 		npm_config_auto_install_peers: string;

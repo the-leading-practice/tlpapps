@@ -62,11 +62,15 @@
   onMount(async () => {
     const params = $page.url.searchParams;
 
+    // Where to land after auth — a guard may pass ?return=<path>; default to controls.
+    const rawReturn = params.get('return');
+    const dest = rawReturn && rawReturn.startsWith('/') ? rawReturn : '/sync/controls';
+
     // Dev/standalone fallback: ?token=<jwt> injects token directly (explicit only).
     const directToken = params.get('token');
     if (directToken) {
       localStorage.setItem('tlp_token', directToken);
-      goto('/sync/controls');
+      goto(dest);
       return;
     }
 
@@ -75,7 +79,7 @@
     if (ssoData) {
       try {
         await exchangeSso(ssoData);
-        goto('/sync/controls');
+        goto(dest);
       } catch (err: any) {
         errorMessage = err?.message ?? 'Unknown SSO error.';
         state = 'error';
@@ -101,7 +105,7 @@
       window.removeEventListener('message', handleMessage);
       try {
         await exchangeSso(blob);
-        goto('/sync/controls');
+        goto(dest);
       } catch (err: any) {
         errorMessage = err?.message ?? 'Unknown SSO error.';
         state = 'error';
