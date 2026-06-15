@@ -28,6 +28,8 @@ const drChronoConfigSchema = new mongoose.Schema(
         timezone: { type: String, required: true },
         /** GHL location id this DrChrono location maps to — used for sync allowlist checks. */
         ghlLocationId: { type: String },
+        /** DrChrono appointment-profile id → GHL calendarId routing map (BIDI-01). */
+        profileCalendarMap: { type: Object, required: false },
       },
     ],
   },

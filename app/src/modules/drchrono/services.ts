@@ -407,11 +407,18 @@ export const createPatientServiceClient = (deps: PatientServiceClientDeps = {}) 
     const originTag = tagFor('ghl', `legacy-appt-${Date.now()}`);
     // Populate locationId + calendarId so translateApptTLPtoGHL produces a valid
     // GHL appointment (the appt controller builds the GHL payload from these).
+    // BIDI-01: route each appointment to the GHL calendar mapped to its DrChrono
+    // profile id; fall back to the location default calendar when unmapped/null.
+    const profileMap = headers.profileCalendarMap || {};
+    const resolveCalendar = (a: TLPAppointmentPayload): string => {
+      const byProfile = a.profileId != null ? profileMap[String(a.profileId)] : undefined;
+      return byProfile || a.calendarId || headers.tlpCalendarId;
+    };
     const taggedAppointments = appointments.map((a) => ({
       ...a,
       syncOriginTag: originTag,
       locationId: ghlLocationId,
-      calendarId: a.calendarId || headers.tlpCalendarId,
+      calendarId: resolveCalendar(a),
     }));
 
     const url = `${TLP_PATIENT_API}/appt`;
@@ -497,6 +504,8 @@ export const buildLocationHeaders = (location: DrChronoConfigLocation): Location
   // Carry the GHL location ID so allowlist checks use the correct namespace.
   ghlLocationId: location.ghlLocationId,
   timezone: location.timezone,
+  // Per-profile calendar routing (BIDI-01); empty/absent → default calendar only.
+  profileCalendarMap: (location as any).profileCalendarMap || {},
 });
 
 /**

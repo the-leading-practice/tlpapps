@@ -43,6 +43,8 @@ export type DrChronoConfigLocation = {
   ghlLocationId?: string;
   /** IANA timezone string e.g. "America/New_York" */
   timezone: string;
+  /** DrChrono profile id → GHL calendarId routing map (per BIDI-01). */
+  profileCalendarMap?: Record<string, string>;
 };
 
 export type DrChronoTokenResponse = {
@@ -160,4 +162,6 @@ export type LocationHeaders = {
    */
   ghlLocationId?: string;
   timezone: string;
+  /** DrChrono profile id → GHL calendarId routing map (per BIDI-01). */
+  profileCalendarMap?: Record<string, string>;
 };

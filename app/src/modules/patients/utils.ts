@@ -259,7 +259,9 @@ export const generateAppointment = async (
 		status: getAppointmentStatus(softwareName, `${tlpAppt.apptStatus}`),
 		address: `${tlpAppt.patientId}`,
 		locationId: location,
-		calendarId: settings.calendarId,
+		// Per-appointment calendarId (resolved per DrChrono profile by the sync client)
+		// takes precedence; fall back to the location default calendar.
+		calendarId: (tlpAppt as any).calendarId || settings.calendarId,
 	};
 
 	// find patient
