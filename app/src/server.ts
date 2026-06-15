@@ -33,12 +33,15 @@ export function createServer() {
   // bytes GHL signed. Express's json parser otherwise discards the raw buffer.
   app.use(
     express.json({
+      // 90-day poll batches many patients/appointments into one body; the default
+      // 100kb limit overflows ("request entity too large"). Raise it generously.
+      limit: '25mb',
       verify: (req, _res, buf) => {
         (req as express.Request & { rawBody?: Buffer }).rawBody = buf;
       },
     }),
   );
-  app.use(express.urlencoded({ extended: true }));
+  app.use(express.urlencoded({ extended: true, limit: '25mb' }));
   app.use(morgan('short'));
 
   // Health check — reports both Mongo and Postgres; 200 only if both ok
