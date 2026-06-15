@@ -52,7 +52,10 @@ const createController = () => {
 		if (reqData && reqData.appointments.length > 0) {
 			const currDate = new Date().getTime();
 
-			for (const appt of reqData.appointments) {
+			// BIDI-02: process each appointment via this helper, then run them with
+			// bounded concurrency so a 90-day window doesn't serialize hundreds of
+			// sequential GHL round-trips. `continue` becomes `return` inside the helper.
+			const processOne = async (appt: any) => {
 				logger.writeLog(
 					'debug',
 					`processing ${appt.apptId} status: ${appt.apptStatus} start time: ${appt.apptTime}`,
@@ -62,8 +65,7 @@ const createController = () => {
 				if (!pushGHL || !pushAppt) {
 					logger.writeLog('debug', `no push header found - eating data`);
 					resp.success.push({ apptId: appt.apptId });
-
-					continue;
+					return;
 				}
 
 				// make sure we have all the needed info
@@ -73,8 +75,7 @@ const createController = () => {
 						status: 400,
 						message: 'bad requeset - patient id or appointment id missing',
 					});
-
-					continue;
+					return;
 				}
 
 				const tlpAppt = await generateAppointment(appt, settings, software);
@@ -92,7 +93,7 @@ const createController = () => {
 						`we don't have a calendarId for this request - we will have to ignore all appointments`,
 					);
 					resp.success.push({ apptId: appt.apptId });
-					continue;
+					return;
 				}
 
 				// Break / blocked time: DrChrono `appt_is_break` slots have no patient and
@@ -100,7 +101,7 @@ const createController = () => {
 				if (appt.isBreak) {
 					if (!isFuture) {
 						resp.success.push({ apptId: appt.apptId });
-						continue;
+						return;
 					}
 					const durMin =
 						typeof appt.durationMinutes === 'number' && appt.durationMinutes > 0
@@ -128,13 +129,13 @@ const createController = () => {
 						);
 						resp.fail.push({ apptId: appt.apptId, msg: 'failed to create blocked time' });
 					}
-					continue;
+					return;
 				}
 
 				if (!tlpAppt.contactId || tlpAppt.contactId?.length <= 0) {
 					logger.writeLog('warn', `we don't have a contactId for this request ${tlpAppt.apptId}`);
 					resp.success.push({ apptId: appt.apptId });
-					continue;
+					return;
 				}
 
 				let apptResp;
@@ -164,6 +165,12 @@ const createController = () => {
 					logger.writeLog('warn', `error saving appointment ${apptResp.status}: ${apptResp.data}`);
 					resp.fail.push({ apptId: appt.apptId, msg: 'failed to save appointment' });
 				}
+			};
+
+			const CONCURRENCY = 6;
+			for (let i = 0; i < reqData.appointments.length; i += CONCURRENCY) {
+				const chunk = reqData.appointments.slice(i, i + CONCURRENCY);
+				await Promise.all(chunk.map((appt: any) => processOne(appt)));
 			}
 		}
 
