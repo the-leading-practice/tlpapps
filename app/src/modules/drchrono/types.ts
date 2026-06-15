@@ -79,6 +79,14 @@ export type DrChronoAppointment = {
   status: string;
   exam_room: number;
   notes: string;
+  /** true when this slot is a break / blocked time (no patient). */
+  appt_is_break?: boolean;
+  /** DrChrono Custom Appointment Profile id (maps to a GHL service/calendar). */
+  profile?: number | null;
+  /** Reason-for-visit text; used as the block/appointment title. */
+  reason?: string;
+  /** Profile color (hex) — carried for future GHL service styling. */
+  color?: string;
 };
 
 export type DrChronoListResponse<T> = {
@@ -124,6 +132,14 @@ export type TLPAppointmentPayload = {
   locationId?: string;
   /** GHL calendar id for the appointment write. */
   calendarId?: string;
+  /** true → write as a GHL blocked-time slot, not a contact appointment. */
+  isBreak?: boolean;
+  /** Appointment duration in minutes (used to compute block end time). */
+  durationMinutes?: number;
+  /** Reason / profile name — used as the block title. */
+  title?: string;
+  /** DrChrono Custom Appointment Profile id (for per-service calendar routing). */
+  profileId?: number | null;
   /**
    * Loop-prevention origin tag stamped by the sync engine before any outbound write.
    * Carried through the legacy appointment pipeline so the final GHL call includes

@@ -259,6 +259,14 @@ const createIntegrationService = () => {
 		return appointment.getAppointmentsForContact(contactId, jwt);
 	};
 
+	// Create a GHL blocked-time slot (for DrChrono breaks — no contact/patient).
+	const createBlock = async (
+		block: { calendarId: string; locationId: string; startTime: string; endTime: string },
+		jwt: string,
+	) => {
+		return appointment.createCalendarBlock(block, jwt);
+	};
+
 	const createAppointment = async (appt: any, jwt: string) => {
 		const { translateApptTLPtoGHL } = await import('./utils.js');
 		const ghlAppt = translateApptTLPtoGHL(appt, appt.locationId || '', appt.calendarId || '');
@@ -294,6 +302,7 @@ const createIntegrationService = () => {
 		getAppointmentsForContact,
 		createAppointment,
 		updateAppointment,
+		createBlock,
 	};
 };
 

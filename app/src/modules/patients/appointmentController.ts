@@ -95,6 +95,42 @@ const createController = () => {
 					continue;
 				}
 
+				// Break / blocked time: DrChrono `appt_is_break` slots have no patient and
+				// must become a GHL blocked-time slot, not a contact appointment.
+				if (appt.isBreak) {
+					if (!isFuture) {
+						resp.success.push({ apptId: appt.apptId });
+						continue;
+					}
+					const durMin =
+						typeof appt.durationMinutes === 'number' && appt.durationMinutes > 0
+							? appt.durationMinutes
+							: 60;
+					const endTime = new Date(
+						new Date(tlpAppt.startTime).getTime() + durMin * 60_000,
+					).toISOString();
+					const blockResp = await integrationService.createBlock(
+						{
+							calendarId: tlpAppt.calendarId,
+							locationId: loc.location,
+							startTime: tlpAppt.startTime,
+							endTime,
+						},
+						jwt,
+					);
+					if (blockResp.status >= 200 && blockResp.status < 300) {
+						logger.writeLog('debug', `created GHL blocked time for break ${appt.apptId}`);
+						resp.success.push({ apptId: appt.apptId });
+					} else {
+						logger.writeLog(
+							'warn',
+							`error creating blocked time ${blockResp.status}: ${blockResp.data}`,
+						);
+						resp.fail.push({ apptId: appt.apptId, msg: 'failed to create blocked time' });
+					}
+					continue;
+				}
+
 				if (!tlpAppt.contactId || tlpAppt.contactId?.length <= 0) {
 					logger.writeLog('warn', `we don't have a contactId for this request ${tlpAppt.apptId}`);
 					resp.success.push({ apptId: appt.apptId });

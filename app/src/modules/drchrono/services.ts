@@ -483,6 +483,10 @@ export const mapAppointment = (a: DrChronoAppointment): TLPAppointmentPayload =>
   patientId: a.patient,
   apptTime: a.scheduled_time,
   apptStatus: a.status,
+  isBreak: a.appt_is_break === true,
+  durationMinutes: typeof a.duration === 'number' ? a.duration : undefined,
+  title: a.reason || (a.appt_is_break ? 'Break' : undefined),
+  profileId: a.profile ?? null,
 });
 
 export const buildLocationHeaders = (location: DrChronoConfigLocation): LocationHeaders => ({
