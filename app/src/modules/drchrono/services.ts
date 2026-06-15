@@ -227,9 +227,39 @@ export const drChronoAPIClient = (token: string) => {
     return processResp<DrChronoPatient>(resp);
   };
 
+  /**
+   * Get ALL patients for a doctor (paginated). Used by the one-time backfill so
+   * existing patients are pulled into GHL regardless of whether they have an
+   * appointment in the poll window.
+   */
+  const getAllPatients = async (
+    doctorId?: number,
+  ): Promise<{ status: number; data: DrChronoPatient[] | string }> => {
+    const all: DrChronoPatient[] = [];
+    let url: string | null = `${DRCHRONO_API}/api/patients${
+      doctorId ? `?doctor=${doctorId}` : ''
+    }`;
+
+    while (url) {
+      const resp = await fetch(url, { method: 'GET', headers: authHeaders() });
+      const result = await processResp<DrChronoListResponse<DrChronoPatient>>(resp);
+
+      if (result.status < 200 || result.status >= 300) {
+        return { status: result.status, data: result.data as string };
+      }
+
+      const page = result.data as DrChronoListResponse<DrChronoPatient>;
+      all.push(...page.results);
+      url = page.next;
+    }
+
+    return { status: 200, data: all };
+  };
+
   return {
     getAppointments,
     getPatient,
+    getAllPatients,
   };
 };
 
@@ -580,4 +610,61 @@ export const runFullPoll = async () => {
       endString,
     );
   }
+};
+
+/**
+ * One-time (idempotent) backfill: pull EVERY existing DrChrono patient for each
+ * configured location into GHL, regardless of whether they have an appointment in
+ * the poll window. New patients thereafter arrive via the PATIENT_CREATE webhook.
+ * Allowlist still gates the actual GHL write (fail-closed for non-demo locations).
+ */
+export const backfillPatients = async () => {
+  const cfg = await drChronoConfigService.getConfig();
+  if (!cfg) {
+    console.error('backfill: no drchrono config found in database');
+    return;
+  }
+
+  const CHUNK = 50;
+
+  for (const loc of cfg.locations as any[]) {
+    const location = loc as DrChronoConfigLocation;
+    const tokenResp = await drChronoAuth.getValidToken(
+      location.name,
+      cfg.clientId,
+      cfg.clientSecret,
+      location.accessToken,
+      location.refreshToken,
+      location.tokenExpiry,
+    );
+    if (tokenResp.status !== 200 || !tokenResp.accessToken) {
+      console.error(`backfill: token refresh failed for ${location.name}`);
+      continue;
+    }
+
+    const client = drChronoAPIClient(tokenResp.accessToken);
+    const headers = buildLocationHeaders(location);
+
+    const resp = await client.getAllPatients(location.doctorId);
+    if (resp.status !== 200) {
+      console.error(`backfill: getAllPatients failed for ${location.name}: ${resp.data}`);
+      continue;
+    }
+
+    const patients = (resp.data as DrChronoPatient[]).map((p) =>
+      mapPatient(p, location.timezone),
+    );
+    console.log(`backfill: ${location.name} -> ${patients.length} patients`);
+
+    for (let i = 0; i < patients.length; i += CHUNK) {
+      const batch = patients.slice(i, i + CHUNK);
+      const r = await patientServiceClient.sendPatients(batch, headers);
+      console.log(
+        `backfill: ${location.name} batch ${Math.floor(i / CHUNK) + 1}/${Math.ceil(
+          patients.length / CHUNK,
+        )} (${batch.length}) -> status ${r.status}`,
+      );
+    }
+  }
+  console.log('backfill: complete');
 };

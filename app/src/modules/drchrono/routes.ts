@@ -23,4 +23,7 @@ router.get('/oauth/callback', drChronoController.oauthCallback);
 // On-demand poll trigger
 router.post('/drchrono/poll', drChronoController.triggerPoll);
 
+// One-time backfill of all existing patients into GHL (allowlist-gated)
+router.post('/drchrono/backfill-patients', drChronoController.triggerBackfill);
+
 export default router;

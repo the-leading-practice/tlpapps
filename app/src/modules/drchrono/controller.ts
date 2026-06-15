@@ -9,6 +9,7 @@ import {
   buildLocationHeaders,
   syncPatientsAndAppointments,
   runFullPoll,
+  backfillPatients,
 } from './services.js';
 import { drchronoVerifyToken } from './webhook.js';
 import { config } from '../../config.js';
@@ -195,12 +196,19 @@ const createDrChronoController = () => {
     await runFullPoll();
   };
 
+  // One-time backfill of all existing patients into GHL (allowlist-gated).
+  const triggerBackfill = async (_req: Request, res: Response) => {
+    res.status(202).json({ message: 'backfill started' });
+    await backfillPatients();
+  };
+
   return {
     handleWebhook,
     verifyWebhook,
     oauthAuthorize,
     oauthCallback,
     triggerPoll,
+    triggerBackfill,
   };
 };
 
