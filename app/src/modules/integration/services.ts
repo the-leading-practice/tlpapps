@@ -179,12 +179,57 @@ const createAppointmentService = () => {
 	};
 };
 
+// ── Calendar service (BIDI-03 onboarding) ───────────────────────────────────
+// Provisions/maps GHL service calendars from DrChrono appointment profiles.
+
+export type GHLCalendarCreate = {
+	locationId: string;
+	name: string;
+	/** GHL calendar type — 'event' for a generic service/event calendar. */
+	calendarType?: string;
+	/** URL slug; GHL requires a unique slug per location. */
+	slug?: string;
+	/** Default slot duration in minutes. */
+	slotDuration?: number;
+	/** Hex color shown in the GHL UI. */
+	eventColor?: string;
+	/** GHL user ids assigned as team members (required by some GHL accounts). */
+	teamMembers?: { userId: string }[];
+};
+
+const createCalendarService = () => {
+	const listCalendars = async (locationId: string, token: string) => {
+		return ghlFetch(`${GHL_API_URL}/calendars/?locationId=${locationId}`, {
+			method: 'GET',
+			headers: ghlHeaders(token),
+		});
+	};
+
+	const createCalendar = async (payload: GHLCalendarCreate, token: string) => {
+		return ghlFetch(`${GHL_API_URL}/calendars/`, {
+			method: 'POST',
+			headers: ghlHeaders(token),
+			body: JSON.stringify(payload),
+		});
+	};
+
+	const listUsers = async (locationId: string, token: string) => {
+		return ghlFetch(`${GHL_API_URL}/users/?locationId=${locationId}`, {
+			method: 'GET',
+			headers: ghlHeaders(token),
+		});
+	};
+
+	return { listCalendars, createCalendar, listUsers };
+};
+
 // ── Combined integration service (used by patient module) ───────────────────
 // This replaces the old patient-service integrationService that made HTTP calls
 // to the ghl-service. Now everything is in-process.
 
 const contact = createContactService();
 const appointment = createAppointmentService();
+const calendar = createCalendarService();
 
 const createIntegrationService = () => {
 	// These mirror the old patient-service integrationService API
@@ -311,3 +356,4 @@ export const integrationService = createIntegrationService();
 // Also export the raw GHL services for the integration controllers
 export const contactService = contact;
 export const appointmentGHLService = appointment;
+export const calendarService = calendar;

@@ -47,6 +47,20 @@ export type DrChronoConfigLocation = {
   profileCalendarMap?: Record<string, string>;
 };
 
+/**
+ * DrChrono Custom Appointment Profile. Each profile maps 1:1 to a GHL service
+ * calendar during onboarding (BIDI-03). Fields kept minimal/optional — DrChrono
+ * returns many more we don't consume.
+ */
+export type DrChronoAppointmentProfile = {
+  id: number;
+  name: string;
+  /** Default appointment length in minutes. */
+  duration?: number;
+  /** Hex color (e.g. "#3B82F6") used to style the GHL calendar. */
+  color?: string;
+};
+
 export type DrChronoTokenResponse = {
   access_token: string;
   refresh_token: string;

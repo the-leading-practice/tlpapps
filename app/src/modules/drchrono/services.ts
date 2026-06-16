@@ -11,6 +11,7 @@ import type {
   DrChronoAppointment,
   DrChronoListResponse,
   DrChronoConfigLocation,
+  DrChronoAppointmentProfile,
   TLPPatientPayload,
   TLPAppointmentPayload,
   LocationHeaders,
@@ -256,10 +257,40 @@ export const drChronoAPIClient = (token: string) => {
     return { status: 200, data: all };
   };
 
+  /**
+   * Get ALL appointment profiles (paginated), optionally filtered by doctor.
+   * Used by onboarding (BIDI-03) to provision one GHL service calendar per
+   * DrChrono profile. READ-ONLY — never mutates DrChrono.
+   */
+  const getAppointmentProfiles = async (
+    doctorId?: number,
+  ): Promise<{ status: number; data: DrChronoAppointmentProfile[] | string }> => {
+    const all: DrChronoAppointmentProfile[] = [];
+    let url: string | null = `${DRCHRONO_API}/api/appointment_profiles${
+      doctorId ? `?doctor=${doctorId}` : ''
+    }`;
+
+    while (url) {
+      const resp = await fetch(url, { method: 'GET', headers: authHeaders() });
+      const result = await processResp<DrChronoListResponse<DrChronoAppointmentProfile>>(resp);
+
+      if (result.status < 200 || result.status >= 300) {
+        return { status: result.status, data: result.data as string };
+      }
+
+      const page = result.data as DrChronoListResponse<DrChronoAppointmentProfile>;
+      all.push(...page.results);
+      url = page.next;
+    }
+
+    return { status: 200, data: all };
+  };
+
   return {
     getAppointments,
     getPatient,
     getAllPatients,
+    getAppointmentProfiles,
   };
 };
 

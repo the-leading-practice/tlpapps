@@ -26,4 +26,7 @@ router.post('/drchrono/poll', drChronoController.triggerPoll);
 // One-time backfill of all existing patients into GHL (allowlist-gated)
 router.post('/drchrono/backfill-patients', drChronoController.triggerBackfill);
 
+// BIDI-03: onboard GHL service calendars from DrChrono profiles (allowlist-gated)
+router.post('/drchrono/onboard-calendars', drChronoController.triggerOnboardCalendars);
+
 export default router;

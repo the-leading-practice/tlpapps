@@ -12,6 +12,7 @@ import {
   backfillPatients,
 } from './services.js';
 import { drchronoVerifyToken } from './webhook.js';
+import { onboardCalendars } from './onboarding.js';
 import { config } from '../../config.js';
 import type {
   DrChronoWebhookPayload,
@@ -202,6 +203,19 @@ const createDrChronoController = () => {
     await backfillPatients();
   };
 
+  // BIDI-03: provision/map GHL service calendars from DrChrono appointment
+  // profiles (allowlist-gated — demo location only). Synchronous so the caller
+  // receives the {created, mapped, profileCalendarMap} summary. Idempotent.
+  const triggerOnboardCalendars = async (_req: Request, res: Response) => {
+    try {
+      const summary = await onboardCalendars();
+      res.status(200).json(summary);
+    } catch (err) {
+      console.error('onboard-calendars failed', err);
+      res.status(500).json({ error: 'onboard-calendars failed' });
+    }
+  };
+
   return {
     handleWebhook,
     verifyWebhook,
@@ -209,6 +223,7 @@ const createDrChronoController = () => {
     oauthCallback,
     triggerPoll,
     triggerBackfill,
+    triggerOnboardCalendars,
   };
 };
 
