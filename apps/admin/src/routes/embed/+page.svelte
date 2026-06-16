@@ -96,8 +96,12 @@
       const d = event.data;
       if (!d || typeof d !== 'object') return;
 
-      // GHL sends the encrypted blob as userData or ssoData property.
-      const blob: string | undefined = d.userData ?? d.ssoData ?? d.data?.userData;
+      // GHL replies to REQUEST_USER_DATA with
+      //   { message: 'REQUEST_USER_DATA_RESPONSE', payload: '<encrypted blob>' }
+      // so the blob lives in `payload`. Keep the older property names as
+      // defensive fallbacks for any white-label variant.
+      const blob: string | undefined =
+        d.payload ?? d.userData ?? d.ssoData ?? d.data?.userData ?? d.data?.payload;
       if (!blob || typeof blob !== 'string') return;
       if (resolved) return;
       resolved = true;
