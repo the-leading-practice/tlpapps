@@ -1,9 +1,13 @@
 /**
- * P09 T03 — DrChrono writer. create/update/cancel/delete for patients + appointments.
+ * P09 T03 / BIDI-05 — DrChrono reverse writer (GHL → DrChrono). create/update/cancel/
+ * delete for patients + appointments. The engine routes ghl_to_drchrono write decisions
+ * here via dispatch.ts (contact.created → DrChrono patient; appointment.created →
+ * DrChrono appointment).
  *
- * ⚠️ DORMANT CODE. Invoked by the engine ONLY when `SYNC_WRITE_GHL_TO_DRCHRONO=on`
- * (user-gated in T06). Until then nothing here calls a live DrChrono endpoint. Tests
- * use mocks exclusively.
+ * ⚠️ DORMANT BY DEFAULT. Invoked live ONLY when `SYNC_WRITE_GHL_TO_DRCHRONO=on` AND the
+ * GHL location is allowlisted (dispatch.ts enforces both, fail-closed). The default mode
+ * is off/dry — no live DrChrono endpoint is touched until an operator flips the switch
+ * (a separate human step). Tests use mocks exclusively.
  *
  * All outbound calls route through `utils/fetch.ts`. Every mutating call carries an
  * `Idempotency-Key` header and an origin tag (`tlp-sync:drchrono:<eventId>`) — DrChrono

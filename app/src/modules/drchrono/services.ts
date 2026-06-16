@@ -286,13 +286,82 @@ export const drChronoAPIClient = (token: string) => {
     return { status: 200, data: all };
   };
 
+  /**
+   * BIDI-05 (REV-02) — create a DrChrono patient. Body must already be in DrChrono
+   * shape (see `ghlContactToDrChronoPatient`). LIVE EHR WRITE — only ever reached
+   * when the reverse writer is in `on` mode AND the location is allowlisted; the
+   * default reverse WriteMode is off/dry so this is dormant.
+   */
+  const createPatient = async (
+    patient: Record<string, unknown>,
+  ): Promise<{ status: number; data: DrChronoPatient | string }> => {
+    const resp = await fetch(`${DRCHRONO_API}/api/patients`, {
+      method: 'POST',
+      headers: authHeaders(),
+      body: JSON.stringify(patient),
+    });
+    return processResp<DrChronoPatient>(resp);
+  };
+
+  /**
+   * BIDI-05 (REV-03/04) — create a DrChrono appointment. Body must already be in
+   * DrChrono shape (see `ghlAppointmentToDrChrono`). LIVE EHR WRITE — dormant
+   * unless reverse writer is `on` + allowlisted.
+   */
+  const createAppointment = async (
+    appt: Record<string, unknown>,
+  ): Promise<{ status: number; data: DrChronoAppointment | string }> => {
+    const resp = await fetch(`${DRCHRONO_API}/api/appointments`, {
+      method: 'POST',
+      headers: authHeaders(),
+      body: JSON.stringify(appt),
+    });
+    return processResp<DrChronoAppointment>(resp);
+  };
+
   return {
     getAppointments,
     getPatient,
     getAllPatients,
     getAppointmentProfiles,
+    createPatient,
+    createAppointment,
   };
 };
+
+// ---------------------------------------------------------------------------
+// BIDI-05 reverse mappers: GHL contact/appointment → DrChrono create bodies.
+// Pure functions — no I/O. Used by the reverse (ghl_to_drchrono) writer path.
+// ---------------------------------------------------------------------------
+
+/** Map a GHL contact payload to a DrChrono patient create body. */
+export const ghlContactToDrChronoPatient = (
+  contact: Record<string, any>,
+  doctorId: number,
+): Record<string, unknown> => ({
+  doctor: doctorId,
+  first_name: contact.firstName ?? contact.first_name ?? '',
+  last_name: contact.lastName ?? contact.last_name ?? '',
+  ...(contact.email ? { email: contact.email } : {}),
+  ...(contact.phone ? { cell_phone: contact.phone } : {}),
+  ...(contact.dateOfBirth || contact.date_of_birth
+    ? { date_of_birth: contact.dateOfBirth ?? contact.date_of_birth }
+    : {}),
+});
+
+/** Map a GHL appointment payload to a DrChrono appointment create body. */
+export const ghlAppointmentToDrChrono = (
+  appt: Record<string, any>,
+  opts: { doctorId: number; officeId?: number; patientId?: number },
+): Record<string, unknown> => ({
+  doctor: opts.doctorId,
+  ...(opts.officeId ? { office: opts.officeId } : {}),
+  ...(opts.patientId ? { patient: opts.patientId } : {}),
+  scheduled_time: appt.startTime ?? appt.scheduled_time,
+  ...(typeof appt.duration === 'number' ? { duration: appt.duration } : {}),
+  status: appt.appointmentStatus ?? appt.status ?? '',
+  ...(appt.title || appt.reason ? { reason: appt.title ?? appt.reason } : {}),
+});
 
 // ---------------------------------------------------------------------------
 // Patient Service Client (sends data to TLP patient-service)
