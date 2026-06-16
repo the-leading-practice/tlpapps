@@ -170,7 +170,19 @@ const createController = () => {
 			const CONCURRENCY = 6;
 			for (let i = 0; i < reqData.appointments.length; i += CONCURRENCY) {
 				const chunk = reqData.appointments.slice(i, i + CONCURRENCY);
-				await Promise.all(chunk.map((appt: any) => processOne(appt)));
+				// Isolate each appointment: one bad record (e.g. a recurring-instance with a
+				// non-numeric composite id) must not reject the whole batch / 500 the request.
+				await Promise.all(
+					chunk.map((appt: any) =>
+						processOne(appt).catch((err: any) => {
+							logger.writeLog(
+								'warn',
+								`appointment ${appt?.apptId} failed: ${err?.message ?? err}`,
+							);
+							resp.fail.push({ apptId: appt?.apptId, msg: 'exception' });
+						}),
+					),
+				);
 			}
 		}
 

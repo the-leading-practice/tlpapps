@@ -275,8 +275,14 @@ export const generateAppointment = async (
 		logger.writeLog('warn', JSON.stringify(tlpAppt));
 	}
 
-	// find mapping entry
-	const mapping = await appointmentDataService.getAppointment(location, tlpAppt.apptId);
+	// find mapping entry — only for numeric apptIds. DrChrono recurring instances /
+	// breaks use composite string ids (e.g. "20260807_397877984") which the Number
+	// apptId mapping schema cannot cast; skip the lookup for those (no stored mapping).
+	const apptIdNumeric =
+		typeof tlpAppt.apptId === 'number' || /^\d+$/.test(String(tlpAppt.apptId));
+	const mapping = apptIdNumeric
+		? await appointmentDataService.getAppointment(location, tlpAppt.apptId)
+		: null;
 	if (mapping) {
 		logger.writeLog(
 			'debug',
