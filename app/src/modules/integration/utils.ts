@@ -132,7 +132,11 @@ export const translateTLPtoGHL = (patient: TLPPatientData, location: string): GH
 		postalCode: patient.postalCode,
 		timezone: patient.timezone,
 		companyName: `${patient.patientId}`,
-		tags: ['API', 'Existing Patient'],
+		// SAFETY: every synced contact MUST carry the suppression tag so the owner's
+		// GHL workflows (filtered to exclude it) never fire for migrated patients.
+		// Sourced from config.ghl.suppressTag (GHL_SUPPRESS_TAG, default "Existing
+		// Patient") — single source of truth, not a hardcoded literal.
+		tags: ['API', config.ghl.suppressTag],
 		// SAFETY: DND backstop. dnd:false preserved unless GHL_SUPPRESS_AUTOMATION is on,
 		// then force dnd:true so synced patients never trigger GHL automation workflows.
 		dnd: suppressAutomation() ? true : false,
