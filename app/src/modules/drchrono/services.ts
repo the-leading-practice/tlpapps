@@ -731,13 +731,16 @@ export const runFullPoll = async () => {
  * the poll window. New patients thereafter arrive via the PATIENT_CREATE webhook.
  * Allowlist still gates the actual GHL write (fail-closed for non-demo locations).
  */
-export const backfillPatients = async () => {
+export const backfillPatients = async (limit?: number) => {
   const cfg = await drChronoConfigService.getConfig();
   if (!cfg) {
     console.error('backfill: no drchrono config found in database');
     return;
   }
 
+  // Optional bound: sync at most `limit` patients per location (controlled
+  // test runs, e.g. ?limit=3). Undefined / <=0 means all patients.
+  const cap = typeof limit === 'number' && limit > 0 ? limit : undefined;
   const CHUNK = 50;
 
   for (const loc of cfg.locations as any[]) {
@@ -764,10 +767,13 @@ export const backfillPatients = async () => {
       continue;
     }
 
-    const patients = (resp.data as DrChronoPatient[]).map((p) =>
+    let patients = (resp.data as DrChronoPatient[]).map((p) =>
       mapPatient(p, location.timezone),
     );
-    console.log(`backfill: ${location.name} -> ${patients.length} patients`);
+    if (cap) patients = patients.slice(0, cap);
+    console.log(
+      `backfill: ${location.name} -> ${patients.length} patients${cap ? ` (capped at ${cap})` : ''}`,
+    );
 
     for (let i = 0; i < patients.length; i += CHUNK) {
       const batch = patients.slice(i, i + CHUNK);

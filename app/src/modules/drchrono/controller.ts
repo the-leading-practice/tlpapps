@@ -198,9 +198,13 @@ const createDrChronoController = () => {
   };
 
   // One-time backfill of all existing patients into GHL (allowlist-gated).
-  const triggerBackfill = async (_req: Request, res: Response) => {
-    res.status(202).json({ message: 'backfill started' });
-    await backfillPatients();
+  const triggerBackfill = async (req: Request, res: Response) => {
+    // Optional ?limit=N bounds the run (controlled test, e.g. ?limit=3).
+    const raw = req.query.limit as string | undefined;
+    const parsed = raw !== undefined ? parseInt(raw, 10) : NaN;
+    const limit = Number.isFinite(parsed) && parsed > 0 ? parsed : undefined;
+    res.status(202).json({ message: 'backfill started', limit: limit ?? 'all' });
+    await backfillPatients(limit);
   };
 
   // BIDI-03: provision/map GHL service calendars from DrChrono appointment
