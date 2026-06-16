@@ -92,7 +92,8 @@ export async function onboardCalendars(): Promise<OnboardSummary> {
     let ghlToken: string;
     try {
       const mint = await mintTokenForLocation(ghlLocationId);
-      ghlToken = mint.token;
+      // GHL API calls need the raw GHL access_token, NOT the signed TLP JWT (mint.token).
+      ghlToken = mint.ghlAccessToken;
     } catch (err) {
       result.skipped = 'ghl-token-unavailable';
       log.error({ location: location.name, err }, 'onboard: GHL token mint failed');
