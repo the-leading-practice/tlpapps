@@ -359,6 +359,21 @@ const createController = () => {
             message: 'Authorization complete. You can close this window.',
           });
         }
+      })
+      .catch((err: any) => {
+        // CRITICAL: a failed token exchange (bad/expired code, invalid client
+        // credentials) or any error inside the .then body must NOT become an
+        // unhandled promise rejection — that crashes the whole Node process and
+        // 502s every other tenant. Log and return an error to the caller instead.
+        log.error(
+          { err: err?.message ?? String(err), statusCode: err?.statusCode },
+          'GHL OAuth callback failed',
+        );
+        if (!res.headersSent) {
+          res
+            .status(502)
+            .json({ status: 'error', message: 'GHL authorization failed — please retry the install.' });
+        }
       });
   };
 
