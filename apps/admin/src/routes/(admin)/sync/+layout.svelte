@@ -2,14 +2,14 @@
   import { page } from '$app/stores';
   import { onMount } from 'svelte';
   import { goto } from '$app/navigation';
+  import { getSession } from '$lib/utils/session';
 
-  // Auth guard: the sync panel needs a TLP JWT (minted via GHL SSO in /embed).
-  // If it's missing — e.g. the panel was opened directly instead of through the
-  // GHL Custom Menu Link — bounce to /embed to run the SSO handshake, preserving
-  // the intended destination so we land back here afterwards.
+  // Auth guard: the sync panel needs a valid (non-expired) TLP JWT minted via
+  // GHL SSO in /embed. If it's missing OR expired — e.g. the panel was opened
+  // directly, or the 24h token lapsed — bounce to /embed to re-run the SSO
+  // handshake, preserving the intended destination so we land back here.
   onMount(() => {
-    const token = typeof localStorage !== 'undefined' ? localStorage.getItem('tlp_token') : null;
-    if (!token) {
+    if (!getSession()) {
       const dest = encodeURIComponent($page.url.pathname);
       goto(`/embed?return=${dest}`);
     }

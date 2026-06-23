@@ -98,13 +98,13 @@
                 <tr>
                   <td>
                     <a href="/practice/{practice.location}" class="link link-hover font-medium">
-                      {practice.name}
+                      {practice.name || practice.location || 'Unnamed practice'}
                     </a>
                   </td>
                   <td>
                     <span class="badge badge-outline">{practice.software || 'Unknown'}</span>
                   </td>
-                  <td class="text-sm">{practice.timezone}</td>
+                  <td class="text-sm">{practice.timezone || '—'}</td>
                   <td>{practice.patientCount ?? 0}</td>
                   <td>{practice.appointmentCount ?? 0}</td>
                   <td>

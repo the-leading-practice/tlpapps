@@ -4,6 +4,7 @@
   import Icon from '@iconify/svelte';
   import SyncCard from '$lib/components/Sync/SyncCard.svelte';
   import StatusPill from '$lib/components/Sync/StatusPill.svelte';
+  import { formatDateTime } from '$lib/utils/stringUtils';
 
   let loading = true;
   let error = '';
@@ -117,7 +118,7 @@
                   </td>
                   <td class="px-4 py-2.5"><StatusPill status={ev.status} /></td>
                   <td class="px-4 py-2.5 text-xs text-rose-400 max-w-xs truncate" title={ev.error ?? ''}>{ev.error ?? ''}</td>
-                  <td class="px-4 py-2.5 text-xs text-base-content/50 whitespace-nowrap">{new Date(ev.receivedAt ?? ev.received_at).toLocaleString()}</td>
+                  <td class="px-4 py-2.5 text-xs text-base-content/50 whitespace-nowrap">{formatDateTime(ev.receivedAt ?? ev.received_at)}</td>
                 </tr>
               {/each}
             {/if}

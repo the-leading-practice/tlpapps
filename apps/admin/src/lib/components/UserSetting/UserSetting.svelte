@@ -1,11 +1,10 @@
 <script lang="ts">
 	import { goto } from "$app/navigation";
+	import { onMount } from "svelte";
 	import Icon from "@iconify/svelte";
-  import { userSession, profile } from "$lib/stores/userstore";
 	import Avatar from "../Avatar/Avatar.svelte";
 	import type { CssClasses } from "$lib";
-	import { userService } from "$lib/services/supabase";
-	import type { Mouse } from "@playwright/test";
+	import { getSession, sessionDisplayName } from "$lib/utils/session";
 
   export let settingDetail: CssClasses = '';
   export let settingMenu: CssClasses = '';
@@ -20,36 +19,20 @@
   export let detailBorder: CssClasses = '';
 
   let menuVisible = false;
-	let user = $userSession?.user;
 
+	// Identity comes from the GHL-SSO JWT (tlp_token), not Supabase.
 	let displayname = '';
 	let email = '';
   let color = '';
   let avatarUrl = '';
 
-	userSession.subscribe( ( session ) => {
-		if( session && session.user ) {
-			user = session.user;
-			displayname = `${user.user_metadata.first_name} ${user.user_metadata.last_name}`;
-			email = `${user.email}`;
-		}
+	onMount( () => {
+		const s = getSession();
+		displayname = sessionDisplayName( s );
+		// Location-scoped auth: surface the location id as the secondary line
+		// (there is no per-user email in this model).
+		email = s?.location ? `Location: ${s.location}` : '';
 	} );
-
-  profile.subscribe( async (p) => {
-    if( p ) {
-      color = `${p.profile_color}`;
-      console.log( color );
-
-      if( p.avatar_url ) {
-        const {url, error} = await userService.getAvatarUrl( p.avatar_url );
-        avatarUrl = url;
-        
-        if( error ) {
-          console.log( error );
-        }
-      }
-    }
-  } );
 
   const removeClickOutside = () => {
     removeEventListener( 'click', handleClickOutside );
@@ -76,10 +59,12 @@
   }
 
 	const handleLogOut = async () => {
-		const { error } = await userService.logoutUser();
-		if( !error ) {
-			goto( '/' );
+		// SSO session = the tlp_token JWT. Clearing it logs out; the sync guard
+		// re-runs the GHL SSO handshake on next protected page.
+		if( typeof localStorage !== 'undefined' ) {
+			localStorage.removeItem( 'tlp_token' );
 		}
+		goto( '/embed' );
 	}
 
   const settingPanelBase = "rounded-box absolute right-4 z-[100]";

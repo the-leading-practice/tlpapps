@@ -33,14 +33,14 @@
       type: "success",
       dismissible: true,
       timeout: 5000,
-      message: `Successfully Saved ${data.config.name} Config`
+      message: `Successfully Saved ${data.config.name ?? data.config.location ?? ''} Config`
     } );
   }
 
 </script>
 
 {#if data && data.config}
-<h2 class="text-xl uppercase font-bold">{data.config.name} Configuration</h2>
+<h2 class="text-xl uppercase font-bold">{data.config.name ?? data.config.config?.Software ?? data.config.location ?? 'Client'} Configuration</h2>
 <span class="dark:text-gray-400">Location: {data.config.location}</span>
 <div class="config-body overflow-auto pt-[5px] mt-6 mx-5">
   <FloatingLabelInput name="dbProvider" label="DB Provider" placeholder="DB Provider" bind:value={data.config.config.DBProvider} />

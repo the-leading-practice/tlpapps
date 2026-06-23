@@ -4,6 +4,7 @@
   import Icon from '@iconify/svelte';
   import SyncCard from '$lib/components/Sync/SyncCard.svelte';
   import StatusPill from '$lib/components/Sync/StatusPill.svelte';
+  import { formatDateTime } from '$lib/utils/stringUtils';
 
   let loading = true;
   let error = '';
@@ -131,7 +132,7 @@
                   </td>
                   <td class="px-4 py-2.5 text-xs text-base-content/50">{c.resolvedBy ?? '—'}</td>
                   <td class="px-4 py-2.5 text-xs text-base-content/50 whitespace-nowrap">
-                    {new Date(c.createdAt ?? c.created_at).toLocaleString()}
+                    {formatDateTime(c.createdAt ?? c.created_at)}
                   </td>
                   {#if resolutionFilter === 'pending'}
                     <td class="px-4 py-2.5">

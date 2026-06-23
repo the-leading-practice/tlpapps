@@ -13,6 +13,10 @@ export interface SyncControlRow {
   mode: 'off' | 'dry' | 'on';
   env_ceiling: 'off' | 'dry' | 'on';
   effective_mode: 'off' | 'dry' | 'on';
-  updated_at: string;
-  updated_by: string | null;
+  // Backend (Drizzle) returns camelCase keys. Snake_case kept optional for
+  // tolerance against any older response shape.
+  updatedAt?: string | null;
+  updatedBy?: string | null;
+  updated_at?: string | null;
+  updated_by?: string | null;
 }

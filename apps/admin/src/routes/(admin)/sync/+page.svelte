@@ -5,6 +5,7 @@
   import SyncStatCard from '$lib/components/Sync/SyncStatCard.svelte';
   import SyncCard from '$lib/components/Sync/SyncCard.svelte';
   import StatusPill from '$lib/components/Sync/StatusPill.svelte';
+  import { formatDateTime } from '$lib/utils/stringUtils';
 
   type DirectionVals = { attempted: number; succeeded: number; failed: number };
 
@@ -144,7 +145,7 @@
                 </td>
                 <td class="py-2.5 px-4 text-sm">{ev.action}</td>
                 <td class="py-2.5 px-4"><StatusPill status={ev.status} /></td>
-                <td class="py-2.5 pl-4 text-xs text-base-content/50 whitespace-nowrap">{new Date(ev.receivedAt).toLocaleString()}</td>
+                <td class="py-2.5 pl-4 text-xs text-base-content/50 whitespace-nowrap">{formatDateTime(ev.receivedAt ?? ev.received_at)}</td>
               </tr>
             {/each}
           {/if}

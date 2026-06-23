@@ -5,6 +5,7 @@
   import { apiGet, apiPut } from '$lib/api';
   import { addToast } from '$lib/components/Toast';
   import type { Practice } from '$lib/types/common';
+  import { formatDateTime } from '$lib/utils/stringUtils';
   import Icon from '@iconify/svelte';
 
   let loading = true;
@@ -215,11 +216,7 @@
             <div class="stat">
               <div class="stat-title">Last Sync</div>
               <div class="stat-desc text-base">
-                {#if practice.lastSync}
-                  {new Date(practice.lastSync).toLocaleString()}
-                {:else}
-                  Never synced
-                {/if}
+                {formatDateTime(practice.lastSync, 'Never synced')}
               </div>
             </div>
           </div>

@@ -5,6 +5,7 @@
   import SyncCard from '$lib/components/Sync/SyncCard.svelte';
   import StatusPill from '$lib/components/Sync/StatusPill.svelte';
   import Icon from '@iconify/svelte';
+  import { formatDateTime, formatTime } from '$lib/utils/stringUtils';
 
   export let data: { controls: SyncControlRow[] };
 
@@ -166,8 +167,8 @@
               <td class="px-4 py-3"><StatusPill status={row.mode} variant="mode" /></td>
               <td class="px-4 py-3"><StatusPill status={row.env_ceiling} variant="mode" /></td>
               <td class="px-4 py-3"><StatusPill status={row.effective_mode} variant="mode" /></td>
-              <td class="px-4 py-3 text-xs text-base-content/60">{row.updated_by ?? '—'}</td>
-              <td class="px-4 py-3 text-xs text-base-content/50 whitespace-nowrap">{new Date(row.updated_at).toLocaleString()}</td>
+              <td class="px-4 py-3 text-xs text-base-content/60">{row.updatedBy ?? row.updated_by ?? '—'}</td>
+              <td class="px-4 py-3 text-xs text-base-content/50 whitespace-nowrap">{formatDateTime(row.updatedAt ?? row.updated_at)}</td>
               <td class="px-4 py-3">
                 <!-- Segmented mode picker -->
                 <div class="inline-flex rounded-lg border border-base-content/15 overflow-hidden text-xs">
@@ -223,7 +224,7 @@
             {#each liveEvents as ev}
               <tr class="hover:bg-base-content/5 transition-colors">
                 <td class="px-5 py-2 font-mono text-xs text-base-content/60 whitespace-nowrap">
-                  {new Date(ev['received_at'] ?? ev['receivedAt'] ?? Date.now()).toLocaleTimeString()}
+                  {formatTime(ev['received_at'] ?? ev['receivedAt'] ?? Date.now())}
                 </td>
                 <td class="px-4 py-2">
                   <span class="inline-flex px-1.5 py-0.5 rounded text-xs border border-base-content/20 text-base-content/70 font-mono">

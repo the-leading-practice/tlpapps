@@ -62,7 +62,7 @@
 <div class="avatar {avatarClasses}" on:click={handleClick}>
   <div class="@container {avatarBackgroundClasses}" style="background: {color}; color: {getFontColor( color )}">
     {#if image.length === 0}
-      <span class="avatar-text {avatarTextClasses}">{name[0]}</span>
+      <span class="avatar-text {avatarTextClasses}">{(name && name.length > 0 ? name[0] : '?').toUpperCase()}</span>
     {:else}
       <img src={image} alt="avatar" class="{avatarImageClasses}" />
     {/if}
