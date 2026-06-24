@@ -21,6 +21,7 @@
     { label: 'Conflicts',   href: '/sync/conflicts',   icon: 'mdi:alert-outline' },
     { label: 'Dead Letter', href: '/sync/dead-letter', icon: 'mdi:email-alert-outline' },
     { label: 'Controls',    href: '/sync/controls',    icon: 'mdi:toggle-switch-outline' },
+    { label: 'Calendar Mapping', href: '/sync/calendar-map', icon: 'mdi:calendar-sync-outline' },
   ];
 
   $: active = $page.url.pathname;
