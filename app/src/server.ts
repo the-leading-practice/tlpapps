@@ -21,6 +21,7 @@ import embodiRoutes from './modules/embodi/routes.js';
 import drchronoRoutes from './modules/drchrono/routes.js';
 import adminRoutes from './modules/admin/routes.js';
 import syncRoutes from './modules/sync/routes.js';
+import syncCalendarMapRoutes from './modules/sync/calendar-map-routes.js';
 import syncVerifySinkRoutes from './modules/sync/verify-sink-routes.js';
 
 export function createServer() {
@@ -81,6 +82,7 @@ export function createServer() {
   app.use('/api', authToken, embodiRoutes);
   app.use('/api', authToken, adminRoutes);
   app.use('/api', authToken, syncRoutes);
+  app.use('/api', authToken, syncCalendarMapRoutes);
 
   // Error handling
   app.use(notFoundHandler);
