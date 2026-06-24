@@ -193,15 +193,26 @@ const createController = () => {
       // Per-practice summary with counts
       const perPracticeSummary = await Promise.all(
         practices.map(async (practice) => {
-          const [patientCount, appointmentCount] = await Promise.all([
+          const [patientCount, appointmentCount, lastAppointment] = await Promise.all([
             PatientModel.countDocuments({ locationId: practice.location }),
             AppointmentModel.countDocuments({ locationId: practice.location }),
+            // No dedicated sync-activity timestamp exists on patient/appointment
+            // mappings (neither model has createdAt/updatedAt). The most recent
+            // appointment startTime is the best available proxy for last sync
+            // activity per location; null when the practice has no appointments.
+            AppointmentModel.findOne({ locationId: practice.location })
+              .sort({ startTime: -1 })
+              .select('startTime')
+              .lean(),
           ]);
 
           return {
             name: practice.name,
             location: practice.location,
             software: practice.software,
+            // Source: the practice's accessTokens.timezone (GHL location tz).
+            timezone: practice.timezone || null,
+            lastSync: lastAppointment?.startTime || null,
             patientCount,
             appointmentCount,
           };

@@ -192,11 +192,16 @@ export interface StatusMapping {
 }
 
 export const DrChronoMapping: StatusMapping = {
+	// DrChrono future/scheduled appointments very often carry a blank or
+	// "Not Confirmed" status. The owner wants those existing/scheduled appts to
+	// land as `confirmed` in GHL (via cron/webhook) rather than `new`, so the
+	// default — and an explicit blank-status entry — map to 'confirmed'.
 	default: {
 		status: '',
-		ghlValue: 'new',
+		ghlValue: 'confirmed',
 	},
 	entries: [
+		{ status: '', ghlValue: 'confirmed' },
 		{ status: 'Confirmed', ghlValue: 'confirmed' },
 		{ status: 'Not Confirmed', ghlValue: 'confirmed' },
 		{ status: 'Arrived', ghlValue: 'confirmed' },
@@ -225,21 +230,26 @@ export const ChrioTouchMapping: StatusMapping = {
 };
 
 export const getAppointmentStatus = (name: string, status: string) => {
-	let mapping: MappingEntry | undefined;
+	let statusMapping: StatusMapping | undefined;
 	switch (name) {
 		case 'ChiroTouch':
-			mapping = ChrioTouchMapping.entries.find((e: MappingEntry) => e.status === status);
+			statusMapping = ChrioTouchMapping;
 			break;
 		case 'DrChrono':
-			mapping = DrChronoMapping.entries.find((e: MappingEntry) => e.status === status);
+			statusMapping = DrChronoMapping;
 			break;
 	}
 
-	if (mapping !== undefined) {
-		return mapping.ghlValue;
+	if (statusMapping === undefined) {
+		return 'new';
 	}
 
-	return 'new';
+	const mapping = statusMapping.entries.find((e: MappingEntry) => e.status === status);
+
+	// Unmapped/blank statuses fall back to the mapping's own default. For
+	// DrChrono this is now 'confirmed' (scheduled appts are often blank);
+	// ChiroTouch keeps its 'new' default.
+	return mapping !== undefined ? mapping.ghlValue : statusMapping.default.ghlValue;
 };
 
 // ── Appointment generation ──────────────────────────────────────────────────

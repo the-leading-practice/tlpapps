@@ -1,10 +1,24 @@
 import type { Request, Response } from 'express';
 import { configService } from './services.js';
+import { AccessTokenModel } from '../../models/accessToken.js';
 
 const createController = () => {
   const getAllConfigs = async (_req: Request, res: Response) => {
     const configs = await configService.getAllConfigs();
-    res.status(200).json(configs);
+
+    // Config rows carry only `location`, no human-readable practice name. Look up
+    // the matching accessTokens record per location so the admin list can show a
+    // title instead of "undefined". Best-effort: name is null when no practice
+    // record exists for that location.
+    const practices = await AccessTokenModel.find({}, { location: 1, name: 1 }).lean();
+    const nameByLocation = new Map(practices.map((p) => [p.location, p.name]));
+
+    const result = configs.map((c) => ({
+      ...c,
+      name: nameByLocation.get(c.location) ?? null,
+    }));
+
+    res.status(200).json(result);
   };
 
   const getConfig = async (req: Request, res: Response) => {
