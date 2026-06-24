@@ -91,8 +91,15 @@ export type GHLAppointmentData = {
 };
 
 export type GHLCalendarBlock = {
-	calendarId: string;
+	/**
+	 * GHL block-slots: do NOT send calendarId for service_booking calendars —
+	 * GHL rejects it with "The calendar is not an event calendar". The block is
+	 * placed on the assigned user's calendar instead.
+	 */
 	locationId: string;
 	startTime: string;
 	endTime: string;
+	/** Required by GHL block-slots (omitting → 422). From calendar teamMembers[0].userId. */
+	assignedUserId: string;
+	title?: string;
 };

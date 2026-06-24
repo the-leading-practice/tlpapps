@@ -220,7 +220,14 @@ const createCalendarService = () => {
 		});
 	};
 
-	return { listCalendars, createCalendar, listUsers };
+	const getCalendar = async (calendarId: string, token: string) => {
+		return ghlFetch(`${GHL_API_URL}/calendars/${calendarId}`, {
+			method: 'GET',
+			headers: ghlHeaders(token),
+		});
+	};
+
+	return { listCalendars, createCalendar, listUsers, getCalendar };
 };
 
 // ── Combined integration service (used by patient module) ───────────────────
@@ -305,11 +312,27 @@ const createIntegrationService = () => {
 	};
 
 	// Create a GHL blocked-time slot (for DrChrono breaks — no contact/patient).
+	// NOTE: block-slots must NOT include calendarId for service_booking calendars
+	// (GHL: "The calendar is not an event calendar"); assignedUserId is required.
 	const createBlock = async (
-		block: { calendarId: string; locationId: string; startTime: string; endTime: string },
+		block: { locationId: string; startTime: string; endTime: string; assignedUserId: string; title?: string },
 		jwt: string,
 	) => {
-		return appointment.createCalendarBlock(block, jwt);
+		return appointment.createCalendarBlock(
+			{
+				locationId: block.locationId,
+				startTime: block.startTime,
+				endTime: block.endTime,
+				assignedUserId: block.assignedUserId,
+				title: block.title || 'Blocked',
+			},
+			jwt,
+		);
+	};
+
+	// Fetch a GHL calendar; used to resolve teamMembers[0].userId for block-slots.
+	const getCalendar = async (calendarId: string, jwt: string) => {
+		return calendar.getCalendar(calendarId, jwt);
 	};
 
 	const createAppointment = async (appt: any, jwt: string) => {
@@ -348,6 +371,7 @@ const createIntegrationService = () => {
 		createAppointment,
 		updateAppointment,
 		createBlock,
+		getCalendar,
 	};
 };
 

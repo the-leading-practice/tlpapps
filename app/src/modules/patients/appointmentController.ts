@@ -52,6 +52,28 @@ const createController = () => {
 		if (reqData && reqData.appointments.length > 0) {
 			const currDate = new Date().getTime();
 
+			// Per-batch cache of calendarId -> assignedUserId (teamMembers[0].userId).
+			// Breaks become GHL block-slots placed on the assigned user's calendar;
+			// resolve once per calendar to avoid a GHL round-trip per break.
+			const assignedUserCache = new Map<string, string | null>();
+			const resolveAssignedUser = async (calendarId: string): Promise<string | null> => {
+				if (assignedUserCache.has(calendarId)) {
+					return assignedUserCache.get(calendarId) ?? null;
+				}
+				let userId: string | null = null;
+				try {
+					const calResp: any = await integrationService.getCalendar(calendarId, jwt);
+					if (calResp.status >= 200 && calResp.status < 300) {
+						const cal = calResp.data?.calendar ?? calResp.data;
+						userId = cal?.teamMembers?.[0]?.userId ?? null;
+					}
+				} catch (err: any) {
+					logger.writeLog('warn', `failed to fetch calendar ${calendarId}: ${err?.message ?? err}`);
+				}
+				assignedUserCache.set(calendarId, userId);
+				return userId;
+			};
+
 			// BIDI-02: process each appointment via this helper, then run them with
 			// bounded concurrency so a 90-day window doesn't serialize hundreds of
 			// sequential GHL round-trips. `continue` becomes `return` inside the helper.
@@ -103,6 +125,30 @@ const createController = () => {
 						resp.success.push({ apptId: appt.apptId });
 						return;
 					}
+
+					// Dedup: cron re-runs every 15 min. If we already created a block for
+					// this break (mapping has a ghlApptId), skip — treat as success.
+					const existing = await appointmentDataService.getAppointment(
+						loc.location,
+						appt.apptId,
+					);
+					if (existing && existing.ghlApptId && existing.ghlApptId.length > 0) {
+						logger.writeLog('debug', `block already exists for break ${appt.apptId}, skipping`);
+						resp.success.push({ apptId: appt.apptId });
+						return;
+					}
+
+					// block-slots needs assignedUserId from the target calendar's teamMembers.
+					const assignedUserId = await resolveAssignedUser(tlpAppt.calendarId);
+					if (!assignedUserId) {
+						logger.writeLog(
+							'warn',
+							`no teamMembers/userId on calendar ${tlpAppt.calendarId}; skipping block for break ${appt.apptId}`,
+						);
+						resp.success.push({ apptId: appt.apptId });
+						return;
+					}
+
 					const durMin =
 						typeof appt.durationMinutes === 'number' && appt.durationMinutes > 0
 							? appt.durationMinutes
@@ -110,17 +156,34 @@ const createController = () => {
 					const endTime = new Date(
 						new Date(tlpAppt.startTime).getTime() + durMin * 60_000,
 					).toISOString();
+					const title = (appt.reason && String(appt.reason).trim()) || 'Blocked';
 					const blockResp = await integrationService.createBlock(
 						{
-							calendarId: tlpAppt.calendarId,
 							locationId: loc.location,
 							startTime: tlpAppt.startTime,
 							endTime,
+							assignedUserId,
+							title,
 						},
 						jwt,
 					);
 					if (blockResp.status >= 200 && blockResp.status < 300) {
 						logger.writeLog('debug', `created GHL blocked time for break ${appt.apptId}`);
+						// Persist a dedup mapping keyed by the DrChrono break apptId. Reuse the
+						// appointments store; patientId/contactId are sentinels (no patient on a break).
+						const blockId = (blockResp.data as any)?.id ?? '';
+						if (blockId) {
+							await appointmentDataService.upsertAppointment({
+								apptId: appt.apptId,
+								patientId: 0,
+								contactId: 'BLOCK',
+								ghlApptId: blockId,
+								locationId: loc.location,
+								calendarId: tlpAppt.calendarId,
+								startTime: tlpAppt.startTime,
+								status: 'block',
+							});
+						}
 						resp.success.push({ apptId: appt.apptId });
 					} else {
 						logger.writeLog(

@@ -6,7 +6,7 @@ import express from 'express';
 import { logger } from './loggerAdapter.js';
 import { formatTime, getLocation } from './utils.js';
 import type { GHLCalendarBlock } from './types.js';
-import { appointmentGHLService } from './services.js';
+import { appointmentGHLService, calendarService } from './services.js';
 
 const createCalendarController = () => {
 	const getCalendars = () => {};
@@ -21,11 +21,27 @@ const createCalendarController = () => {
 
 		const slot = { ...req.body };
 		if (loc.location && loc.token) {
+			// block-slots: no calendarId for service_booking calendars; assignedUserId
+			// (teamMembers[0].userId of the target calendar) is required.
+			let assignedUserId = '';
+			if (calendarId) {
+				const calResp: any = await calendarService.getCalendar(calendarId, loc.token);
+				if (calResp.status >= 200 && calResp.status < 300) {
+					const cal = calResp.data?.calendar ?? calResp.data;
+					assignedUserId = cal?.teamMembers?.[0]?.userId ?? '';
+				}
+			}
+			if (!assignedUserId) {
+				logger.writeLog('warn', 'createBlock()', `no assignedUserId for calendar ${calendarId}`);
+				return res.status(422).json({ error: 'calendar has no assignable team member' });
+			}
+
 			const block: GHLCalendarBlock = {
-				calendarId: calendarId,
 				locationId: loc.location,
 				startTime: formatTime(slot.start, timezone) || slot.start,
 				endTime: formatTime(slot.end, timezone) || slot.end,
+				assignedUserId,
+				title: slot.title || 'Blocked',
 			};
 
 			const resp = await appointmentGHLService.createCalendarBlock(block, loc.token);
