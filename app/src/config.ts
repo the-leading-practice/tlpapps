@@ -59,9 +59,10 @@ export const config = {
     // SAFETY: suppression guard so synced contacts never trigger GHL automation workflows.
     // Owner's GHL workflows are filtered to exclude this tag — every synced contact carries it.
     suppressTag: process.env.GHL_SUPPRESS_TAG || 'Existing Patient',
-    // DND backstop: when true, force dnd:true on every synced CONTACT write (engine + legacy),
-    // overriding the hardcoded dnd:false. Default true. When false, legacy keeps dnd:false.
-    suppressAutomation: process.env.GHL_SUPPRESS_AUTOMATION !== 'false',
+    // DND backstop: when true, force dnd:true on every synced CONTACT write (engine + legacy).
+    // Default FALSE — forcing dnd:true mutes ALL channels and once DND'd a whole live
+    // location. Tag-based suppression is sufficient; opt in only with GHL_SUPPRESS_AUTOMATION=true.
+    suppressAutomation: process.env.GHL_SUPPRESS_AUTOMATION === 'true',
     // GHL Marketplace SSO key (App Settings → SSO). Required for POST /api/crm/sso.
     // Set via Coolify env; never commit a real value here.
     ssoKey: process.env.GHL_APP_SSO_KEY || '',

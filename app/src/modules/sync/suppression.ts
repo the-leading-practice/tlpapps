@@ -16,9 +16,16 @@ export function suppressTag(env: NodeJS.ProcessEnv = process.env): string {
   return env.GHL_SUPPRESS_TAG || 'Existing Patient';
 }
 
-/** Whether the DND automation backstop is active (default true). */
+/**
+ * Whether the DND automation backstop is active (default FALSE).
+ *
+ * Suppression is achieved by the `GHL_SUPPRESS_TAG` tag alone (owner's workflows
+ * filter it). Forcing `dnd:true` additionally mutes ALL channels (SMS/email/calls),
+ * not just workflows — it once DND'd an entire live location's synced contacts. So
+ * the backstop is OFF unless explicitly opted in with `GHL_SUPPRESS_AUTOMATION=true`.
+ */
 export function suppressAutomation(env: NodeJS.ProcessEnv = process.env): boolean {
-  return env.GHL_SUPPRESS_AUTOMATION !== 'false';
+  return env.GHL_SUPPRESS_AUTOMATION === 'true';
 }
 
 /**
