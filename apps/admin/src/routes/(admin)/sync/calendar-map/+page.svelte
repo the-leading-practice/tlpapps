@@ -3,19 +3,25 @@
   import { apiFetch } from '$lib/api';
   import SyncCard from '$lib/components/Sync/SyncCard.svelte';
   import Icon from '@iconify/svelte';
-  import type { CalendarMapResponse, ProfileRow, CalendarRow } from './+page.js';
+  import type {
+    CalendarMapResponse,
+    ProfileRow,
+    CalendarRow,
+    LocationOption,
+  } from './+page.js';
 
-  // Default to the single active DW location. The input lets an operator point
-  // at a different practice if more than one is configured.
-  let location = '2QsifxSEJyjfSPi04UeR';
+  let locations: LocationOption[] = [];
+  let location = ''; // selected ghlLocationId
 
   let profiles: ProfileRow[] = [];
   let calendars: CalendarRow[] = [];
   let assignments: Record<string, string> = {}; // profileId(string) → calendarId
 
+  let loadingLocations = true;
   let loading = false;
   let saving = false;
   let error: string | null = null;
+  let stale = false; // profiles served from cache (DrChrono unreachable)
   let toast: { kind: 'ok' | 'err'; msg: string } | null = null;
 
   function flash(kind: 'ok' | 'err', msg: string) {
@@ -23,20 +29,38 @@
     setTimeout(() => (toast = null), 3500);
   }
 
+  async function loadLocations() {
+    loadingLocations = true;
+    try {
+      locations = await apiFetch<LocationOption[]>('/sync/locations');
+      // Auto-select the first location so the page lands ready-to-use.
+      if (!location && locations.length > 0) {
+        location = locations[0].ghlLocationId;
+        await loadMap();
+      }
+    } catch (err: any) {
+      error = err?.message ?? 'Failed to load locations';
+    } finally {
+      loadingLocations = false;
+    }
+  }
+
   async function loadMap() {
     const loc = location.trim();
     if (!loc) {
-      error = 'Enter a GHL location id.';
+      error = 'Select a location.';
       return;
     }
     loading = true;
     error = null;
+    stale = false;
     try {
       const res = await apiFetch<CalendarMapResponse>(
         `/sync/calendar-map?location=${encodeURIComponent(loc)}`,
       );
       profiles = res.profiles ?? [];
       calendars = res.calendars ?? [];
+      stale = res.profilesStale === true;
       const map = res.profileCalendarMap ?? {};
       // Seed assignments for every profile (blank = unmapped).
       const next: Record<string, string> = {};
@@ -50,6 +74,11 @@
     } finally {
       loading = false;
     }
+  }
+
+  // Re-load whenever the selected location changes via the dropdown.
+  function onLocationChange() {
+    loadMap();
   }
 
   async function save() {
@@ -83,7 +112,7 @@
     return c.isActive === false ? `${c.name} (inactive)` : c.name;
   }
 
-  onMount(loadMap);
+  onMount(loadLocations);
 </script>
 
 <svelte:head>
@@ -105,19 +134,36 @@
   <!-- Location selector -->
   <div class="flex flex-wrap items-end gap-3">
     <label class="flex flex-col gap-1">
-      <span class="text-xs text-base-content/50">GHL Location ID</span>
-      <input
-        class="input input-bordered input-sm w-72 font-mono text-sm"
+      <span class="text-xs text-base-content/50">Practice</span>
+      <select
+        class="select select-bordered select-sm w-72"
         bind:value={location}
-        on:keydown={(e) => e.key === 'Enter' && loadMap()}
-        placeholder="GHL location id"
-      />
+        on:change={onLocationChange}
+        disabled={loadingLocations || locations.length === 0}
+      >
+        {#if loadingLocations}
+          <option value="">Loading locations…</option>
+        {:else if locations.length === 0}
+          <option value="">No locations configured</option>
+        {:else}
+          {#each locations as l (l.ghlLocationId)}
+            <option value={l.ghlLocationId}>{l.name}</option>
+          {/each}
+        {/if}
+      </select>
     </label>
-    <button class="btn btn-sm" on:click={loadMap} disabled={loading}>
+    <button class="btn btn-sm" on:click={loadMap} disabled={loading || !location}>
       <Icon icon="mdi:refresh" class="text-base {loading ? 'animate-spin' : ''}" />
-      Load
+      Refresh
     </button>
   </div>
+
+  {#if stale}
+    <div class="rounded-xl border border-amber-500/30 bg-amber-500/10 px-4 py-3 flex items-center gap-3 text-sm text-amber-300">
+      <Icon icon="mdi:information-outline" class="text-lg shrink-0" />
+      <span>Showing cached profiles — DrChrono was unreachable. Mapping still saves normally.</span>
+    </div>
+  {/if}
 
   {#if toast}
     <div

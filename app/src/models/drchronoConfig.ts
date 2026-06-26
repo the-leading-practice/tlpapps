@@ -30,6 +30,13 @@ const drChronoConfigSchema = new mongoose.Schema(
         ghlLocationId: { type: String },
         /** DrChrono appointment-profile id → GHL calendarId routing map (BIDI-01). */
         profileCalendarMap: { type: Object, required: false },
+        /**
+         * Cached DrChrono appointment profiles (last successful fetch). Lets the
+         * calendar-map admin page render while DrChrono is rate-limited.
+         */
+        appointmentProfiles: { type: Array, required: false },
+        /** Unix ms timestamp of the last successful appointmentProfiles fetch. */
+        appointmentProfilesFetchedAt: { type: Number, required: false },
       },
     ],
   },

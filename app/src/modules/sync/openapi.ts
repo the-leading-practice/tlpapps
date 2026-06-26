@@ -130,6 +130,34 @@ export const syncOpenApiSpec = {
   },
   security: [{ bearerAuth: [] }],
   paths: {
+    '/api/sync/locations': {
+      get: {
+        tags: ['Calendar Map'],
+        summary: 'List configured locations for the calendar-map selector',
+        description:
+          'Returns the agency\'s DrChrono-configured locations that have a GHL location id, for the admin calendar-map dropdown. READ-ONLY.',
+        responses: {
+          '200': {
+            description: 'Locations',
+            content: {
+              'application/json': {
+                schema: {
+                  type: 'array',
+                  items: {
+                    type: 'object',
+                    properties: {
+                      ghlLocationId: { type: 'string' },
+                      name: { type: 'string' },
+                    },
+                    required: ['ghlLocationId', 'name'],
+                  },
+                },
+              },
+            },
+          },
+        },
+      },
+    },
     '/api/sync/metrics': {
       get: {
         tags: ['Metrics'],
