@@ -11,9 +11,26 @@ import { syncEvents, syncConflicts, syncControls } from '../../db/pg/schema/sync
 import type { WriteMode } from './writers/dispatch.js';
 import { logger } from '../../logger.js';
 import { syncCounters } from './metrics.js';
+import { runInvariants } from './invariants.js';
 
 const log = logger.child({ module: 'sync-routes' });
 const router = Router();
+
+/**
+ * GET /api/sync/invariants — run the self-heal invariant pass once on demand and
+ * return the results JSON. READ-ONLY (HEAL-01). Lets operators run the checks
+ * without waiting for the RUN_INVARIANTS timer. Violations still fire alerts.
+ */
+router.get('/sync/invariants', async (_req: Request, res: Response) => {
+  try {
+    const results = await runInvariants();
+    const violations = results.filter((r) => !r.ok).length;
+    res.json({ ok: violations === 0, violations, results });
+  } catch (err) {
+    log.error({ err }, 'GET /sync/invariants failed');
+    res.status(500).json({ error: 'internal error' });
+  }
+});
 
 /** GET /api/sync/metrics — in-process counters; ?format=prom for Prometheus text. */
 router.get('/sync/metrics', async (req: Request, res: Response) => {

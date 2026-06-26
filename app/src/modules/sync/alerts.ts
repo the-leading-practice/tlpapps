@@ -24,19 +24,22 @@ export type AlertType =
   | 'conflict_queue'
   | 'oauth_failure'
   | 'loop_detection'
-  | 'reconciliation_drift';
+  | 'reconciliation_drift'
+  // HEAL-01: silent-wrong INVARIANT-CHECK layer. Fired when a cron/manual invariant
+  // pass detects a violation. ctx carries { invariant, detail, severity?, tier? }.
+  | 'invariant_violation';
 
 /** Last-fire timestamp per alert type for dedupe. */
-const lastFired = new Map<AlertType, number>();
+const lastFired = new Map<string, number>();
 const DEDUPE_MS = 10 * 60 * 1000; // 10 minutes
 
-function shouldFire(type: AlertType): boolean {
-  const last = lastFired.get(type) ?? 0;
+function shouldFire(key: string): boolean {
+  const last = lastFired.get(key) ?? 0;
   return Date.now() - last > DEDUPE_MS;
 }
 
-function markFired(type: AlertType): void {
-  lastFired.set(type, Date.now());
+function markFired(key: string): void {
+  lastFired.set(key, Date.now());
 }
 
 function send(severity: 'Warn' | 'Error', message: string): void {
@@ -108,6 +111,23 @@ export async function triggerAlert(
         send(
           'Error',
           `[Sync] Reconciliation drift ${driftPct.toFixed(2)}% > 0.1% threshold — data may be diverging.`,
+        );
+        break;
+      }
+
+      case 'invariant_violation': {
+        // Per-INVARIANT dedupe (not per-type) so distinct invariants firing in the
+        // same window are not suppressed by each other. ctx.invariant is the id.
+        const invariant = typeof ctx.invariant === 'string' ? ctx.invariant : 'unknown';
+        const key = `invariant_violation:${invariant}`;
+        if (!shouldFire(key)) return;
+        markFired(key);
+        const severity: 'Warn' | 'Error' = ctx.severity === 'Error' ? 'Error' : 'Warn';
+        const tier = typeof ctx.tier === 'string' ? ctx.tier : '';
+        const detail = typeof ctx.detail === 'string' ? ctx.detail : JSON.stringify(ctx.detail ?? {});
+        send(
+          severity,
+          `[Sync] INVARIANT VIOLATION ${invariant}${tier ? ` [${tier}]` : ''}: ${detail}`,
         );
         break;
       }

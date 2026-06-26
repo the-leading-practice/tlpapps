@@ -7,6 +7,7 @@ import { logger } from './logger.js';
 import { initWebSocket } from './modules/rpc/index.js';
 import { initEmbodiSync } from './modules/embodi/sync.js';
 import { startEngine } from './modules/sync/engine.js';
+import { initInvariantsCron } from './modules/sync/invariants.js';
 import { initDrChronoPollCron } from './modules/drchrono/poll-cron.js';
 
 async function main() {
@@ -26,6 +27,11 @@ async function main() {
   // P08 DrChrono<->GHL sync engine (dry-run). No-op unless RUN_CRON=on; leader
   // election ensures exactly one replica runs the loop. No EHR writes in P08.
   startEngine();
+
+  // HEAL-01 self-heal INVARIANT-CHECK layer. READ-ONLY, alert-only. No-op unless
+  // RUN_INVARIANTS=on. Independent of RUN_CRON so it can ship/flip on dark without
+  // arming the sync engine. Ships behavior-neutral until the flag is enabled.
+  initInvariantsCron();
 
   // BIDI-06 (OPS-02): periodic DrChrono poll. No-op unless RUN_CRON=on. Keeps
   // DrChrono->GHL data fresh; allowlist still gates every GHL write.
