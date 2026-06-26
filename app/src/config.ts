@@ -38,6 +38,20 @@ export const config = {
   // P07 sync engine (full engine wired in P08). RUN_CRON gates whether this replica
   // runs the cron-driven sync loop; default off so merging P07 changes no boot behavior.
   runCron: process.env.RUN_CRON === 'on',
+  // HEAL-01 self-heal INVARIANT-CHECK layer. Ships DARK: alert-only, READ-ONLY.
+  // Independent of RUN_CRON — the invariant pass runs on its own timer so invariants
+  // can be flipped on WITHOUT arming the sync engine. Default off (behavior-neutral).
+  selfheal: {
+    runInvariants: process.env.RUN_INVARIANTS === 'on',
+    // Invariant pass cadence in ms (default 15 min). Independent of the sync tick.
+    invariantsCronMs: parseInt(process.env.SELFHEAL_INVARIANTS_CRON || String(15 * 60 * 1000), 10),
+    // I6: alert when sync_dead_letter total count exceeds this threshold.
+    dlqThreshold: parseInt(process.env.SELFHEAL_DLQ_THRESHOLD || '25', 10),
+    // I7: alert when unresolved sync_conflicts count exceeds this threshold.
+    conflictThreshold: parseInt(process.env.SELFHEAL_CONFLICT_THRESHOLD || '50', 10),
+    // I1: max contact pages to sample per location (bounded GHL read cost).
+    i1MaxContacts: parseInt(process.env.SELFHEAL_I1_MAX_CONTACTS || '100', 10),
+  },
   // First arg of the two-arg pg_try_advisory_lock(base, kindHash) used for cron leader
   // election — namespaces this app's locks so kind-hash collisions can't clash with
   // any other advisory-lock user on the same PG instance.

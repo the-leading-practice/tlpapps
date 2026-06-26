@@ -160,6 +160,46 @@ export const syncOpenApiSpec = {
         },
       },
     },
+    '/api/sync/invariants': {
+      get: {
+        tags: ['Invariants'],
+        summary: 'Run the self-heal invariant pass on demand',
+        description:
+          'HEAL-01 silent-wrong INVARIANT-CHECK layer. READ-ONLY: runs every invariant once and returns pass/fail results. Violations also fire an `invariant_violation` Telegram alert. The same pass runs on a timer when RUN_INVARIANTS=on.',
+        responses: {
+          '200': {
+            description: 'Invariant results',
+            content: {
+              'application/json': {
+                schema: {
+                  type: 'object',
+                  properties: {
+                    ok: { type: 'boolean' },
+                    violations: { type: 'integer' },
+                    results: {
+                      type: 'array',
+                      items: {
+                        type: 'object',
+                        properties: {
+                          id: { type: 'string', example: 'I6' },
+                          description: { type: 'string' },
+                          ok: { type: 'boolean' },
+                          detail: { type: 'string' },
+                          tier: { type: 'string', enum: ['Tier 1', 'Tier 2'] },
+                        },
+                        required: ['id', 'description', 'ok', 'detail'],
+                      },
+                    },
+                  },
+                  required: ['ok', 'violations', 'results'],
+                },
+              },
+            },
+          },
+          '500': { description: 'Internal error', content: { 'application/json': { schema: { $ref: '#/components/schemas/Error' } } } },
+        },
+      },
+    },
     '/api/sync/events': {
       get: {
         tags: ['Events'],

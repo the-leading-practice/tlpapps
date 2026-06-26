@@ -215,3 +215,47 @@ Key counters:
 - `sync_writes_skipped_loop` — loop-prevention suppression count
 - `sync_dead_letter_count` — total events sent to dead-letter queue
 - `sync_conflict_queue_size` — EHR-wins conflicts awaiting review
+
+## Appendix: Self-Heal Invariant Checks (HEAL-01)
+
+The **INVARIANT-CHECK layer** asserts a set of cheap "silent-wrong" invariants that
+catch failures the retry/dead-letter machinery misses — writes that *succeed* but are
+wrong (the DND incident class). It is **READ-ONLY** (SELECT + GHL contact reads only),
+**alert-only** (no auto-remediation, no EHR/DB writes, no LLM), and ships **dark**.
+
+### Enabling
+
+- `RUN_INVARIANTS` (default **off**) — set `on` to start the invariant cron. It runs on
+  an **independent timer**, decoupled from `RUN_CRON`, so invariants run WITHOUT arming
+  the sync engine. Merging HEAL-01 changes nothing in prod until this flag is flipped.
+- `SELFHEAL_INVARIANTS_CRON` — pass cadence in ms (default `900000` = 15 min).
+- `SELFHEAL_DLQ_THRESHOLD` — I6 dead-letter threshold (default `25`).
+- `SELFHEAL_CONFLICT_THRESHOLD` — I7 unresolved-conflict threshold (default `50`).
+- `SELFHEAL_I1_MAX_CONTACTS` — I1 contacts sampled per location (default `100`).
+
+### On-demand run
+
+`GET /api/sync/invariants` (JWT-auth, like all `/api/sync/*`) runs the pass once and
+returns `{ ok, violations, results[] }` — operators can run it without the timer.
+Violations still fire alerts.
+
+### Alert
+
+Every violation fires `triggerAlert('invariant_violation', { invariant, detail, tier })`
+→ Telegram, with a **per-invariant** 10-min dedupe. Tier 2 violations send severity
+`Error`; Tier 1 send `Warn`.
+
+### Invariants shipped in HEAL-01
+
+| ID | Tier | Holds when | Fires when |
+|----|------|-----------|-----------|
+| **I1** | Tier 2 | No allowlisted live location has contacts tagged `api` with `dnd:true` (unless `GHL_SUPPRESS_AUTOMATION=true`). Performs a GHL **GET only**, using the existing stored access token AS-IS; it **never rotates or persists tokens**. If no fresh/usable token exists (missing/undecodable, or the stored token is rejected 401/403) the check is **skipped for that location** this pass — a skip is NOT a violation. | A synced contact is silently DND'd (the DND incident). |
+| **I2** | Tier 2 | `SYNC_WRITE_LOCATION_ALLOWLIST` contains none of the 5 forbidden real-practice IDs. | A forbidden ID was added to the allowlist. |
+| **I3** | Tier 2 | The `FORBIDDEN_LOCATION_IDS` hard-block set is non-empty/intact. | The safety set was emptied (hard block disabled). |
+| **I6** | Tier 1 | `sync_dead_letter` count ≤ `SELFHEAL_DLQ_THRESHOLD`. | Dead-letter backlog exceeds threshold. |
+| **I7** | Tier 1 | Unresolved `sync_conflicts` ≤ `SELFHEAL_CONFLICT_THRESHOLD`. | Conflict queue growing unbounded. |
+| **I9** | Tier 2 | `SYNC_WRITE_GHL_TO_DRCHRONO` is **not** `on` (reverse leg stays off) and `SYNC_WRITE_DRCHRONO_TO_GHL` is a recognised mode. | Reverse sync accidentally armed, or forward mode is a garbage value. |
+
+I4, I5, I8, I10 are deferred to HEAL-02/03 (see `.planning/SELF-HEAL-DESIGN.md` §3).
+A check that throws is recorded as its own failed/alertable result; one failing check
+never stops the others.
