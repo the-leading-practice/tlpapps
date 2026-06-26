@@ -24,4 +24,13 @@ export interface CalendarMapResponse {
   profiles: ProfileRow[];
   calendars: CalendarRow[];
   profileCalendarMap: Record<string, string>;
+  /** true when profiles came from cache (DrChrono was unreachable). */
+  profilesStale?: boolean;
+  /** set only when stale AND no cache existed. */
+  profilesError?: string;
+}
+
+export interface LocationOption {
+  ghlLocationId: string;
+  name: string;
 }

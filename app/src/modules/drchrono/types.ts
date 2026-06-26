@@ -45,6 +45,21 @@ export type DrChronoConfigLocation = {
   timezone: string;
   /** DrChrono profile id → GHL calendarId routing map (per BIDI-01). */
   profileCalendarMap?: Record<string, string>;
+  /**
+   * Cached appointment profiles (last successful DrChrono fetch). Used as a
+   * fallback by the calendar-map admin page when DrChrono is rate-limited.
+   */
+  appointmentProfiles?: CalendarMapProfile[];
+  /** Unix ms timestamp of the last successful appointmentProfiles fetch. */
+  appointmentProfilesFetchedAt?: number;
+};
+
+/** Minimal appointment-profile shape surfaced to the calendar-map admin UI. */
+export type CalendarMapProfile = {
+  id: number;
+  name: string;
+  duration: number | null;
+  color: string | null;
 };
 
 /**

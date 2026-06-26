@@ -28,11 +28,15 @@ import { mintTokenForLocation } from '../identity/controller.js';
 import type {
   DrChronoConfigLocation,
   DrChronoAppointmentProfile,
+  CalendarMapProfile,
 } from '../drchrono/types.js';
 import { logger } from '../../logger.js';
 
 const log = logger.child({ module: 'sync-calendar-map' });
 const router = Router();
+
+/** Short timeout for the live DrChrono profile fetch — never block the page on a rate-limited EHR. */
+const PROFILE_FETCH_TIMEOUT_MS = 8000;
 
 /** Find the drChronoConfig location subdoc whose ghlLocationId matches. */
 function findLocation(
@@ -41,6 +45,82 @@ function findLocation(
 ): DrChronoConfigLocation | undefined {
   const locations = (cfg?.locations ?? []) as DrChronoConfigLocation[];
   return locations.find((l) => l.ghlLocationId === ghlLocationId);
+}
+
+/** Reject the wrapped promise if it doesn't settle within `ms`. */
+function withTimeout<T>(p: Promise<T>, ms: number): Promise<T> {
+  return Promise.race([
+    p,
+    new Promise<T>((_, reject) =>
+      setTimeout(() => reject(new Error('drchrono profile fetch timed out')), ms),
+    ),
+  ]);
+}
+
+/**
+ * Attempt a live DrChrono appointment-profile fetch (token + profiles) within a
+ * short timeout. Returns the mapped profiles on success, or null on any failure
+ * (token error, non-200, timeout, rate-limit) so callers can fall back to cache.
+ */
+async function fetchLiveProfiles(
+  cfg: any,
+  location: DrChronoConfigLocation,
+): Promise<CalendarMapProfile[] | null> {
+  try {
+    return await withTimeout(
+      (async () => {
+        const tokenResp = await drChronoAuth.getValidToken(
+          location.name,
+          cfg.clientId,
+          cfg.clientSecret,
+          location.accessToken,
+          location.refreshToken,
+          location.tokenExpiry,
+        );
+        if (tokenResp.status !== 200 || !tokenResp.accessToken) {
+          throw new Error('drchrono token unavailable');
+        }
+        const dc = drChronoAPIClient(tokenResp.accessToken);
+        const profResp = await dc.getAppointmentProfiles(location.doctorId);
+        if (profResp.status !== 200) {
+          throw new Error(`drchrono profiles fetch failed (${profResp.status})`);
+        }
+        return (profResp.data as DrChronoAppointmentProfile[]).map((p) => ({
+          id: p.id,
+          name: p.name,
+          duration: p.duration ?? null,
+          color: p.color ?? null,
+        }));
+      })(),
+      PROFILE_FETCH_TIMEOUT_MS,
+    );
+  } catch (err: any) {
+    log.warn(
+      { location: location.name, err: err?.message },
+      'calendar-map: live DrChrono profile fetch failed — using cache',
+    );
+    return null;
+  }
+}
+
+/** Persist the freshly-fetched profiles to the location subdoc as a cache. */
+async function cacheProfiles(
+  locationName: string,
+  profiles: CalendarMapProfile[],
+): Promise<void> {
+  try {
+    await DrChronoConfigModel.updateOne(
+      { 'locations.name': locationName },
+      {
+        $set: {
+          'locations.$.appointmentProfiles': profiles,
+          'locations.$.appointmentProfilesFetchedAt': Date.now(),
+        },
+      },
+    );
+  } catch (err: any) {
+    log.warn({ locationName, err: err?.message }, 'calendar-map: failed to cache profiles');
+  }
 }
 
 /**
@@ -68,31 +148,21 @@ router.get('/sync/calendar-map', async (req: Request, res: Response) => {
       return;
     }
 
-    // 1. Fresh DrChrono token → appointment profiles (read-only).
-    const tokenResp = await drChronoAuth.getValidToken(
-      location.name,
-      cfg.clientId,
-      cfg.clientSecret,
-      location.accessToken,
-      location.refreshToken,
-      location.tokenExpiry,
-    );
-    if (tokenResp.status !== 200 || !tokenResp.accessToken) {
-      res.status(502).json({ error: 'drchrono token unavailable' });
-      return;
+    // 1. DrChrono appointment profiles (read-only). Resilient: a live fetch is
+    //    attempted with a short timeout; on any failure/rate-limit we fall back
+    //    to the cached profiles and flag the response stale — never 502 here.
+    const live = await fetchLiveProfiles(cfg, location);
+    let profiles: CalendarMapProfile[];
+    let profilesStale = false;
+    let profilesError: string | undefined;
+    if (live) {
+      profiles = live;
+      await cacheProfiles(location.name, live); // refresh cache
+    } else {
+      profiles = (location.appointmentProfiles ?? []) as CalendarMapProfile[];
+      profilesStale = true;
+      if (profiles.length === 0) profilesError = 'drchrono unreachable and no cached profiles';
     }
-    const dc = drChronoAPIClient(tokenResp.accessToken);
-    const profResp = await dc.getAppointmentProfiles(location.doctorId);
-    if (profResp.status !== 200) {
-      res.status(502).json({ error: 'drchrono profiles fetch failed' });
-      return;
-    }
-    const profiles = (profResp.data as DrChronoAppointmentProfile[]).map((p) => ({
-      id: p.id,
-      name: p.name,
-      duration: p.duration ?? null,
-      color: p.color ?? null,
-    }));
 
     // 2. GHL calendars for the location (minted location token).
     let ghlToken: string;
@@ -124,6 +194,8 @@ router.get('/sync/calendar-map', async (req: Request, res: Response) => {
       profiles,
       calendars,
       profileCalendarMap: location.profileCalendarMap ?? {},
+      profilesStale,
+      ...(profilesError ? { profilesError } : {}),
     });
   } catch (err) {
     log.error({ err, ghlLocationId }, 'GET /sync/calendar-map failed');
@@ -164,28 +236,18 @@ router.put('/sync/calendar-map', async (req: Request, res: Response) => {
       return;
     }
 
-    // Resolve known profile ids + valid calendar ids to validate the submission.
-    const tokenResp = await drChronoAuth.getValidToken(
-      location.name,
-      cfg.clientId,
-      cfg.clientSecret,
-      location.accessToken,
-      location.refreshToken,
-      location.tokenExpiry,
-    );
-    if (tokenResp.status !== 200 || !tokenResp.accessToken) {
-      res.status(502).json({ error: 'drchrono token unavailable' });
+    // Resolve known profile ids to validate the submission. Try a live fetch
+    // (short timeout); if DrChrono is rate-limited, fall back to the cached
+    // profile-id set so saving still works. Only 502 if there is no cache.
+    const live = await fetchLiveProfiles(cfg, location);
+    if (live) await cacheProfiles(location.name, live);
+    const source: CalendarMapProfile[] =
+      live ?? ((location.appointmentProfiles ?? []) as CalendarMapProfile[]);
+    if (!live && source.length === 0) {
+      res.status(502).json({ error: 'drchrono profiles unavailable (no cache)' });
       return;
     }
-    const dc = drChronoAPIClient(tokenResp.accessToken);
-    const profResp = await dc.getAppointmentProfiles(location.doctorId);
-    if (profResp.status !== 200) {
-      res.status(502).json({ error: 'drchrono profiles fetch failed' });
-      return;
-    }
-    const knownProfileIds = new Set(
-      (profResp.data as DrChronoAppointmentProfile[]).map((p) => String(p.id)),
-    );
+    const knownProfileIds = new Set(source.map((p) => String(p.id)));
 
     let ghlToken: string;
     try {
@@ -237,6 +299,25 @@ router.put('/sync/calendar-map', async (req: Request, res: Response) => {
     res.json({ profileCalendarMap: clean });
   } catch (err) {
     log.error({ err, ghlLocationId }, 'PUT /sync/calendar-map failed');
+    res.status(500).json({ error: 'internal error' });
+  }
+});
+
+/**
+ * GET /api/sync/locations
+ * Returns the agency's configured locations (those with a ghlLocationId) for the
+ * calendar-map selector dropdown. READ-ONLY.
+ *   → [{ ghlLocationId, name }]
+ */
+router.get('/sync/locations', async (_req: Request, res: Response) => {
+  try {
+    const cfg = await drChronoConfigService.getConfig();
+    const locations = ((cfg?.locations ?? []) as DrChronoConfigLocation[])
+      .filter((l) => typeof l.ghlLocationId === 'string' && l.ghlLocationId.length > 0)
+      .map((l) => ({ ghlLocationId: l.ghlLocationId as string, name: l.name }));
+    res.json(locations);
+  } catch (err) {
+    log.error({ err }, 'GET /sync/locations failed');
     res.status(500).json({ error: 'internal error' });
   }
 });
