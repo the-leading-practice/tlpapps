@@ -377,6 +377,8 @@ export type PatientServiceClientDeps = {
   checkAllowlist?: (id: string) => boolean;
   /** Override the HTTP fetch function — for unit tests only. */
   httpFetch?: typeof fetch;
+  /** Override mintTokenForLocation — for unit tests only (avoids a live Mongo/token lookup). */
+  mintToken?: typeof mintTokenForLocation;
 };
 
 export const createPatientServiceClient = (deps: PatientServiceClientDeps = {}) => {
@@ -386,6 +388,7 @@ export const createPatientServiceClient = (deps: PatientServiceClientDeps = {}) 
     writeModeForEntity('drchrono_to_ghl', 'appointments').catch(() => 'off' as const));
   const checkAllowlist = deps.checkAllowlist ?? isLocationAllowed;
   const httpFetch = deps.httpFetch ?? fetch;
+  const mintToken = deps.mintToken ?? mintTokenForLocation;
 
   const sendPatients = async (patients: TLPPatientPayload[], headers: LocationHeaders) => {
     const tlpLocationId = headers.tlpLocation;
@@ -429,7 +432,7 @@ export const createPatientServiceClient = (deps: PatientServiceClientDeps = {}) 
     let authJwt: string;
     let ghlAccessToken: string;
     try {
-      const minted = await mintTokenForLocation(ghlLocationId);
+      const minted = await mintToken(ghlLocationId);
       authJwt = minted.token;
       ghlAccessToken = minted.ghlAccessToken;
     } catch (e: any) {
@@ -510,9 +513,19 @@ export const createPatientServiceClient = (deps: PatientServiceClientDeps = {}) 
     // BIDI-01: route each appointment to the GHL calendar mapped to its DrChrono
     // profile id; fall back to the location default calendar when unmapped/null.
     const profileMap = headers.profileCalendarMap || {};
+    const hasProfileMap = Object.keys(profileMap).length > 0;
     const resolveCalendar = (a: TLPAppointmentPayload): string => {
-      const byProfile = a.profileId != null ? profileMap[String(a.profileId)] : undefined;
-      return byProfile || a.calendarId || headers.tlpCalendarId;
+      // BIDI-01 / F-01: when a profileCalendarMap is configured for this location,
+      // route strictly by DrChrono profile id — mapped profile → its GHL calendar,
+      // UNMAPPED profile → '' (no-op; empty calendarId is skipped downstream).
+      // This satisfies DW-calendar-plan §6 ("treat an unmapped profile as a no-op
+      // until its GHL calendar is mapped") instead of leaking to the default calendar.
+      if (a.profileId != null && hasProfileMap) {
+        return profileMap[String(a.profileId)] || '';
+      }
+      // No profileCalendarMap configured (legacy practices) or null profile (breaks):
+      // preserve the pre-BIDI default-calendar fallback.
+      return a.calendarId || headers.tlpCalendarId;
     };
     const taggedAppointments = appointments.map((a) => ({
       ...a,
@@ -526,7 +539,7 @@ export const createPatientServiceClient = (deps: PatientServiceClientDeps = {}) 
     let authJwt: string;
     let ghlAccessToken: string;
     try {
-      const minted = await mintTokenForLocation(ghlLocationId);
+      const minted = await mintToken(ghlLocationId);
       authJwt = minted.token;
       ghlAccessToken = minted.ghlAccessToken;
     } catch (e: any) {
