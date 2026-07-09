@@ -12,6 +12,7 @@ import type { WriteMode } from './writers/dispatch.js';
 import { logger } from '../../logger.js';
 import { syncCounters } from './metrics.js';
 import { runInvariants } from './invariants.js';
+import { runAvailabilitySync } from './availability.js';
 
 const log = logger.child({ module: 'sync-routes' });
 const router = Router();
@@ -28,6 +29,22 @@ router.get('/sync/invariants', async (_req: Request, res: Response) => {
     res.json({ ok: violations === 0, violations, results });
   } catch (err) {
     log.error({ err }, 'GET /sync/invariants failed');
+    res.status(500).json({ error: 'internal error' });
+  }
+});
+
+/**
+ * POST /api/sync/availability — on-demand DrChrono→GHL blocked-time (availability)
+ * sync across all locations. Behavior gated by SYNC_WRITE_AVAILABILITY (default off),
+ * the write allowlist, and each location's providerAvailabilityMap. Fail-closed:
+ * with the defaults this is a no-op that returns per-location skip reasons.
+ */
+router.post('/sync/availability', async (_req: Request, res: Response) => {
+  try {
+    const results = await runAvailabilitySync();
+    res.json({ ok: true, results });
+  } catch (err) {
+    log.error({ err }, 'POST /sync/availability failed');
     res.status(500).json({ error: 'internal error' });
   }
 });

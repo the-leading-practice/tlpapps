@@ -46,6 +46,13 @@ export type DrChronoConfigLocation = {
   /** DrChrono profile id → GHL calendarId routing map (per BIDI-01). */
   profileCalendarMap?: Record<string, string>;
   /**
+   * DrChrono provider (doctor) id → GHL availability-block target. Drives the
+   * DrChrono→GHL blocked-time (availability) sync: a break for a mapped provider
+   * becomes a GHL block-slot assigned to that provider's `ghlUserId`. Empty/absent
+   * → the whole location is a no-op (availability sync ships OFF pending this map).
+   */
+  providerAvailabilityMap?: Record<string, { ghlUserId: string; calendarIds: string[] }>;
+  /**
    * Cached appointment profiles (last successful DrChrono fetch). Used as a
    * fallback by the calendar-map admin page when DrChrono is rate-limited.
    */
