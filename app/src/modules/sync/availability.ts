@@ -379,8 +379,25 @@ async function defaultGetAppointments(location: DrChronoConfigLocation): Promise
     return [];
   }
   const { startDate, endDate } = pollWindow(cfg.config.LookAheadDays);
-  const client = drChronoAPIClient(tokenResp.accessToken);
-  const resp = await client.getAppointments(startDate, endDate);
+  let client = drChronoAPIClient(tokenResp.accessToken);
+  let resp = await client.getAppointments(startDate, endDate);
+  // Recover from a revoked-but-unexpired token: on 401, force-refresh once and retry.
+  if (resp.status === 401) {
+    log.warn({ location: location.name }, 'availability: getAppointments 401 — forcing token refresh');
+    const refreshed = await drChronoAuth.getValidToken(
+      location.name,
+      cfg.clientId,
+      cfg.clientSecret,
+      location.accessToken,
+      location.refreshToken,
+      location.tokenExpiry,
+      true,
+    );
+    if (refreshed.status === 200 && refreshed.accessToken) {
+      client = drChronoAPIClient(refreshed.accessToken);
+      resp = await client.getAppointments(startDate, endDate);
+    }
+  }
   if (resp.status < 200 || resp.status >= 300) {
     log.error({ location: location.name, err: resp.data }, 'availability: getAppointments failed');
     return [];
