@@ -28,6 +28,7 @@ import { Leader } from './leader.js';
 import { decide, type SyncSystem } from './decision.js';
 import { dispatchWrite, writeModeFor, writeModeForEntity } from './writers/dispatch.js';
 import { getLocationAccessToken } from './location-token.js';
+import { parse as parseOrigin } from './origin.js';
 import {
   ghlAppointmentToNormalized,
   drchronoAppointmentToNormalized,
@@ -92,6 +93,16 @@ export async function processBatch(leader: Leader): Promise<BatchResult> {
 type Outcome = 'processed' | 'conflict' | 'skipped';
 
 async function processOne(ev: SyncEvent): Promise<Outcome> {
+  // EDGE-07 Plan 02: source==='edge' runs a DEDICATED branch BEFORE the ghl/drchrono
+  // mapper below — the mapper only understands ghl/drchrono payload shapes and must
+  // NEVER see an edge-source event (no mis-map / no dead-letter). This branch is
+  // loop-guarded and gate-consulted, but performs ZERO live DrChrono writes this
+  // phase: the Edge-native `data` field shape is not finalized (cross-repo emitter
+  // deferred), so any mode!=='off' path only logs intent — see the TODO below.
+  if ((ev.source as string) === 'edge') {
+    return processEdgeSourceEvent(ev);
+  }
+
   const source = ev.source as SyncSystem;
   const zone = extractZone(ev.payload);
   const payload = (ev.payload ?? {}) as Record<string, unknown>;
@@ -226,6 +237,68 @@ async function processOne(ev: SyncEvent): Promise<Outcome> {
   await persistState(source, normalized, incomingHash);
   await markProcessed(ev);
   return 'processed';
+}
+
+/**
+ * EDGE-07 Plan 02 Task 3 — dedicated edge-source branch. Runs BEFORE the ghl/drchrono
+ * mapper in processOne (which cannot parse edge-shaped payloads). Two concerns:
+ *   1. Loop guard: an inbound edge event carrying our own `tlp-sync:edge:<id>` origin
+ *      tag is a self-authored echo (from the drchrono->edge leg) and must be dropped
+ *      before any write consideration — never re-propagated back toward DrChrono.
+ *   2. Gate consultation: a genuine (non-echo) edge event consults the (off-by-default,
+ *      fail-closed) edge_to_drchrono gate. Because the Edge-native `data` field shape
+ *      is not finalized until the cross-repo emitter ships (contract Open Items), the
+ *      full edge->DrChrono field mapper is DEFERRED to the runtime slice: this dark
+ *      phase only LOGS the intended writeback and marks the event processed WITHOUT
+ *      ever calling a writer or building an unmapped DrChrono mutation — even in the
+ *      hypothetical case mode resolves to 'on'/'verify' (which cannot occur until the
+ *      gate is flipped + sign-off).
+ * TODO(EDGE-07 runtime): edge->drchrono field mapper + dispatch once the Edge payload
+ * shape and sync_mappings id resolution (D-04) are finalized.
+ */
+export async function processEdgeSourceEvent(ev: SyncEvent): Promise<Outcome> {
+  const payload = (ev.payload ?? {}) as Record<string, unknown>;
+
+  // 1. Loop guard — drop self-authored echoes of our own drchrono->edge writes.
+  const origin = parseOrigin(ev.payload);
+  if (origin && origin.system === 'edge') {
+    syncCounters.inc('sync_writes_skipped_loop');
+    log.info(
+      { eventId: ev.id, originEventId: origin.eventId },
+      'edge-source event skipped — self-authored echo (loop guard)',
+    );
+    await markProcessed(ev);
+    return 'skipped';
+  }
+
+  // 2. Gate consultation — controlEntity from the contract's `entity` field
+  // ('contact' -> patients, 'appointment' -> appointments; default appointments).
+  const controlEntity: 'patients' | 'appointments' =
+    payload.entity === 'contact' || String(ev.action).startsWith('patient')
+      ? 'patients'
+      : 'appointments';
+
+  const mode = await writeModeForEntity('edge_to_drchrono', controlEntity);
+
+  if (mode === 'off' || mode === 'dry') {
+    syncCounters.inc('sync_writes_skipped_off');
+    log.info(
+      { eventId: ev.id, mode, entity: controlEntity, action: ev.action },
+      'edge-source event: intended DrChrono writeback logged (gate off/dry, no writer call)',
+    );
+    await markProcessed(ev);
+    return 'skipped';
+  }
+
+  // mode === 'on' | 'verify' — cannot occur until Plan 01's gate is flipped + owner
+  // sign-off. Guarded no-op stub: never build/send an unmapped live DrChrono write.
+  log.warn(
+    { eventId: ev.id, mode, entity: controlEntity, action: ev.action },
+    'edge-source event: gate is on/verify but the edge->drchrono field mapper is not ' +
+      'yet built (EDGE-07 runtime deferred) — refusing to dispatch an unmapped write',
+  );
+  await markProcessed(ev);
+  return 'skipped';
 }
 
 /** Upsert sync_mapping + appointment_link idempotently from the normalized appt. */
