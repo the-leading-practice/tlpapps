@@ -37,6 +37,41 @@ import type { EdgeCtx } from '../../edge/types.js';
 export type WriteMode = 'off' | 'dry' | 'verify' | 'on';
 
 /**
+ * Resolve the env ceiling for a given direction. Single source of truth, reused by
+ * both `writeModeForEntity` (DB-backed clamp) and the `/api/sync/controls` route
+ * (panel-facing ceiling display + PATCH clamp). drchrono_to_edge / edge_to_drchrono
+ * are highest-risk live-write extensions (D-02/D-05) — their unset/garbage env MUST
+ * resolve to 'off', NOT the GHL/DrChrono legs' 'dry' default. Fail-closed on any
+ * unrecognized value (not just unset).
+ */
+export function envCeilingForDirection(
+  direction: Direction,
+  env: NodeJS.ProcessEnv = process.env,
+): WriteMode {
+  if (direction === 'drchrono_to_edge') {
+    const envRaw = env.SYNC_WRITE_EDGE;
+    return envRaw === 'on' ? 'on' :
+      envRaw === 'verify' ? 'verify' :
+      envRaw === 'dry' ? 'dry' :
+      'off';
+  }
+  if (direction === 'edge_to_drchrono') {
+    const envRaw = env.SYNC_WRITE_EDGE_TO_DRCHRONO;
+    return envRaw === 'on' ? 'on' :
+      envRaw === 'verify' ? 'verify' :
+      envRaw === 'dry' ? 'dry' :
+      'off';
+  }
+  const envRaw = direction === 'drchrono_to_ghl'
+    ? env.SYNC_WRITE_DRCHRONO_TO_GHL
+    : env.SYNC_WRITE_GHL_TO_DRCHRONO;
+  return envRaw === 'on' ? 'on' :
+    envRaw === 'off' ? 'off' :
+    envRaw === 'verify' ? 'verify' :
+    'dry';
+}
+
+/**
  * Resolve the kill-switch mode for a write INTO `target` using only env vars.
  * Use this as a synchronous shim when the DB-backed `writeModeForEntity` is not
  * available (e.g. unit tests without a DB). Engine.ts uses `writeModeForEntity`.
@@ -119,37 +154,10 @@ export async function writeModeForEntity(
   // Lazy listener setup (no-op if already running)
   ensureListener().catch(() => undefined);
 
-  // Compute env ceiling. drchrono_to_edge is a NEW direction (D-02): its unset/undefined
-  // default MUST be 'off' (not 'dry' like the GHL/DrChrono legs) — this is a highest-risk
-  // live write-path extension and must fail closed even before any control row exists.
-  let ceiling: WriteMode;
-  if (direction === 'drchrono_to_edge') {
-    const envRaw = env.SYNC_WRITE_EDGE;
-    ceiling =
-      envRaw === 'on' ? 'on' :
-      envRaw === 'verify' ? 'verify' :
-      envRaw === 'dry' ? 'dry' :
-      'off';
-  } else if (direction === 'edge_to_drchrono') {
-    // EDGE-07: highest-risk live-write extension (Edge -> DrChrono). Unset/garbage env
-    // MUST resolve to 'off' (NOT the GHL/DrChrono legs' 'dry' default) — mirrors the
-    // drchrono_to_edge OFF-default precedent (D-05, fail-closed floor).
-    const envRaw = env.SYNC_WRITE_EDGE_TO_DRCHRONO;
-    ceiling =
-      envRaw === 'on' ? 'on' :
-      envRaw === 'verify' ? 'verify' :
-      envRaw === 'dry' ? 'dry' :
-      'off';
-  } else {
-    const envRaw = direction === 'drchrono_to_ghl'
-      ? env.SYNC_WRITE_DRCHRONO_TO_GHL
-      : env.SYNC_WRITE_GHL_TO_DRCHRONO;
-    ceiling =
-      envRaw === 'on' ? 'on' :
-      envRaw === 'off' ? 'off' :
-      envRaw === 'verify' ? 'verify' :
-      'dry';
-  }
+  // Compute env ceiling via the shared resolver (single source of truth — see
+  // envCeilingForDirection above). Edge directions fail closed to 'off' on
+  // unset/garbage env; GHL/DrChrono legs default to 'dry' (unchanged legacy behavior).
+  const ceiling: WriteMode = envCeilingForDirection(direction, env);
 
   try {
     const { db } = await import('../../../db/pg/client.js');

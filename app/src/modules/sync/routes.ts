@@ -9,10 +9,13 @@ import { and, count, desc, eq, sql } from 'drizzle-orm';
 import { db } from '../../db/pg/client.js';
 import { syncEvents, syncConflicts, syncControls } from '../../db/pg/schema/sync.js';
 import type { WriteMode } from './writers/dispatch.js';
+import { envCeilingForDirection } from './writers/dispatch.js';
+import type { Direction } from './metrics.js';
 import { logger } from '../../logger.js';
 import { syncCounters } from './metrics.js';
 import { runInvariants } from './invariants.js';
 import { runAvailabilitySync } from './availability.js';
+import { buildAllowlist } from './writers/allowlist.js';
 
 const log = logger.child({ module: 'sync-routes' });
 const router = Router();
@@ -167,11 +170,13 @@ function clampLimit(raw: unknown): number {
 
 const MODE_ORDER: Record<string, number> = { off: 0, dry: 1, verify: 2, on: 3 };
 
-/** Resolve env ceiling for a direction. Returns off|dry|on (verify treated as dry for UI). */
+/**
+ * Resolve env ceiling for a direction. Returns off|dry|on (verify treated as dry for UI,
+ * matching the existing minMode() convention below). Delegates to the shared
+ * envCeilingForDirection (dispatch.ts) — single source of truth, edge-aware.
+ */
 function envCeiling(direction: string, env: NodeJS.ProcessEnv = process.env): 'off' | 'dry' | 'on' {
-  const raw = direction === 'drchrono_to_ghl'
-    ? env.SYNC_WRITE_DRCHRONO_TO_GHL
-    : env.SYNC_WRITE_GHL_TO_DRCHRONO;
+  const raw = envCeilingForDirection(direction as Direction, env);
   if (raw === 'on') return 'on';
   if (raw === 'off') return 'off';
   // 'verify' or 'dry' → display as 'dry'
@@ -187,7 +192,12 @@ function minMode(a: string, b: string): 'off' | 'dry' | 'on' {
   return 'off';
 }
 
-const VALID_DIRECTIONS = ['drchrono_to_ghl', 'ghl_to_drchrono'] as const;
+const VALID_DIRECTIONS = [
+  'drchrono_to_ghl',
+  'ghl_to_drchrono',
+  'drchrono_to_edge',
+  'edge_to_drchrono',
+] as const;
 const VALID_ENTITIES = ['patients', 'appointments'] as const;
 const VALID_MODES = ['off', 'dry', 'on'] as const;
 
@@ -240,7 +250,7 @@ router.patch('/sync/controls/:direction/:entity', async (req: Request, res: Resp
       .set({ mode: mode as 'off' | 'dry' | 'on', updatedAt: new Date(), updatedBy })
       .where(
         and(
-          eq(syncControls.direction, direction as 'drchrono_to_ghl' | 'ghl_to_drchrono'),
+          eq(syncControls.direction, direction as Direction),
           eq(syncControls.entity, entity as 'patients' | 'appointments'),
         ),
       )
@@ -260,6 +270,20 @@ router.patch('/sync/controls/:direction/:entity', async (req: Request, res: Resp
     log.error({ err }, 'PATCH /sync/controls failed');
     res.status(500).json({ error: 'internal error' });
   }
+});
+
+/**
+ * GET /api/sync/allowlist — read-only surface of the shared per-location write
+ * allowlist (D-02/D-03). Single global allowlist reused across GHL/DrChrono/Edge
+ * directions — no separate edge allowlist. Fail-closed: denyAll=true when the
+ * env var is unset/empty (buildAllowlist returns null in that case).
+ */
+router.get('/sync/allowlist', async (_req: Request, res: Response) => {
+  const allowlist = buildAllowlist(process.env);
+  res.json({
+    locations: allowlist === null ? [] : Array.from(allowlist),
+    denyAll: allowlist === null || allowlist.size === 0,
+  });
 });
 
 // ---------------------------------------------------------------------------
