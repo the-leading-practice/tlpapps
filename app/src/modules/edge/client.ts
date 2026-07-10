@@ -35,6 +35,16 @@ export interface EdgeFetchResult {
 /** Consecutive-401/403 counter per locationId. Reset on any non-401/403 response. */
 const consecutiveAuthFailures = new Map<string, number>();
 
+// Mutable holder so tests can spy/stub the alert dispatch without fighting
+// ESM's read-only named-export bindings. Production code never reassigns
+// this — it always points at the real triggerAlert.
+const alertHooks = { triggerAlert };
+
+/** Test-only seam: override the alert dispatcher. Not used in production paths. */
+export const __setTriggerAlertForTests = (fn: typeof triggerAlert): void => {
+  alertHooks.triggerAlert = fn;
+};
+
 export const edgeHeaders = (token: string, includeContentType = true): Record<string, string> => {
   const headers: Record<string, string> = {
     'X-API-Key': token,
@@ -58,7 +68,7 @@ async function handleAuthTracking(status: number, locationId: string | undefined
     consecutiveAuthFailures.set(key, count);
     if (count >= 2) {
       log.error({ locationId: key, status, consecutiveFailures: count }, 'edge: repeated auth failure');
-      await triggerAlert('oauth_failure', { system: 'edge', locationId: key }).catch(() => undefined);
+      await alertHooks.triggerAlert('oauth_failure', { system: 'edge', locationId: key }).catch(() => undefined);
     }
     return;
   }
