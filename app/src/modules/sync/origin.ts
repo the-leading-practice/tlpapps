@@ -12,7 +12,7 @@
  * computes the tag it WOULD write and records intent; nothing is sent to an EHR.
  */
 
-export type SyncSystem = 'ghl' | 'drchrono';
+export type SyncSystem = 'ghl' | 'drchrono' | 'edge';
 
 export const ORIGIN_PREFIX = 'tlp-sync';
 
@@ -34,7 +34,7 @@ export function tagFor(system: SyncSystem, eventId: string): string {
 export function parse(payload: unknown): OriginTag | null {
   const haystack = collectStrings(payload);
   for (const s of haystack) {
-    const m = s.match(/tlp-sync:(ghl|drchrono):([^\s"'}]+)/);
+    const m = s.match(/tlp-sync:(ghl|drchrono|edge):([^\s"'}]+)/);
     if (m) {
       return { system: m[1] as SyncSystem, eventId: m[2] };
     }
