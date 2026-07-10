@@ -46,6 +46,14 @@ export type DrChronoConfigLocation = {
   /** DrChrono profile id → GHL calendarId routing map (per BIDI-01). */
   profileCalendarMap?: Record<string, string>;
   /**
+   * DrChrono office id → GHL calendarId routing map. Fallback used ONLY when an
+   * appointment has no profile (null) — e.g. massage booked directly in DrChrono,
+   * which carry no exam profile. Routes those to the correct calendar so the slot
+   * is blocked in GHL (prevents double-booking). Office is always populated, so
+   * this is deterministic; it never overrides an explicit profile mapping.
+   */
+  officeCalendarMap?: Record<string, string>;
+  /**
    * DrChrono provider (doctor) id → GHL availability-block target. Drives the
    * DrChrono→GHL blocked-time (availability) sync: a break for a mapped provider
    * becomes a GHL block-slot assigned to that provider's `ghlUserId`. Empty/absent
@@ -178,6 +186,8 @@ export type TLPAppointmentPayload = {
   title?: string;
   /** DrChrono Custom Appointment Profile id (for per-service calendar routing). */
   profileId?: number | null;
+  /** DrChrono office id (fallback calendar routing when profileId is null). */
+  officeId?: number | null;
   /**
    * Loop-prevention origin tag stamped by the sync engine before any outbound write.
    * Carried through the legacy appointment pipeline so the final GHL call includes
@@ -200,4 +210,6 @@ export type LocationHeaders = {
   timezone: string;
   /** DrChrono profile id → GHL calendarId routing map (per BIDI-01). */
   profileCalendarMap?: Record<string, string>;
+  /** DrChrono office id → GHL calendarId fallback map (null-profile appts only). */
+  officeCalendarMap?: Record<string, string>;
 };
