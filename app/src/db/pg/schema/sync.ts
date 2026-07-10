@@ -6,6 +6,7 @@ import {
   text,
   timestamp,
   jsonb,
+  boolean,
   index,
   uniqueIndex,
 } from 'drizzle-orm/pg-core';
@@ -281,6 +282,36 @@ export const availabilityBlocks = pgTable(
 
 export type AvailabilityBlock = typeof availabilityBlocks.$inferSelect;
 export type NewAvailabilityBlock = typeof availabilityBlocks.$inferInsert;
+
+// --- sync_write_allowlist — EDGE-10 Plan 03 (ECUT-03) per-destination write ------
+// allowlist overlay. `destination` is plain text ('ghl' | 'edge'), NOT a pgEnum, so
+// the migration stays a SINGLE additive CREATE TABLE (no CREATE TYPE). A row with
+// destination='ghl' allowed=false SUBTRACTS a location from the env-based GHL
+// allowlist (cutover deny-row). A row with destination='edge' allowed=true ADDS a
+// location to the (fail-closed-by-default) Edge allowlist (cutover allow-row).
+// locationId is the GHL-shaped location STRING id (matches dispatch's
+// input.locationId), NOT the numeric locations.id. Additive, behavior-neutral until
+// writers/allowlist.ts (Task 2) reads it and cutover.ts (Task 3) writes it.
+
+export const syncWriteAllowlist = pgTable(
+  'sync_write_allowlist',
+  {
+    id: uuid('id').primaryKey().defaultRandom(),
+    destination: text('destination').notNull(),
+    locationId: text('location_id').notNull(),
+    allowed: boolean('allowed').notNull().default(true),
+    updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
+    updatedBy: text('updated_by'),
+  },
+  (t) => ({
+    destinationLocationUnique: uniqueIndex(
+      'sync_write_allowlist_destination_location_unique',
+    ).on(t.destination, t.locationId),
+  }),
+);
+
+export type SyncWriteAllowlist = typeof syncWriteAllowlist.$inferSelect;
+export type NewSyncWriteAllowlist = typeof syncWriteAllowlist.$inferInsert;
 
 // --- Inferred types (the row/insert contracts the P08 engine builds against) ---
 

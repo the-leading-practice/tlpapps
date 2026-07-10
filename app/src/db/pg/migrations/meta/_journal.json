@@ -71,6 +71,13 @@
       "when": 1783953340000,
       "tag": "edge_0004_sync_mappings_edge_id",
       "breakpoints": true
+    },
+    {
+      "idx": 10,
+      "version": "7",
+      "when": 1784039740000,
+      "tag": "edge_0005_sync_write_allowlist",
+      "breakpoints": true
     }
   ]
 }
