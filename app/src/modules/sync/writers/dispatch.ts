@@ -105,15 +105,27 @@ export async function writeModeForEntity(
   // Lazy listener setup (no-op if already running)
   ensureListener().catch(() => undefined);
 
-  // Compute env ceiling
-  const envRaw = direction === 'drchrono_to_ghl'
-    ? env.SYNC_WRITE_DRCHRONO_TO_GHL
-    : env.SYNC_WRITE_GHL_TO_DRCHRONO;
-  const ceiling: WriteMode =
-    envRaw === 'on' ? 'on' :
-    envRaw === 'off' ? 'off' :
-    envRaw === 'verify' ? 'verify' :
-    'dry';
+  // Compute env ceiling. drchrono_to_edge is a NEW direction (D-02): its unset/undefined
+  // default MUST be 'off' (not 'dry' like the GHL/DrChrono legs) — this is a highest-risk
+  // live write-path extension and must fail closed even before any control row exists.
+  let ceiling: WriteMode;
+  if (direction === 'drchrono_to_edge') {
+    const envRaw = env.SYNC_WRITE_EDGE;
+    ceiling =
+      envRaw === 'on' ? 'on' :
+      envRaw === 'verify' ? 'verify' :
+      envRaw === 'dry' ? 'dry' :
+      'off';
+  } else {
+    const envRaw = direction === 'drchrono_to_ghl'
+      ? env.SYNC_WRITE_DRCHRONO_TO_GHL
+      : env.SYNC_WRITE_GHL_TO_DRCHRONO;
+    ceiling =
+      envRaw === 'on' ? 'on' :
+      envRaw === 'off' ? 'off' :
+      envRaw === 'verify' ? 'verify' :
+      'dry';
+  }
 
   try {
     const { db } = await import('../../../db/pg/client.js');
