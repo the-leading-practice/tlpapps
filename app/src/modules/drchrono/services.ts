@@ -538,7 +538,9 @@ export const createPatientServiceClient = (deps: PatientServiceClientDeps = {}) 
     // BIDI-01: route each appointment to the GHL calendar mapped to its DrChrono
     // profile id; fall back to the location default calendar when unmapped/null.
     const profileMap = headers.profileCalendarMap || {};
+    const officeMap = headers.officeCalendarMap || {};
     const hasProfileMap = Object.keys(profileMap).length > 0;
+    const hasOfficeMap = Object.keys(officeMap).length > 0;
     const resolveCalendar = (a: TLPAppointmentPayload): string => {
       // BIDI-01 / F-01: when a profileCalendarMap is configured for this location,
       // route strictly by DrChrono profile id — mapped profile → its GHL calendar,
@@ -548,8 +550,17 @@ export const createPatientServiceClient = (deps: PatientServiceClientDeps = {}) 
       if (a.profileId != null && hasProfileMap) {
         return profileMap[String(a.profileId)] || '';
       }
-      // No profileCalendarMap configured (legacy practices) or null profile (breaks):
-      // preserve the pre-BIDI default-calendar fallback.
+      // NULL profile — e.g. massage booked directly in DrChrono, which carry no
+      // exam profile and would otherwise never reach GHL, leaving the slot open
+      // for a double-booking. Fall back to office-based routing so the appointment
+      // lands on the right calendar and blocks the slot. Office is always
+      // populated → deterministic; never overrides an explicit profile mapping.
+      if (a.officeId != null && hasOfficeMap) {
+        const byOffice = officeMap[String(a.officeId)];
+        if (byOffice) return byOffice;
+      }
+      // No maps applicable (legacy practices / unmapped office): preserve the
+      // pre-BIDI default-calendar fallback.
       return a.calendarId || headers.tlpCalendarId;
     };
     const taggedAppointments = appointments.map((a) => ({
@@ -632,6 +643,7 @@ export const mapAppointment = (a: DrChronoAppointment): TLPAppointmentPayload =>
   durationMinutes: typeof a.duration === 'number' ? a.duration : undefined,
   title: a.reason || (a.appt_is_break ? 'Break' : undefined),
   profileId: a.profile ?? null,
+  officeId: a.office ?? null,
 });
 
 export const buildLocationHeaders = (location: DrChronoConfigLocation): LocationHeaders => ({
@@ -644,6 +656,8 @@ export const buildLocationHeaders = (location: DrChronoConfigLocation): Location
   timezone: location.timezone,
   // Per-profile calendar routing (BIDI-01); empty/absent → default calendar only.
   profileCalendarMap: (location as any).profileCalendarMap || {},
+  // Per-office fallback routing (null-profile appts only); empty/absent → off.
+  officeCalendarMap: (location as any).officeCalendarMap || {},
 });
 
 /**

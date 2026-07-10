@@ -227,6 +227,64 @@ describe('F-01: unmapped DrChrono profile → no-op calendar (no default-calenda
 });
 
 // ---------------------------------------------------------------------------
+// Office fallback routing — null-profile appts (e.g. massage booked directly in
+// DrChrono) must still reach the right calendar so the slot is blocked in GHL.
+// ---------------------------------------------------------------------------
+
+describe('office fallback: null-profile appt → office-mapped calendar (block the slot)', () => {
+  function apptWith(profileId: number | null, officeId: number | null) {
+    return [{ apptId: 1, patientId: 1, apptTime: '2026-07-13T09:00:00', apptStatus: 'Confirmed', profileId, officeId }];
+  }
+  function headers(opts: { profileCalendarMap?: Record<string, string>; officeCalendarMap?: Record<string, string> }) {
+    return { ...makeHeaders('GHL_TEST_ALLOWED_LOC'), ...opts };
+  }
+
+  test('null profile + office mapped → routed to office calendar (not skipped)', async () => {
+    const spy = makeFetchSpy();
+    const client = buildClient({ modeAppointments: 'on', allowlistResult: true, fetchSpy: spy });
+    await client.sendAppointments(
+      apptWith(null, 263818) as any, // Carla-room massage, no exam profile
+      headers({ profileCalendarMap: { '158404': 'chiroCal' }, officeCalendarMap: { '263818': 'uo5ETJAtlh8FXDWyxgjU' } }) as any,
+    );
+    assert.equal(spy.lastBody.appointments[0].calendarId, 'uo5ETJAtlh8FXDWyxgjU',
+      'null-profile massage appt must route via office → block the slot');
+  });
+
+  test('explicit mapped profile still wins over office fallback', async () => {
+    const spy = makeFetchSpy();
+    const client = buildClient({ modeAppointments: 'on', allowlistResult: true, fetchSpy: spy });
+    await client.sendAppointments(
+      apptWith(158404, 263818) as any,
+      headers({ profileCalendarMap: { '158404': 'chiroCal' }, officeCalendarMap: { '263818': 'uo5ETJAtlh8FXDWyxgjU' } }) as any,
+    );
+    assert.equal(spy.lastBody.appointments[0].calendarId, 'chiroCal',
+      'a mapped profile must NOT be overridden by the office fallback');
+  });
+
+  test('unmapped profile with a profile map → still no-op (office fallback does NOT rescue it)', async () => {
+    const spy = makeFetchSpy();
+    const client = buildClient({ modeAppointments: 'on', allowlistResult: true, fetchSpy: spy });
+    await client.sendAppointments(
+      apptWith(999, 263818) as any, // profile present but unmapped
+      headers({ profileCalendarMap: { '158404': 'chiroCal' }, officeCalendarMap: { '263818': 'uo5ETJAtlh8FXDWyxgjU' } }) as any,
+    );
+    assert.equal(spy.lastBody.appointments[0].calendarId, '',
+      'unmapped profile stays a no-op (§6) — office fallback only applies to null profile');
+  });
+
+  test('null profile + office NOT in office map → default-calendar fallback (unchanged)', async () => {
+    const spy = makeFetchSpy();
+    const client = buildClient({ modeAppointments: 'on', allowlistResult: true, fetchSpy: spy });
+    await client.sendAppointments(
+      apptWith(null, 999999) as any,
+      headers({ officeCalendarMap: { '263818': 'uo5ETJAtlh8FXDWyxgjU' } }) as any,
+    );
+    assert.equal(spy.lastBody.appointments[0].calendarId, 'cal1',
+      'null profile + unmapped office → pre-BIDI default fallback');
+  });
+});
+
+// ---------------------------------------------------------------------------
 // sendPatients — verify and non-allowlisted paths must not fetch
 // ---------------------------------------------------------------------------
 
