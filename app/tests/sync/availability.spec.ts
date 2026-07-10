@@ -25,6 +25,7 @@ import {
 } from '../../src/modules/sync/availability.js';
 import type { WriteMode } from '../../src/modules/sync/writers/dispatch.js';
 import type { DrChronoAppointment, DrChronoConfigLocation } from '../../src/modules/drchrono/types.js';
+import { formatTime } from '../../src/modules/integration/utils.js';
 
 // ---------------------------------------------------------------------------
 // Helpers
@@ -166,10 +167,15 @@ describe('availability: mode=on write paths', () => {
     );
     assert.equal(createSpy.calls, 1, 'exactly one block created');
     assert.equal(createSpy.lastBlock.assignedUserId, GHL_USER);
-    assert.equal(createSpy.lastBlock.startTime, '2026-07-01T09:00:00');
+    // DrChrono scheduled_time is naive practice-local; the engine must apply the
+    // location's tz offset (formatTime) before sending to GHL, else the block is
+    // shifted by the UTC offset and misses the real break window.
+    const expectedStart = formatTime('2026-07-01T09:00:00', 'America/Chicago');
+    assert.equal(createSpy.lastBlock.startTime, expectedStart);
+    assert.notEqual(createSpy.lastBlock.startTime, '2026-07-01T09:00:00', 'must NOT pass naive time through raw');
     assert.equal(createSpy.lastBlock.locationId, 'DEMO_LOC_TEST');
-    // 30-min break → +30min end
-    assert.equal(createSpy.lastBlock.endTime, new Date('2026-07-01T09:30:00').toISOString());
+    // 30-min break → +30min end, computed from the tz-corrected start.
+    assert.equal(createSpy.lastBlock.endTime, new Date(new Date(expectedStart).getTime() + 30 * 60_000).toISOString());
     assert.equal(res.created, 1);
   });
 

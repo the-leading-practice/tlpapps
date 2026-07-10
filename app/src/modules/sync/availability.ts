@@ -24,6 +24,7 @@ import { logger } from '../../logger.js';
 import type { WriteMode } from './writers/dispatch.js';
 import { isLocationAllowed } from './writers/allowlist.js';
 import { integrationService, appointmentGHLService } from '../integration/services.js';
+import { formatTime } from '../integration/utils.js';
 import { mintTokenForLocation } from '../identity/controller.js';
 import {
   drChronoConfigService,
@@ -276,7 +277,14 @@ export async function syncAvailabilityForLocation(
     }
     if (!b.scheduled_time) continue;
     const durMin = typeof b.duration === 'number' && b.duration > 0 ? b.duration : 60;
-    const startTime = b.scheduled_time;
+    // DrChrono `scheduled_time` is naive practice-local (no offset). GHL reads a
+    // naive string as UTC, so send it through formatTime — which appends the
+    // location's tz offset and normalizes to a UTC ISO — exactly like the
+    // appointment write path (patients/utils formatTime). Without this the block
+    // lands shifted by the tz offset (-4h EDT / -5h EST) and fails to cover the
+    // real break window.
+    const startTime = formatTime(b.scheduled_time, location.timezone);
+    if (!startTime) continue;
     const endTime = new Date(new Date(startTime).getTime() + durMin * 60_000).toISOString();
     const title = (b.reason && String(b.reason).trim()) || 'Blocked';
     planned.push({ breakId: String(b.id), providerId, ghlUserId: entry.ghlUserId, startTime, endTime, title });
