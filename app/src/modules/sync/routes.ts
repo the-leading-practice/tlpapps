@@ -16,6 +16,7 @@ import { syncCounters } from './metrics.js';
 import { runInvariants } from './invariants.js';
 import { runAvailabilitySync } from './availability.js';
 import { buildAllowlist } from './writers/allowlist.js';
+import { reconcileEdgeDrift } from './reconcile-edge.js';
 
 const log = logger.child({ module: 'sync-routes' });
 const router = Router();
@@ -48,6 +49,33 @@ router.post('/sync/availability', async (_req: Request, res: Response) => {
     res.json({ ok: true, results });
   } catch (err) {
     log.error({ err }, 'POST /sync/availability failed');
+    res.status(500).json({ error: 'internal error' });
+  }
+});
+
+/**
+ * GET /api/sync/drift?location=&days= — EDGE-10 Plan 01 (ECUT-02). Report-only
+ * GHL<->Edge drift for one location over the last N days. Never mutates GHL,
+ * Edge, DrChrono, or sync_mappings. `days` defaults to 7, clamped 1..90.
+ */
+router.get('/sync/drift', async (req: Request, res: Response) => {
+  const locationRaw = req.query.location;
+  const locationId = typeof locationRaw === 'string' ? parseInt(locationRaw, 10) : NaN;
+  if (!Number.isFinite(locationId)) {
+    res.status(400).json({ error: 'location must be a valid integer' });
+    return;
+  }
+
+  const daysRaw = req.query.days;
+  let days = typeof daysRaw === 'string' ? parseInt(daysRaw, 10) : 7;
+  if (!Number.isFinite(days) || days <= 0) days = 7;
+  days = Math.min(days, 90);
+
+  try {
+    const report = await reconcileEdgeDrift({ locationId, days });
+    res.json(report);
+  } catch (err) {
+    log.error({ err, locationId, days }, 'GET /sync/drift failed');
     res.status(500).json({ error: 'internal error' });
   }
 });
