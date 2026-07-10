@@ -14,6 +14,7 @@ import identityRoutes from './modules/identity/routes.js';
 import patientRoutes from './modules/patients/routes.js';
 import integrationRoutes from './modules/integration/routes.js';
 import configRoutes from './modules/config/routes.js';
+import edgeRoutes from './modules/edge/routes.js';
 import notificationRoutes from './modules/notifications/routes.js';
 import webhookRoutes from './modules/webhooks/routes.js';
 import monitorRoutes from './modules/monitor/routes.js';
@@ -77,6 +78,8 @@ export function createServer() {
   app.use('/api', authToken, patientRoutes);
   app.use('/api/ghl', authToken, integrationRoutes);
   app.use('/api', authToken, configRoutes);
+  // EDGE-01 — Titanium Edge credential + calendar-mapping storage (no Edge API calls).
+  app.use('/api', authToken, edgeRoutes);
   app.use('/api', authToken, notificationRoutes);
   app.use('/api', authToken, monitorRoutes);
   app.use('/api', authToken, embodiRoutes);
