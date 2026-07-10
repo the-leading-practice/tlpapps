@@ -38,6 +38,10 @@ export const config = {
   // P07 sync engine (full engine wired in P08). RUN_CRON gates whether this replica
   // runs the cron-driven sync loop; default off so merging P07 changes no boot behavior.
   runCron: process.env.RUN_CRON === 'on',
+  // EDGE-07: shared HMAC secret for the inbound Edge->EHR webhook receiver
+  // (POST /api/edge/webhook). Documentation/health only — the receiver reads
+  // process.env.EDGE_WEBHOOK_SECRET directly (lazy, matches dispatch.ts pattern).
+  edgeWebhookSecret: process.env.EDGE_WEBHOOK_SECRET || '',
   // HEAL-01 self-heal INVARIANT-CHECK layer. Ships DARK: alert-only, READ-ONLY.
   // Independent of RUN_CRON — the invariant pass runs on its own timer so invariants
   // can be flipped on WITHOUT arming the sync engine. Default off (behavior-neutral).

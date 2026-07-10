@@ -130,6 +130,16 @@ export async function writeModeForEntity(
       envRaw === 'verify' ? 'verify' :
       envRaw === 'dry' ? 'dry' :
       'off';
+  } else if (direction === 'edge_to_drchrono') {
+    // EDGE-07: highest-risk live-write extension (Edge -> DrChrono). Unset/garbage env
+    // MUST resolve to 'off' (NOT the GHL/DrChrono legs' 'dry' default) — mirrors the
+    // drchrono_to_edge OFF-default precedent (D-05, fail-closed floor).
+    const envRaw = env.SYNC_WRITE_EDGE_TO_DRCHRONO;
+    ceiling =
+      envRaw === 'on' ? 'on' :
+      envRaw === 'verify' ? 'verify' :
+      envRaw === 'dry' ? 'dry' :
+      'off';
   } else {
     const envRaw = direction === 'drchrono_to_ghl'
       ? env.SYNC_WRITE_DRCHRONO_TO_GHL

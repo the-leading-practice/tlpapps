@@ -22,7 +22,7 @@ export type MetricName =
   | 'sync_conflict_queue_size'
   | 'patients_dual_write_pg_fail';
 
-export type Direction = 'drchrono_to_ghl' | 'ghl_to_drchrono' | 'drchrono_to_edge';
+export type Direction = 'drchrono_to_ghl' | 'ghl_to_drchrono' | 'drchrono_to_edge' | 'edge_to_drchrono';
 
 type PerDirection = Record<Direction, { attempted: number; succeeded: number; failed: number }>;
 
@@ -46,6 +46,7 @@ const _perDirection: PerDirection = {
   drchrono_to_ghl: { attempted: 0, succeeded: 0, failed: 0 },
   ghl_to_drchrono: { attempted: 0, succeeded: 0, failed: 0 },
   drchrono_to_edge: { attempted: 0, succeeded: 0, failed: 0 },
+  edge_to_drchrono: { attempted: 0, succeeded: 0, failed: 0 },
 };
 
 function inc(name: MetricName, direction?: Direction): void {
@@ -77,6 +78,7 @@ function snapshot() {
       drchrono_to_ghl: { ..._perDirection.drchrono_to_ghl },
       ghl_to_drchrono: { ..._perDirection.ghl_to_drchrono },
       drchrono_to_edge: { ..._perDirection.drchrono_to_edge },
+      edge_to_drchrono: { ..._perDirection.edge_to_drchrono },
     },
   };
 }
