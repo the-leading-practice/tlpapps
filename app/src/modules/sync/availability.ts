@@ -256,9 +256,25 @@ export async function syncAvailabilityForLocation(
   }
 
   // Fetch DrChrono appointments and keep only break/blocked-time records.
-  const appts = deps.getAppointments
-    ? await deps.getAppointments(location)
-    : await defaultGetAppointments(location);
+  //
+  // CRITICAL (fail-closed reap): the fetch MUST throw on failure, never return an
+  // empty list. The stale-cleanup below deletes every persisted block whose source
+  // break is absent from this fetch — so a fetch that fails (DrChrono 429 / 5xx /
+  // token loss) and silently returns [] would reap ALL blocks, un-blocking every
+  // provider's vacation in GHL. On any fetch error we abort the whole run BEFORE
+  // touching GHL: no creates, no deletes, retry next cron tick.
+  let appts: DrChronoAppointment[];
+  try {
+    appts = deps.getAppointments
+      ? await deps.getAppointments(location)
+      : await defaultGetAppointments(location);
+  } catch (err: any) {
+    log.error(
+      { location: location.name, err: err?.message },
+      'availability: appointment fetch failed — aborting run (no create/reap) to avoid wiping blocks',
+    );
+    return { ...base, status: 502, skipped: true, reason: 'fetch-failed' };
+  }
   const breaks = appts.filter((a) => a.appt_is_break === true);
 
   // Resolve which breaks map to a GHL user; skip unmapped providers (no-op).
@@ -362,10 +378,18 @@ export async function syncAvailabilityForLocation(
   return base;
 }
 
-/** Default DrChrono appointment fetch for a location (used by the all-location driver). */
+/**
+ * Default DrChrono appointment fetch for a location (used by the all-location driver).
+ *
+ * THROWS on any failure (no config / token failure / non-2xx after 401-retry). The
+ * caller relies on this: a thrown error aborts the reap, whereas a returned []
+ * means "genuinely no breaks" and is safe to reap against. NEVER swallow a fetch
+ * failure into [] here — that would let a transient DrChrono 429/5xx wipe every
+ * persisted block. See the fail-closed guard in syncAvailabilityForLocation.
+ */
 async function defaultGetAppointments(location: DrChronoConfigLocation): Promise<DrChronoAppointment[]> {
   const cfg = await drChronoConfigService.getConfig();
-  if (!cfg) return [];
+  if (!cfg) throw new Error('availability: no drchrono config found');
   const tokenResp = await drChronoAuth.getValidToken(
     location.name,
     cfg.clientId,
@@ -376,7 +400,7 @@ async function defaultGetAppointments(location: DrChronoConfigLocation): Promise
   );
   if (tokenResp.status !== 200 || !tokenResp.accessToken) {
     log.error({ location: location.name }, 'availability: DrChrono token refresh failed');
-    return [];
+    throw new Error(`availability: DrChrono token refresh failed (status ${tokenResp.status})`);
   }
   const { startDate, endDate } = pollWindow(cfg.config.LookAheadDays);
   let client = drChronoAPIClient(tokenResp.accessToken);
@@ -399,8 +423,8 @@ async function defaultGetAppointments(location: DrChronoConfigLocation): Promise
     }
   }
   if (resp.status < 200 || resp.status >= 300) {
-    log.error({ location: location.name, err: resp.data }, 'availability: getAppointments failed');
-    return [];
+    log.error({ location: location.name, status: resp.status, err: resp.data }, 'availability: getAppointments failed');
+    throw new Error(`availability: getAppointments failed (status ${resp.status})`);
   }
   return resp.data as DrChronoAppointment[];
 }
