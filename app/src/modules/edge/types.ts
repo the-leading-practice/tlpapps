@@ -38,3 +38,51 @@ export interface EdgeConfigRepo {
   listMappings(location: string): Promise<EdgeMappingRow[]>;
   upsertMappings(location: string, rows: EdgeMappingInput[]): Promise<EdgeMappingRow[]>;
 }
+
+/**
+ * EDGE-03/04/05 — shared tenant context for Edge module wrappers
+ * (contacts/calendar/conversations). D-01 shape.
+ */
+export interface EdgeCtx {
+  edgeBusinessId: string;
+  token: string;
+  calendarId?: string;
+  locationId?: string;
+}
+
+/** Maps EdgeCtx -> EDGE-02 EdgeFetchContext; locationId falls back to edgeBusinessId. */
+export function toFetchCtx(ctx: EdgeCtx): { token: string; locationId?: string } {
+  return { token: ctx.token, locationId: ctx.locationId || ctx.edgeBusinessId };
+}
+
+/** Test seam shared by all edge/* wrapper modules. */
+export interface EdgeDeps {
+  fetchImpl?: typeof fetch;
+}
+
+/** Edge contact create/update payload (EMOD-01). No pipeline/custom-field concepts. */
+export interface EdgeContactInput {
+  firstName?: string;
+  lastName?: string;
+  name?: string;
+  email?: string;
+  phone?: string;
+  tags?: string[];
+  lifecycleStage?: string;
+  contactType?: 'lead' | 'prospect' | 'client' | 'partner' | 'staff' | 'agent';
+  source?: string;
+}
+
+/** Edge contact response shape. */
+export interface EdgeContactRecord {
+  id: string;
+  name?: string;
+  email?: string;
+  phone?: string;
+  tags?: string[];
+  lifecycle_stage?: string;
+  contact_type?: string;
+  source?: string;
+  lead_score?: number;
+  [key: string]: unknown;
+}
