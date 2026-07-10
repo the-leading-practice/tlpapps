@@ -19,7 +19,7 @@ import { logger } from '../../logger.js';
 
 const log = logger.child({ module: 'sync-ingest' });
 
-export type SyncSource = 'ghl' | 'drchrono';
+export type SyncSource = 'ghl' | 'drchrono' | 'edge';
 
 export interface IngestInput {
   source: SyncSource;

@@ -35,7 +35,7 @@ import { locations } from './config.js';
 
 // --- Enums -----------------------------------------------------------------
 
-export const syncSourceEnum = pgEnum('sync_source', ['ghl', 'drchrono']);
+export const syncSourceEnum = pgEnum('sync_source', ['ghl', 'drchrono', 'edge']);
 export const syncJobStatusEnum = pgEnum('sync_job_status', [
   'running',
   'succeeded',
@@ -215,7 +215,7 @@ export const syncVerifyCaptures = pgTable('sync_verify_captures', {
 
 // --- P14 sync_controls — per-(direction × entity) runtime toggles ---------------
 
-export const syncDirectionEnum = pgEnum('sync_direction', ['drchrono_to_ghl', 'ghl_to_drchrono', 'drchrono_to_edge']);
+export const syncDirectionEnum = pgEnum('sync_direction', ['drchrono_to_ghl', 'ghl_to_drchrono', 'drchrono_to_edge', 'edge_to_drchrono']);
 export const syncEntityEnum = pgEnum('sync_entity', ['patients', 'appointments']);
 export const syncControlModeEnum = pgEnum('sync_control_mode', ['off', 'dry', 'on']);
 
