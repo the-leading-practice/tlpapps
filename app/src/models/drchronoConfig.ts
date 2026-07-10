@@ -31,6 +31,12 @@ const drChronoConfigSchema = new mongoose.Schema(
         /** DrChrono appointment-profile id → GHL calendarId routing map (BIDI-01). */
         profileCalendarMap: { type: Object, required: false },
         /**
+         * DrChrono provider (doctor) id → { ghlUserId, calendarIds } map used by the
+         * availability (blocked-time) sync to route a provider's breaks to their GHL
+         * block-slots. Absent/empty → whole-location availability no-op.
+         */
+        providerAvailabilityMap: { type: Object, required: false },
+        /**
          * Cached DrChrono appointment profiles (last successful fetch). Lets the
          * calendar-map admin page render while DrChrono is rate-limited.
          */
