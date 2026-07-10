@@ -26,6 +26,9 @@ import {
 } from './drchrono.js';
 import { makeSinkHttp, type VerifyDirection } from './verify-sink.js';
 import { isLocationAllowed } from './allowlist.js';
+import { edgeWrite, type EdgeWriteDeps, type EdgeWriteEntity, type EdgeWriteVerb } from './edge.js';
+import { buildEdgeCtx } from './edge-ctx.js';
+import type { EdgeCtx } from '../../edge/types.js';
 
 // ---------------------------------------------------------------------------
 // Core types + env-only mode resolver (must precede writeModeForEntity)
@@ -40,7 +43,18 @@ export type WriteMode = 'off' | 'dry' | 'verify' | 'on';
  *
  * @deprecated Prefer `writeModeForEntity` for new code — it reads the DB toggle.
  */
-export function writeModeFor(target: SyncSystem, env: NodeJS.ProcessEnv = process.env): WriteMode {
+export function writeModeFor(
+  target: SyncSystem | 'edge',
+  env: NodeJS.ProcessEnv = process.env,
+): WriteMode {
+  if (target === 'edge') {
+    // drchrono_to_edge's unset default is 'off' (D-02) — NOT 'dry' like ghl/drchrono.
+    const v = env.SYNC_WRITE_EDGE;
+    if (v === 'on') return 'on';
+    if (v === 'dry') return 'dry';
+    if (v === 'verify') return 'verify';
+    return 'off';
+  }
   const v =
     target === 'ghl' ? env.SYNC_WRITE_DRCHRONO_TO_GHL : env.SYNC_WRITE_GHL_TO_DRCHRONO;
   if (v === 'on') return 'on';
@@ -173,17 +187,54 @@ function resolveSinkUrl(env: NodeJS.ProcessEnv = process.env): string {
   return env.SYNC_VERIFY_SINK_URL || `http://localhost:${port}/api/sync/verify-sink`;
 }
 
+/** EDGE-06 Plan 03: dispatch target additive union — 'edge' alongside the engine's
+ *  ghl/drchrono SyncSystem. Kept as a LOCAL union (not a decision.ts SyncSystem edit)
+ *  since 'edge' is never a decision.ts routing target — only an additive dispatch leg. */
+export type DispatchTarget = SyncSystem | 'edge';
+
+/**
+ * EDGE-06 Plan 03: build EdgeWriteDeps whose wrapper fns POST a capture envelope to the
+ * verify sink (via the SAME makeSinkHttp used by ghl/drchrono) instead of calling the
+ * real Edge wrapper — so verify-mode edge writes are network-isolated identically to
+ * the GHL/DrChrono verify paths. Each Edge wrapper's distinct signature is adapted to
+ * the sink's (url, options) shape with a synthetic URL/body describing the op.
+ */
+function edgeSinkDeps(
+  sinkUrl: string,
+  eventId: string,
+  direction: VerifyDirection,
+  http?: GhlHttp,
+): EdgeWriteDeps {
+  const sinkHttp = makeSinkHttp({ sinkUrl, direction, eventId, http });
+  const post = (opName: string, payload: unknown) =>
+    sinkHttp(`edge:${opName}`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(payload),
+    });
+  return {
+    createContact: async (_ctx, input) => post('contact:create', input),
+    updateContact: async (_ctx, id, input) => post('contact:update', { id, input }),
+    createBooking: async (_ctx, input) => post('appointment:create', input),
+    updateBooking: async (_ctx, id, input) => post('appointment:update', { id, input }),
+    cancelBooking: async (_ctx, id) => post('appointment:cancel', { id }),
+  };
+}
+
 export interface DispatchInput {
   eventId: string;
-  target: SyncSystem;
+  target: DispatchTarget;
   entity: GhlEntity | DcEntity;
   verb: GhlVerb | DcVerb;
   id?: string;
   body?: Record<string, unknown>;
-  /** EHR auth token; required only when mode === 'on'. */
+  /** EHR auth token; required only when mode === 'on'. Not used for target 'edge'
+   *  (buildEdgeCtx resolves+decrypts the Edge token internally). */
   token?: string;
-  /** GHL location id — used to resolve the location's exact suppression-tag spelling
-   *  for `on`-mode contact writes. Ignored for off/dry/verify and for drchrono. */
+  /** GHL-shaped location id — used to resolve the location's exact suppression-tag
+   *  spelling for `on`-mode GHL contact writes, AND (for target 'edge') as the SAME
+   *  id threaded through isLocationAllowed/FORBIDDEN_LOCATION_IDS and into
+   *  buildEdgeCtx. Ignored for off/dry/verify GHL writes and for drchrono. */
   locationId?: string;
 }
 
@@ -192,6 +243,12 @@ export interface DispatchDeps {
   ghlHttp?: GhlHttp;
   dcHttp?: DcHttp;
   retryDelayFactor?: number;
+  /** Injectable sink POST fn for edge verify-mode capture (mirrors ghlHttp/dcHttp shape). */
+  edgeHttp?: GhlHttp;
+  /** Injectable edgeWrite for tests (defaults to the real writer). */
+  edgeWriteFn?: typeof edgeWrite;
+  /** Injectable buildEdgeCtx for tests (defaults to the real resolver). */
+  buildEdgeCtxFn?: typeof buildEdgeCtx;
 }
 
 export type DispatchOutcome = 'skipped-off' | 'dry-logged' | 'verified' | 'written';
@@ -212,7 +269,11 @@ export async function dispatchWrite(
   const op = `${input.target}:${input.entity}:${input.verb}`;
 
   const direction: Direction =
-    input.target === 'ghl' ? 'drchrono_to_ghl' : 'ghl_to_drchrono';
+    input.target === 'ghl'
+      ? 'drchrono_to_ghl'
+      : input.target === 'edge'
+        ? 'drchrono_to_edge'
+        : 'ghl_to_drchrono';
 
   if (mode === 'off') {
     counters.sync_writes_skipped_off++;
@@ -243,7 +304,24 @@ export async function dispatchWrite(
   const verify = mode === 'verify';
   const sink = verify ? resolveSinkUrl() : undefined;
 
-  if (!verify && !input.token) {
+  // EDGE-06 Plan 03: target 'edge' resolves its EdgeCtx (decrypt + demo-guardrail) here,
+  // BEFORE the token guard below — edge never uses DispatchInput.token. Only ever called
+  // for on/verify (off/dry already returned above) — no DB read / decrypt on the dead path.
+  let edgeCtx: EdgeCtx | null = null;
+  if (input.target === 'edge') {
+    const buildCtx = deps.buildEdgeCtxFn ?? buildEdgeCtx;
+    edgeCtx = await buildCtx(input.locationId!, {});
+    if (!edgeCtx) {
+      log.warn(
+        { op, eventId: input.eventId, locationId: input.locationId },
+        'edge write refused — buildEdgeCtx returned null (demo-guardrail / missing prerequisite)',
+      );
+      syncCounters.inc('sync_writes_skipped_off');
+      return 'skipped-off';
+    }
+  }
+
+  if (!verify && input.target !== 'edge' && !input.token) {
     // mode === 'on' but no token — never attempt an unauthenticated live write. Treat as dry.
     log.error({ op, eventId: input.eventId }, 'write mode on but no token — refusing live write');
     return 'dry-logged';
@@ -252,7 +330,25 @@ export async function dispatchWrite(
   const token = input.token ?? '';
 
   try {
-    if (input.target === 'ghl') {
+    if (input.target === 'edge') {
+      const verifyDir: VerifyDirection = 'drchrono→edge';
+      const edgeWriteImpl = deps.edgeWriteFn ?? edgeWrite;
+      const edgeVerb: EdgeWriteVerb = input.verb === 'delete' ? 'cancel' : (input.verb as EdgeWriteVerb);
+      const edgeDeps: EdgeWriteDeps = verify
+        ? edgeSinkDeps(sink!, input.eventId, verifyDir, deps.edgeHttp)
+        : { retryDelayFactor: deps.retryDelayFactor };
+      await edgeWriteImpl(
+        {
+          eventId: input.eventId,
+          entity: input.entity as EdgeWriteEntity,
+          verb: edgeVerb,
+          ctx: edgeCtx!,
+          id: input.id,
+          body: input.body,
+        },
+        edgeDeps,
+      );
+    } else if (input.target === 'ghl') {
       const verifyDir: VerifyDirection = 'drchrono→ghl';
       const http = verify
         ? makeSinkHttp({ sinkUrl: sink!, direction: verifyDir, eventId: input.eventId, http: deps.ghlHttp })

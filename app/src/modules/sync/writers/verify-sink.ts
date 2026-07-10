@@ -18,7 +18,7 @@ import type { AttemptResult } from './shared.js';
 /** Writer-facing http signature (same shape as ghl.ts / drchrono.ts HttpFn). */
 export type HttpFn = (url: string, options: RequestInit) => Promise<AttemptResult>;
 
-export type VerifyDirection = 'ghl→drchrono' | 'drchrono→ghl';
+export type VerifyDirection = 'ghl→drchrono' | 'drchrono→ghl' | 'drchrono→edge';
 
 export interface SinkEnvelope {
   capturedAt: string;
