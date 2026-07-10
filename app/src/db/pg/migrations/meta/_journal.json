@@ -50,6 +50,13 @@
       "when": 1783694140537,
       "tag": "edge_0001_credentials_config",
       "breakpoints": true
+    },
+    {
+      "idx": 7,
+      "version": "7",
+      "when": 1783780540000,
+      "tag": "edge_0002_sync_direction_edge_value",
+      "breakpoints": true
     }
   ]
 }

@@ -7,6 +7,7 @@ import { logger } from './logger.js';
 import { initWebSocket } from './modules/rpc/index.js';
 import { initEmbodiSync } from './modules/embodi/sync.js';
 import { startEngine } from './modules/sync/engine.js';
+import { seedEdgeControls } from './modules/sync/edge-bootstrap.js';
 import { initInvariantsCron } from './modules/sync/invariants.js';
 import { initDrChronoPollCron } from './modules/drchrono/poll-cron.js';
 
@@ -14,6 +15,11 @@ async function main() {
   // Connect both databases on boot; fail fast if either is unreachable.
   await Promise.all([connectDB(), sql`select 1`]);
   logger.info('Connected to Postgres');
+
+  // EDGE-06 Plan 01: idempotently seed the drchrono_to_edge sync_controls rows (off).
+  // Runs AFTER migrations have committed (RUN_MIGRATIONS-gated, separate deploy step)
+  // and BEFORE startEngine(). Failure is swallowed — absent rows already fail-closed.
+  await seedEdgeControls().catch((err) => logger.warn({ err }, 'seedEdgeControls failed'));
 
   const app = createServer();
   const server = http.createServer(app);
