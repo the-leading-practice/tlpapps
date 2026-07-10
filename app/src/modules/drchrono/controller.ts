@@ -59,10 +59,19 @@ const createDrChronoController = () => {
       return 403;
     }
 
-    // Find which location this event belongs to based on the doctor ID
-    const location = (cfg.locations as any[]).find(
-      (l: any) => l.doctorId === payload.doctor,
-    ) as DrChronoConfigLocation | undefined;
+    // Find which location this event belongs to. Match the location's primary
+    // doctorId first; else match any provider registered in the location's
+    // providerAvailabilityMap (e.g. a massage provider like Jeffrey Fischer whose
+    // appointments route to this location but who is not the location's doctorId).
+    // Without the second check, that provider's webhooks are silently dropped and
+    // only picked up by the hourly cron poll.
+    const doctorId = payload.doctor;
+    const location = ((cfg.locations as any[]).find((l: any) => l.doctorId === doctorId)
+      ?? (cfg.locations as any[]).find(
+        (l: any) =>
+          l.providerAvailabilityMap &&
+          Object.keys(l.providerAvailabilityMap).some((k) => Number(k) === doctorId),
+      )) as DrChronoConfigLocation | undefined;
 
     if (!location) {
       console.warn(`webhook: no location found for doctor ${payload.doctor} -- skipping`);

@@ -130,7 +130,10 @@ const createDrChronoAuth = () => {
   };
 
   /**
-   * Returns a valid access token for a location, refreshing if within 5 minutes of expiry.
+   * Returns a valid access token for a location, refreshing if within 5 minutes
+   * of expiry. Pass `forceRefresh` to refresh unconditionally — used by sync
+   * callers to recover from a token that 401s despite not being expired (e.g.
+   * revoked by a re-auth), which otherwise silently halts all syncs until expiry.
    */
   const getValidToken = async (
     locationName: string,
@@ -139,10 +142,11 @@ const createDrChronoAuth = () => {
     accessToken: string,
     storedRefreshToken: string,
     tokenExpiry: number,
+    forceRefresh = false,
   ): Promise<{ status: number; accessToken: string }> => {
     const fiveMinutes = 5 * 60 * 1000;
 
-    if (Date.now() < tokenExpiry - fiveMinutes) {
+    if (!forceRefresh && Date.now() < tokenExpiry - fiveMinutes) {
       return { status: 200, accessToken };
     }
 
@@ -685,10 +689,27 @@ export const pollLocation = async (
     return;
   }
 
-  const client = drChronoAPIClient(tokenResp.accessToken);
+  let client = drChronoAPIClient(tokenResp.accessToken);
   const headers = buildLocationHeaders(location);
 
-  const apptResp = await client.getAppointments(startDate, endDate);
+  let apptResp = await client.getAppointments(startDate, endDate);
+  // Recover from a revoked-but-unexpired token: on 401, force-refresh once and retry.
+  if (apptResp.status === 401) {
+    console.warn(`appointment fetch 401 for ${location.name} — forcing token refresh`);
+    const refreshed = await drChronoAuth.getValidToken(
+      location.name,
+      clientId,
+      clientSecret,
+      location.accessToken,
+      location.refreshToken,
+      location.tokenExpiry,
+      true,
+    );
+    if (refreshed.status === 200 && refreshed.accessToken) {
+      client = drChronoAPIClient(refreshed.accessToken);
+      apptResp = await client.getAppointments(startDate, endDate);
+    }
+  }
   if (apptResp.status < 200 || apptResp.status >= 300) {
     console.error(`appointment fetch failed for ${location.name}: ${apptResp.data}`);
     return;
