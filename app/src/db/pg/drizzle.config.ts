@@ -7,6 +7,6 @@ export default defineConfig({
   // runtime resolution, but drizzle-kit's CJS bundler cannot rewrite
   // `./config.js` -> `config.ts`. Loading the source files directly sidesteps
   // that. Each future phase appends its domain file here (patients.ts, sync.ts).
-  schema: ['./schema/config.ts', './schema/patients.ts', './schema/sync.ts'],
+  schema: ['./schema/config.ts', './schema/patients.ts', './schema/sync.ts', './schema/edge.ts'],
   dialect: 'postgresql',
 });

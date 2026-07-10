@@ -43,6 +43,13 @@
       "when": 1780264441957,
       "tag": "0005_availability_blocks",
       "breakpoints": true
+    },
+    {
+      "idx": 6,
+      "version": "7",
+      "when": 1783694140537,
+      "tag": "edge_0001_credentials_config",
+      "breakpoints": true
     }
   ]
 }

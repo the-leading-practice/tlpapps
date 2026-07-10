@@ -94,6 +94,10 @@ export const config = {
     chatId: process.env.CLICKUP_CHAT_ID || '',
   },
   logPath: process.env.LOG_PATH || './logs',
+  // EDGE-01 — config-only, storage guardrail. Demo Titanium Edge business_id that
+  // write-mode Edge operations must resolve to until a location's edge_signed_off
+  // flag is explicitly true. No enforcement here (lands EDGE-06/09).
+  edgeDemoBusinessId: process.env.EDGE_DEMO_BUSINESS_ID || undefined,
 } as const;
 
 function buildMongoConnString(): string {
