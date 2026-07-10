@@ -248,6 +248,36 @@ describe('availability: mode=on write paths', () => {
 // stale cleanup
 // ---------------------------------------------------------------------------
 
+describe('availability: fetch failure is fail-closed (never reaps)', () => {
+  test('getAppointments throws → no create, no delete, reason=fetch-failed', async () => {
+    const createSpy = makeCreateBlockSpy();
+    const deleteSpy = makeDeleteBlockSpy();
+    // Store holds a live block whose source break WOULD be absent from an empty
+    // fetch — proving the reap is skipped because the fetch errored, not because
+    // the break is gone.
+    const store = makeStore([
+      { ghlLocationId: 'DEMO_LOC_TEST', drchronoBreakId: '42', ghlBlockId: 'ghl-block-live', ghlUserId: GHL_USER },
+    ]);
+    const deps: AvailabilityDeps = {
+      getMode: () => 'on',
+      checkAllowlist: () => true,
+      getAppointments: async () => {
+        throw new Error('DrChrono 429 Too Many Requests');
+      },
+      createBlock: createSpy.fn as any,
+      deleteBlock: deleteSpy.fn as any,
+      store,
+      mintToken: (async () => ({ token: 'jwt', ghlAccessToken: 'ghl' })) as any,
+    };
+    const res = await syncAvailabilityForLocation(makeLocation(), deps);
+    assert.equal(createSpy.calls, 0, 'fetch failed: no block created');
+    assert.equal(deleteSpy.calls, 0, 'fetch failed: MUST NOT reap any block');
+    assert.equal(res.reason, 'fetch-failed');
+    assert.equal(res.deleted, 0);
+    assert.ok(store.all().some((r) => r.drchronoBreakId === '42'), 'live block preserved');
+  });
+});
+
 describe('availability: stale cleanup', () => {
   test('previously-synced block whose source break is gone → deleteBlock attempted', async () => {
     const createSpy = makeCreateBlockSpy();
