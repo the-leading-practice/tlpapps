@@ -4,6 +4,7 @@
   import type { SyncControlRow } from './+page.js';
   import SyncCard from '$lib/components/Sync/SyncCard.svelte';
   import StatusPill from '$lib/components/Sync/StatusPill.svelte';
+  import AllowlistCard from '$lib/components/Sync/AllowlistCard.svelte';
   import Icon from '@iconify/svelte';
   import { formatDateTime, formatTime } from '$lib/utils/stringUtils';
 
@@ -70,8 +71,15 @@
     return `${row.direction}:${row.entity}`;
   }
 
+  const DIRECTION_LABELS: Record<string, string> = {
+    drchrono_to_ghl: 'DrChrono → GHL',
+    ghl_to_drchrono: 'GHL → DrChrono',
+    drchrono_to_edge: 'DrChrono → Edge',
+    edge_to_drchrono: 'Edge → DrChrono',
+  };
+
   function directionLabel(d: string) {
-    return d === 'drchrono_to_ghl' ? 'DrChrono → GHL' : 'GHL → DrChrono';
+    return DIRECTION_LABELS[d] ?? d;
   }
 
   function entityLabel(e: string) {
@@ -130,7 +138,7 @@
   <div>
     <h2 class="text-xl font-semibold text-base-content">Sync Controls</h2>
     <p class="text-xs text-base-content/50 mt-1">
-      Runtime toggles for the GHL ↔ DrChrono sync engine.
+      Runtime toggles for the GHL / Edge ↔ DrChrono sync engine.
       Env ceiling is the max mode permitted by the server environment — effective mode is the lower of the two.
     </p>
   </div>
@@ -194,6 +202,9 @@
       </table>
     </div>
   </SyncCard>
+
+  <!-- Location allowlist (read-only) -->
+  <AllowlistCard />
 
   <!-- Live SSE activity feed -->
   <SyncCard title="Live Sync Activity" padBody={false}>

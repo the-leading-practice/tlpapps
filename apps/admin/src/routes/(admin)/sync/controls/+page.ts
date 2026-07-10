@@ -8,7 +8,7 @@ export function load() {
 }
 
 export interface SyncControlRow {
-  direction: 'drchrono_to_ghl' | 'ghl_to_drchrono';
+  direction: 'drchrono_to_ghl' | 'ghl_to_drchrono' | 'drchrono_to_edge' | 'edge_to_drchrono';
   entity: 'patients' | 'appointments';
   mode: 'off' | 'dry' | 'on';
   env_ceiling: 'off' | 'dry' | 'on';
