@@ -14,6 +14,7 @@
 import { config } from '../../config.js';
 import { logger } from '../../logger.js';
 import { runFullPoll } from './services.js';
+import { runAvailabilitySync } from '../sync/availability.js';
 
 const log = logger.child({ module: 'drchrono-poll-cron' });
 
@@ -49,6 +50,10 @@ export async function initDrChronoPollCron(): Promise<void> {
       try {
         log.info('DrChrono poll cron tick — runFullPoll');
         await runFullPoll();
+        // DrChrono→GHL availability (blocked-time) mirror. No-op unless
+        // SYNC_WRITE_AVAILABILITY is on AND the location is allowlisted AND mapped;
+        // default OFF, so this is behavior-neutral until an operator enables it.
+        await runAvailabilitySync();
       } catch (err) {
         log.error({ err }, 'DrChrono poll cron tick failed');
       } finally {

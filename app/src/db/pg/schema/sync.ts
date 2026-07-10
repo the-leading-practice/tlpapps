@@ -238,6 +238,46 @@ export const syncControls = pgTable(
 export type SyncControl = typeof syncControls.$inferSelect;
 export type NewSyncControl = typeof syncControls.$inferInsert;
 
+// --- availability_blocks — DrChrono break → GHL block-slot idempotency map ------
+//
+// One row per DrChrono break record that has been mirrored into GHL as a
+// blocked-time slot (DrChrono→GHL availability sync). Keyed by (ghl_location_id,
+// drchrono_break_id) so each run can dedup (skip breaks already blocked) and
+// reap stale blocks (a break that vanished → delete its GHL block-slot). PG
+// greenfield; no Mongo equivalent. Behavior-neutral until SYNC_WRITE_AVAILABILITY
+// is turned on for an allowlisted location.
+
+export const availabilityBlocks = pgTable(
+  'availability_blocks',
+  {
+    id: uuid('id').primaryKey().defaultRandom(),
+    /** GHL location id (allowlist namespace) the block-slot lives in. */
+    ghlLocationId: text('ghl_location_id').notNull(),
+    /** DrChrono break appointment id (source of truth). */
+    drchronoBreakId: text('drchrono_break_id').notNull(),
+    /** GHL block-slot event id returned by the block-slots create call. */
+    ghlBlockId: text('ghl_block_id').notNull(),
+    /** DrChrono provider (doctor) id the break belongs to. */
+    providerId: text('provider_id'),
+    /** GHL user the block-slot was assigned to (from providerAvailabilityMap). */
+    ghlUserId: text('ghl_user_id'),
+    startTime: text('start_time'),
+    endTime: text('end_time'),
+    createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+    lastSeenAt: timestamp('last_seen_at', { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => ({
+    breakUnique: uniqueIndex('availability_blocks_location_break_unique').on(
+      t.ghlLocationId,
+      t.drchronoBreakId,
+    ),
+    locationIdx: index('availability_blocks_location_idx').on(t.ghlLocationId),
+  }),
+);
+
+export type AvailabilityBlock = typeof availabilityBlocks.$inferSelect;
+export type NewAvailabilityBlock = typeof availabilityBlocks.$inferInsert;
+
 // --- Inferred types (the row/insert contracts the P08 engine builds against) ---
 
 export type SyncJob = typeof syncJobs.$inferSelect;

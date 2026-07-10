@@ -65,11 +65,13 @@ function makeAppointments() {
   return [{ apptId: 1, patientId: 1, apptTime: '2026-06-10T09:00:00', apptStatus: 'Confirmed' }];
 }
 
-/** Build a fetch spy that records calls. */
+/** Build a fetch spy that records calls and the last request body. */
 function makeFetchSpy(status = 200) {
   let calls = 0;
-  const fn = async (_url: RequestInfo | URL, _init?: RequestInit): Promise<Response> => {
+  let lastBody: any = undefined;
+  const fn = async (_url: RequestInfo | URL, init?: RequestInit): Promise<Response> => {
     calls++;
+    if (init?.body) lastBody = JSON.parse(init.body as string);
     return {
       status,
       json: async () => ({ ok: true }),
@@ -77,7 +79,7 @@ function makeFetchSpy(status = 200) {
       statusText: 'OK',
     } as unknown as Response;
   };
-  return { fn, get calls() { return calls; } };
+  return { fn, get calls() { return calls; }, get lastBody() { return lastBody; } };
 }
 
 /** Build a client with injectable mode + allowlist + fetch. */
@@ -99,6 +101,8 @@ function buildClient(opts: {
     getModeAppointments: async () => modeAppointments,
     checkAllowlist: () => allowlistResult,
     httpFetch: fetchSpy.fn as unknown as typeof fetch,
+    // Stub the token mint so on-mode tests don't require a live Mongo/token lookup.
+    mintToken: (async () => ({ token: 'jwt', ghlAccessToken: 'ghl' })) as any,
   });
 }
 
@@ -174,6 +178,51 @@ describe('LEAK-1: sendAppointments origin-tag + fail-closed guards', () => {
     assert.equal(spy.calls, 0,
       'sendAppointments mode=dry: fetch must NOT be called');
     assert.equal((result.data as any).reason, 'mode-dry');
+  });
+});
+
+// ---------------------------------------------------------------------------
+// F-01: profileCalendarMap routing — unmapped profile must be a no-op
+// ---------------------------------------------------------------------------
+
+describe('F-01: unmapped DrChrono profile → no-op calendar (no default-calendar leak)', () => {
+  function apptWithProfile(profileId: number | null) {
+    return [{ apptId: 1, patientId: 1, apptTime: '2026-06-10T09:00:00', apptStatus: 'Confirmed', profileId }];
+  }
+  function headersWithMap(map?: Record<string, string>) {
+    return { ...makeHeaders('GHL_TEST_ALLOWED_LOC'), profileCalendarMap: map };
+  }
+
+  test('mapped profile → routed to its GHL calendar', async () => {
+    const spy = makeFetchSpy();
+    const client = buildClient({ modeAppointments: 'on', allowlistResult: true, fetchSpy: spy });
+    await client.sendAppointments(
+      apptWithProfile(158404) as any,
+      headersWithMap({ '158404': 'ootctf73EtcxN93ln7Ok' }) as any,
+    );
+    assert.equal(spy.lastBody.appointments[0].calendarId, 'ootctf73EtcxN93ln7Ok');
+  });
+
+  test('unmapped profile WITH a configured map → empty calendarId (no-op)', async () => {
+    const spy = makeFetchSpy();
+    const client = buildClient({ modeAppointments: 'on', allowlistResult: true, fetchSpy: spy });
+    await client.sendAppointments(
+      apptWithProfile(158402) as any, // ROF — not in DW map
+      headersWithMap({ '158404': 'ootctf73EtcxN93ln7Ok' }) as any,
+    );
+    assert.equal(spy.lastBody.appointments[0].calendarId, '',
+      'unmapped profile must NOT leak to the default calendar');
+  });
+
+  test('profile set but NO map configured → default-calendar fallback (legacy unchanged)', async () => {
+    const spy = makeFetchSpy();
+    const client = buildClient({ modeAppointments: 'on', allowlistResult: true, fetchSpy: spy });
+    await client.sendAppointments(
+      apptWithProfile(999) as any,
+      headersWithMap(undefined) as any,
+    );
+    assert.equal(spy.lastBody.appointments[0].calendarId, 'cal1',
+      'no profileCalendarMap → keep pre-BIDI default fallback');
   });
 });
 
