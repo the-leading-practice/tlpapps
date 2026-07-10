@@ -211,7 +211,7 @@ export async function syncAvailabilityForLocation(
   deps: AvailabilityDeps = {},
 ): Promise<AvailabilityResult> {
   const getMode = deps.getMode ?? resolveAvailabilityMode;
-  const checkAllowlist = deps.checkAllowlist ?? isLocationAllowed;
+  const checkAllowlist = deps.checkAllowlist ?? ((ghlLocationId: string) => isLocationAllowed(ghlLocationId, 'ghl'));
   const createBlock = deps.createBlock ?? integrationService.createBlock;
   const deleteBlock = deps.deleteBlock ?? appointmentGHLService.deleteCalendarBlock;
   const store = deps.store ?? drizzleAvailabilityStore;

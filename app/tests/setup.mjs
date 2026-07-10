@@ -37,3 +37,8 @@ process.env.TOKEN_KEY ||= 'test-token-key';
 // writes must have the target locationId present here.
 process.env.SYNC_WRITE_LOCATION_ALLOWLIST ||=
   'DEMO_LOC_TEST,DEMO_LOC_TEST_A,DEMO_LOC_TEST_B,SAFE_TEST_LOC_001';
+
+// EDGE-10 Plan 03 (ECUT-03): Edge-bucket env fallback sentinel. Only synthetic
+// test IDs; never a real-practice GHL location ID. Used as the fallback when
+// the DB overlay has zero edge allow-rows.
+process.env.SYNC_WRITE_EDGE_LOCATION_ALLOWLIST ||= 'DEMO_LOC_TEST,DEMO_EDGE_TEST';

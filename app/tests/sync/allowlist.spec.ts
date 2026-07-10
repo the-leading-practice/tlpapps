@@ -25,11 +25,11 @@ describe('sync allowlist', () => {
       '../../src/modules/sync/writers/allowlist.js'
     );
     // Empty allowlist must deny everything, including a plausible demo location.
-    assert.equal(isLocationAllowed('DEMO_LOCATION_123', {}), false,
+    assert.equal(isLocationAllowed('DEMO_LOCATION_123', 'ghl', {}), false,
       'Empty allowlist must deny non-forbidden ID (fail-closed)');
-    assert.equal(isLocationAllowed('some-other-id-abc', {}), false,
+    assert.equal(isLocationAllowed('some-other-id-abc', 'ghl', {}), false,
       'Empty allowlist must deny any ID (fail-closed)');
-    assert.equal(isLocationAllowed('wP3Ynm3Z63rIC4zVAgXP', {}), false,
+    assert.equal(isLocationAllowed('wP3Ynm3Z63rIC4zVAgXP', 'ghl', {}), false,
       'Empty allowlist must deny demo GHL location (fail-closed)');
   });
 
@@ -39,9 +39,9 @@ describe('sync allowlist', () => {
     );
     const env = { SYNC_WRITE_LOCATION_ALLOWLIST: 'DEMO_LOC_A,DEMO_LOC_B' } as NodeJS.ProcessEnv;
 
-    assert.equal(isLocationAllowed('DEMO_LOC_A', env), true);
-    assert.equal(isLocationAllowed('DEMO_LOC_B', env), true);
-    assert.equal(isLocationAllowed('DEMO_LOC_C', env), false);
+    assert.equal(isLocationAllowed('DEMO_LOC_A', 'ghl', env), true);
+    assert.equal(isLocationAllowed('DEMO_LOC_B', 'ghl', env), true);
+    assert.equal(isLocationAllowed('DEMO_LOC_C', 'ghl', env), false);
   });
 
   it('3. forbidden IDs always blocked — even when allowlist is open', async () => {
@@ -53,7 +53,7 @@ describe('sync allowlist', () => {
     const env = { SYNC_WRITE_LOCATION_ALLOWLIST: forbidden.join(',') } as NodeJS.ProcessEnv;
 
     for (const id of FORBIDDEN_LOCATION_IDS) {
-      assert.equal(isLocationAllowed(id, env), false,
+      assert.equal(isLocationAllowed(id, 'ghl', env), false,
         `Forbidden ID ${id} must be blocked even when in SYNC_WRITE_LOCATION_ALLOWLIST`);
     }
   });
@@ -65,9 +65,9 @@ describe('sync allowlist', () => {
     const forbiddenId = 'Xcfa7iOs2FvSeKfZYNH6';
     const env = { SYNC_WRITE_LOCATION_ALLOWLIST: `${forbiddenId},DEMO_LOC_SAFE` } as NodeJS.ProcessEnv;
 
-    assert.equal(isLocationAllowed(forbiddenId, env), false,
+    assert.equal(isLocationAllowed(forbiddenId, 'ghl', env), false,
       'Forbidden real-practice ID must be blocked even when in allowlist');
-    assert.equal(isLocationAllowed('DEMO_LOC_SAFE', env), true,
+    assert.equal(isLocationAllowed('DEMO_LOC_SAFE', 'ghl', env), true,
       'Safe ID alongside a forbidden ID must still pass');
   });
 
@@ -77,9 +77,9 @@ describe('sync allowlist', () => {
     );
     const env = { SYNC_WRITE_LOCATION_ALLOWLIST: 'DEMO_LOC_A' } as NodeJS.ProcessEnv;
 
-    assert.equal(isLocationAllowed(null, env), false);
-    assert.equal(isLocationAllowed(undefined, env), false);
-    assert.equal(isLocationAllowed('', env), false);
+    assert.equal(isLocationAllowed(null, 'ghl', env), false);
+    assert.equal(isLocationAllowed(undefined, 'ghl', env), false);
+    assert.equal(isLocationAllowed('', 'ghl', env), false);
   });
 
   it('6. per-call re-evaluation — empty env first call, populated env second call → reflects new allowlist (CR-04)', async () => {
@@ -90,15 +90,15 @@ describe('sync allowlist', () => {
     const populatedEnv = { SYNC_WRITE_LOCATION_ALLOWLIST: 'DEMO_LOC_DYNAMIC' } as NodeJS.ProcessEnv;
 
     // First call with empty env — must deny (fail-closed).
-    assert.equal(isLocationAllowed('DEMO_LOC_DYNAMIC', emptyEnv), false,
+    assert.equal(isLocationAllowed('DEMO_LOC_DYNAMIC', 'ghl', emptyEnv), false,
       'Empty env must deny on first call');
 
     // Second call with populated env — must now allow (no restart required).
-    assert.equal(isLocationAllowed('DEMO_LOC_DYNAMIC', populatedEnv), true,
+    assert.equal(isLocationAllowed('DEMO_LOC_DYNAMIC', 'ghl', populatedEnv), true,
       'Populated env must allow on subsequent call without restart (CR-04 fix)');
 
     // And going back to empty denies again — not stuck open.
-    assert.equal(isLocationAllowed('DEMO_LOC_DYNAMIC', emptyEnv), false,
+    assert.equal(isLocationAllowed('DEMO_LOC_DYNAMIC', 'ghl', emptyEnv), false,
       'Returning to empty env must deny again (not stuck open)');
   });
 });

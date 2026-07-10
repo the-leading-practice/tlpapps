@@ -36,7 +36,7 @@ describe('CR-01: allowlist fail-closed', () => {
     ];
     for (const id of realishIds) {
       assert.equal(
-        isLocationAllowed(id, {}),
+        isLocationAllowed(id, 'ghl', {}),
         false,
         `CR-01: empty allowlist must deny ${id}`,
       );
@@ -50,7 +50,7 @@ describe('CR-01: allowlist fail-closed', () => {
     const [forbiddenId] = [...FORBIDDEN_LOCATION_IDS];
     const env = { SYNC_WRITE_LOCATION_ALLOWLIST: forbiddenId } as NodeJS.ProcessEnv;
     assert.equal(
-      isLocationAllowed(forbiddenId, env),
+      isLocationAllowed(forbiddenId, 'ghl', env),
       false,
       'CR-01: forbidden id must be denied even if explicitly in allowlist',
     );
@@ -62,7 +62,7 @@ describe('CR-01: allowlist fail-closed', () => {
     );
     const env = { SYNC_WRITE_LOCATION_ALLOWLIST: 'SAFE_TEST_LOC_001' } as NodeJS.ProcessEnv;
     assert.equal(
-      isLocationAllowed('SAFE_TEST_LOC_001', env),
+      isLocationAllowed('SAFE_TEST_LOC_001', 'ghl', env),
       true,
       'CR-01: explicitly allowlisted non-forbidden id must pass',
     );
@@ -149,7 +149,7 @@ describe('CR-02: legacy drchrono path uses correct ID namespace', () => {
     const tlpStyleId = '12345'; // typical TLP numeric location id
 
     assert.equal(
-      isLocationAllowed(tlpStyleId, env),
+      isLocationAllowed(tlpStyleId, 'ghl', env),
       false,
       'CR-02: TLP numeric location id must not pass a GHL-id allowlist',
     );
@@ -164,7 +164,7 @@ describe('CR-02: legacy drchrono path uses correct ID namespace', () => {
 
     const env = { SYNC_WRITE_LOCATION_ALLOWLIST: 'DIFFERENT_LOC_ID' } as NodeJS.ProcessEnv;
     assert.equal(
-      isLocationAllowed('wP3Ynm3Z63rIC4zVAgXP', env),
+      isLocationAllowed('wP3Ynm3Z63rIC4zVAgXP', 'ghl', env),
       false,
       'CR-02: non-allowlisted GHL location id must be denied',
     );

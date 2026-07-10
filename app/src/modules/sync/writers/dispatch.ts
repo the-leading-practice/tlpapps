@@ -308,7 +308,7 @@ export async function dispatchWrite(
 
   // Allowlist guard — last-line-of-defense before any live/verify write.
   // Forbidden real-practice IDs are hard-blocked here regardless of mode.
-  if (!isLocationAllowed(input.locationId)) {
+  if (!isLocationAllowed(input.locationId, input.target === 'edge' ? 'edge' : 'ghl')) {
     log.error(
       { op, eventId: input.eventId, locationId: input.locationId },
       'write blocked — location not in allowlist (or is a forbidden real-practice ID)',

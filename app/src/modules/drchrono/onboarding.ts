@@ -81,7 +81,7 @@ export async function onboardCalendars(): Promise<OnboardSummary> {
     };
 
     // SAFETY gate — only allowlisted (demo) locations may receive GHL calendar writes.
-    if (!ghlLocationId || !isLocationAllowed(ghlLocationId)) {
+    if (!ghlLocationId || !isLocationAllowed(ghlLocationId, 'ghl')) {
       result.skipped = 'not-allowlisted';
       log.info({ location: location.name, ghlLocationId }, 'onboard: skipped (not allowlisted)');
       summary.results.push(result);

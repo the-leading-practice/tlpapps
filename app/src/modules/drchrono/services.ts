@@ -411,7 +411,7 @@ export const createPatientServiceClient = (deps: PatientServiceClientDeps = {}) 
     writeModeForEntity('drchrono_to_ghl', 'patients').catch(() => 'off' as const));
   const resolveModeAppt = deps.getModeAppointments ?? (() =>
     writeModeForEntity('drchrono_to_ghl', 'appointments').catch(() => 'off' as const));
-  const checkAllowlist = deps.checkAllowlist ?? isLocationAllowed;
+  const checkAllowlist = deps.checkAllowlist ?? ((id: string) => isLocationAllowed(id, 'ghl'));
   const httpFetch = deps.httpFetch ?? fetch;
   const mintToken = deps.mintToken ?? mintTokenForLocation;
 
