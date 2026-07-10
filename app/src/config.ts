@@ -98,6 +98,10 @@ export const config = {
   // write-mode Edge operations must resolve to until a location's edge_signed_off
   // flag is explicitly true. No enforcement here (lands EDGE-06/09).
   edgeDemoBusinessId: process.env.EDGE_DEMO_BUSINESS_ID || undefined,
+  // EDGE-02 — Titanium Edge REST `/api/*` base URL for the edge client (dark/additive).
+  edge: {
+    apiUrl: process.env.EDGE_API_URL || 'https://app.titaniumedge.ai',
+  },
 } as const;
 
 function buildMongoConnString(): string {
