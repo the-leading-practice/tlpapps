@@ -121,6 +121,10 @@ export const syncMappings = pgTable(
     version: integer('version').notNull().default(0),
     lastSyncedAt: timestamp('last_synced_at', { withTimezone: true }),
     lastHash: text('last_hash'),
+    // EDGE-10 Plan 01 (ECUT-02): additive, nullable Edge id alongside the existing
+    // DrChrono + GHL ids. NULL for every pre-existing row — zero backfill, no
+    // default, behavior-neutral until an Edge writer starts populating it.
+    edgeId: text('edge_id'),
   },
   (t) => ({
     drchronoUnique: uniqueIndex('sync_mappings_kind_drchrono_location_unique').on(
