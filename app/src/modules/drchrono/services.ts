@@ -194,6 +194,27 @@ export const drChronoAPIClient = (token: string) => {
   });
 
   /**
+   * GET with 429 backoff. DrChrono rate-limits reads; a burst (the poll fetches
+   * the full look-ahead window, then availability fetches it again) trips 429.
+   * Retry the read up to `maxRetries` times, honoring `Retry-After` when present
+   * else exponential backoff (0.5s, 1s, 2s, 4s…, capped 30s). Read-only — only
+   * used by the paginated GET helpers, never by writes. A non-429 response (incl.
+   * 401) returns immediately so the caller's existing handling still applies.
+   */
+  const getWithRetry = async (url: string, maxRetries = 5): Promise<Response> => {
+    for (let attempt = 0; ; attempt++) {
+      const resp = await fetch(url, { method: 'GET', headers: authHeaders() });
+      if (resp.status !== 429 || attempt >= maxRetries) return resp;
+      const retryAfter = Number(resp.headers.get('retry-after'));
+      const backoffMs = Number.isFinite(retryAfter) && retryAfter > 0
+        ? retryAfter * 1000
+        : Math.min(30_000, 500 * 2 ** attempt);
+      dcLog.warn({ url, attempt: attempt + 1, backoffMs }, 'DrChrono 429 — backing off before retry');
+      await new Promise((r) => setTimeout(r, backoffMs));
+    }
+  };
+
+  /**
    * Get appointments for a date range.
    * DrChrono expects date_range as "YYYY-MM-DD/YYYY-MM-DD"
    * Handles pagination automatically, returning all results.
@@ -206,7 +227,7 @@ export const drChronoAPIClient = (token: string) => {
     let url: string | null = `${DRCHRONO_API}/api/appointments?date_range=${startDate}%2F${endDate}`;
 
     while (url) {
-      const resp = await fetch(url, { method: 'GET', headers: authHeaders() });
+      const resp = await getWithRetry(url);
       const result = await processResp<DrChronoListResponse<DrChronoAppointment>>(resp);
 
       if (result.status < 200 || result.status >= 300) {
@@ -228,7 +249,7 @@ export const drChronoAPIClient = (token: string) => {
     patientId: number,
   ): Promise<{ status: number; data: DrChronoPatient | string }> => {
     const url = `${DRCHRONO_API}/api/patients/${patientId}`;
-    const resp = await fetch(url, { method: 'GET', headers: authHeaders() });
+    const resp = await getWithRetry(url);
     return processResp<DrChronoPatient>(resp);
   };
 
@@ -246,7 +267,7 @@ export const drChronoAPIClient = (token: string) => {
     }`;
 
     while (url) {
-      const resp = await fetch(url, { method: 'GET', headers: authHeaders() });
+      const resp = await getWithRetry(url);
       const result = await processResp<DrChronoListResponse<DrChronoPatient>>(resp);
 
       if (result.status < 200 || result.status >= 300) {
@@ -275,7 +296,7 @@ export const drChronoAPIClient = (token: string) => {
     }`;
 
     while (url) {
-      const resp = await fetch(url, { method: 'GET', headers: authHeaders() });
+      const resp = await getWithRetry(url);
       const result = await processResp<DrChronoListResponse<DrChronoAppointmentProfile>>(resp);
 
       if (result.status < 200 || result.status >= 300) {
