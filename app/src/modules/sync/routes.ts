@@ -15,8 +15,10 @@ import { logger } from '../../logger.js';
 import { syncCounters } from './metrics.js';
 import { runInvariants } from './invariants.js';
 import { runAvailabilitySync } from './availability.js';
-import { buildAllowlist } from './writers/allowlist.js';
+import { buildAllowlist, buildEdgeEnvAllowlist } from './writers/allowlist.js';
+import { syncWriteAllowlist } from '../../db/pg/schema/sync.js';
 import { reconcileEdgeDrift } from './reconcile-edge.js';
+import { cutoverLocationToEdge } from './cutover.js';
 
 const log = logger.child({ module: 'sync-routes' });
 const router = Router();
@@ -301,17 +303,70 @@ router.patch('/sync/controls/:direction/:entity', async (req: Request, res: Resp
 });
 
 /**
- * GET /api/sync/allowlist — read-only surface of the shared per-location write
- * allowlist (D-02/D-03). Single global allowlist reused across GHL/DrChrono/Edge
- * directions — no separate edge allowlist. Fail-closed: denyAll=true when the
- * env var is unset/empty (buildAllowlist returns null in that case).
+ * GET /api/sync/allowlist — read-only surface of the per-destination write
+ * allowlists (EDGE-10 Plan 03 / ECUT-03). Returns both buckets separately:
+ *   - ghl:  env base MINUS the DB deny-row overlay (byte-identical to the
+ *           pre-ECUT-03 single allowlist when the overlay is empty).
+ *   - edge: DB allow-row overlay, or env fallback when the overlay is empty.
+ * Fail-closed in display: denyAll=true when the effective bucket is empty.
+ * Read-only — no writes here (cutover.ts owns writes).
  */
 router.get('/sync/allowlist', async (_req: Request, res: Response) => {
-  const allowlist = buildAllowlist(process.env);
+  const ghlEnv = buildAllowlist(process.env);
+  const edgeEnv = buildEdgeEnvAllowlist(process.env);
+
+  let ghlDenied = new Set<string>();
+  let edgeAllowed = new Set<string>();
+  try {
+    const rows = await db.select().from(syncWriteAllowlist);
+    for (const row of rows) {
+      if (row.destination === 'ghl' && row.allowed === false) ghlDenied.add(row.locationId);
+      if (row.destination === 'edge' && row.allowed === true) edgeAllowed.add(row.locationId);
+    }
+  } catch (err) {
+    log.warn({ err }, 'GET /sync/allowlist: overlay read failed; displaying env-only view');
+  }
+
+  const ghlLocations = ghlEnv === null ? [] : [...ghlEnv].filter((id) => !ghlDenied.has(id));
+  const edgeLocations =
+    edgeAllowed.size > 0 ? [...edgeAllowed] : edgeEnv === null ? [] : [...edgeEnv];
+
   res.json({
-    locations: allowlist === null ? [] : Array.from(allowlist),
-    denyAll: allowlist === null || allowlist.size === 0,
+    ghl: { locations: ghlLocations, denyAll: ghlLocations.length === 0 },
+    edge: { locations: edgeLocations, denyAll: edgeLocations.length === 0 },
   });
+});
+
+/**
+ * POST /api/sync/cutover/:location — EDGE-10 Plan 03 (ECUT-03). Moves ONE
+ * location from the GHL allowlist to the Edge allowlist (per-location, no
+ * deploy). Fail-closed: refused (409) unless edge_signed_off=true AND the
+ * SYNC_WRITE_EDGE ceiling is 'on'. :location is the NUMERIC locations.id.
+ */
+router.post('/sync/cutover/:location', async (req: Request, res: Response) => {
+  const locationId = parseInt(String(req.params.location), 10);
+  if (!Number.isFinite(locationId)) {
+    res.status(400).json({ error: 'location must be a valid integer (locations.id)' });
+    return;
+  }
+
+  const updatedBy = (req as any).payload?.location ?? 'operator';
+
+  try {
+    const result = await cutoverLocationToEdge(locationId, { updatedBy });
+    if (result.ok) {
+      res.status(200).json(result);
+      return;
+    }
+    if (result.refused === 'location_not_found') {
+      res.status(400).json({ error: 'location not found', refused: result.refused });
+      return;
+    }
+    res.status(409).json({ error: 'cutover refused', refused: result.refused });
+  } catch (err) {
+    log.error({ err, locationId }, 'POST /sync/cutover failed');
+    res.status(500).json({ error: 'internal error' });
+  }
 });
 
 // ---------------------------------------------------------------------------
