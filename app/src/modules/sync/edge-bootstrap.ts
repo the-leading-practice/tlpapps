@@ -5,6 +5,10 @@
  * cannot safely share a pending batch with the ADD VALUE that creates it (55P04). This
  * seed runs on its own connection AFTER migrate() has already committed the enum value.
  *
+ * EDGE-07 Plan 01 extends this same seed to also cover the inbound edge_to_drchrono
+ * direction (edge_0003 migration, same 55P04 constraint applies — seed runs post-commit
+ * on its own connection).
+ *
  * Safety: absent control rows already resolve to 'off' via writeModeForEntity's
  * fail-closed floor (see writers/dispatch.ts) — this seed exists ONLY so the control
  * panel has rows to render/toggle, never for write-path safety. A seed failure is
@@ -17,8 +21,8 @@ import { logger } from '../../logger.js';
 const log = logger.child({ module: 'edge-bootstrap' });
 
 /**
- * Idempotently insert the two drchrono_to_edge control rows (off) if absent.
- * ON CONFLICT DO NOTHING — safe to call on every boot. Never throws.
+ * Idempotently insert the drchrono_to_edge + edge_to_drchrono control rows (off) if
+ * absent. ON CONFLICT DO NOTHING — safe to call on every boot. Never throws.
  */
 export async function seedEdgeControls(): Promise<void> {
   try {
@@ -26,12 +30,14 @@ export async function seedEdgeControls(): Promise<void> {
       INSERT INTO sync_controls (direction, entity, mode, updated_at)
       VALUES
         ('drchrono_to_edge', 'patients', 'off', now()),
-        ('drchrono_to_edge', 'appointments', 'off', now())
+        ('drchrono_to_edge', 'appointments', 'off', now()),
+        ('edge_to_drchrono', 'patients', 'off', now()),
+        ('edge_to_drchrono', 'appointments', 'off', now())
       ON CONFLICT (direction, entity) DO NOTHING
     `;
-    log.info('seedEdgeControls: drchrono_to_edge control rows ensured (off)');
+    log.info('seedEdgeControls: drchrono_to_edge + edge_to_drchrono control rows ensured (off)');
   } catch (err) {
     // Never crash boot on a seed failure — absent rows are already fail-closed to 'off'.
-    log.warn({ err }, 'seedEdgeControls: failed to seed drchrono_to_edge control rows (non-fatal)');
+    log.warn({ err }, 'seedEdgeControls: failed to seed edge control rows (non-fatal)');
   }
 }
