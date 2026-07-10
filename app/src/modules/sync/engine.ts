@@ -194,6 +194,35 @@ async function processOne(ev: SyncEvent): Promise<Outcome> {
     'sync write dispatched',
   );
 
+  // EDGE-06 Plan 03: ADDITIVE Edge dispatch on the drchrono->X outbound path only.
+  // Own try/catch — an Edge-side throw must NEVER break the GHL/DrChrono leg above,
+  // which has already completed by this point. Threads the SAME GHL-shaped
+  // normalized.locationId the GHL leg used (`ghlLocationId`, NOT edge_location_config's
+  // internal locations.id) so isLocationAllowed/FORBIDDEN_LOCATION_IDS protect the Edge
+  // leg identically. Because SYNC_WRITE_EDGE defaults 'off' and the seeded control rows
+  // default 'off' (fail-closed, EDGE-06 Plan 01), this is ZERO behavior change to the
+  // GHL/DrChrono path above when disabled — Phase 10 formalizes true dual-destination.
+  if (source === 'drchrono') {
+    try {
+      const edgeMode = await writeModeForEntity('drchrono_to_edge', controlEntity);
+      const edgeOutcome = await dispatchWrite({
+        eventId: ev.id,
+        target: 'edge',
+        entity: dispatchEntity,
+        verb,
+        id: targetId,
+        body: decision.payload ?? undefined,
+        locationId: ghlLocationId,
+      }, { mode: edgeMode });
+      log.info(
+        { eventId: ev.id, edgeMode, verb, edgeOutcome },
+        'edge dispatch (additive, drchrono->edge)',
+      );
+    } catch (err) {
+      log.error({ err, eventId: ev.id }, 'edge dispatch failed — GHL/DrChrono path unaffected');
+    }
+  }
+
   await persistState(source, normalized, incomingHash);
   await markProcessed(ev);
   return 'processed';
