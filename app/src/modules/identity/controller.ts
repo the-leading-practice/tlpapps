@@ -67,7 +67,7 @@ export async function ensureFreshAccessToken(record: any): Promise<string> {
     throw err;
   }
 
-  const expiresAt: number | undefined = record.get('expiresAt');
+  const expiresAt: number | undefined = record.expiresAt;
   const fresh = typeof expiresAt === 'number' && Date.now() < expiresAt - REFRESH_SKEW_MS;
   if (fresh) return parsed.access_token;
 
@@ -90,7 +90,7 @@ export async function ensureFreshAccessToken(record: any): Promise<string> {
       const newBlob: Token = resp.data;
       record.token = cryptoService.encrypt(JSON.stringify(newBlob));
       const ttlSec = typeof newBlob.expires_in === 'number' ? newBlob.expires_in : 86400;
-      record.set('expiresAt', Date.now() + ttlSec * 1000);
+      record.expiresAt = Date.now() + ttlSec * 1000;
       await record.save();
       log.info({ location }, 'GHL access token auto-refreshed');
       return newBlob.access_token;

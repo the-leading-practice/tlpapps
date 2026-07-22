@@ -157,6 +157,8 @@ before(async () => {
         timezone: 'America/Chicago',
         name: 'Embed Practice',
         token: encryptedHex,
+        // Fresh token — keeps ensureFreshAccessToken off the GHL refresh path (no network).
+        expiresAt: Date.now() + 86400 * 1000,
         pushGHL: false,
         pushAppt: true,
         pushPat: false,
@@ -176,6 +178,10 @@ before(async () => {
   const srv = await listen(app);
   port = srv.port;
   closeServer = srv.close;
+});
+
+after(async () => {
+  await closeServer();
 });
 
 // ---------------------------------------------------------------------------
