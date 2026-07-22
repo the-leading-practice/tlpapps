@@ -14,6 +14,11 @@
 process.env.DATABASE_URL = process.env.DATABASE_URL || 'postgres://u:p@127.0.0.1:1/none';
 delete process.env.SYNC_WRITE_DRCHRONO_TO_GHL;
 delete process.env.SYNC_WRITE_GHL_TO_DRCHRONO;
+// dispatchWrite's fail-closed allowlist guard (writers/allowlist.ts) blocks every
+// location unless listed — allow the synthetic test locations only.
+process.env.SYNC_WRITE_LOCATION_ALLOWLIST = [process.env.SYNC_WRITE_LOCATION_ALLOWLIST, 'loc-A,loc-B,loc-C,loc-D,loc-E']
+  .filter(Boolean)
+  .join(',');
 
 import { test, beforeEach } from 'node:test';
 import assert from 'node:assert/strict';

@@ -82,12 +82,14 @@ export function verifyGhlSignature(
   }
 
   // 2. HMAC shared-secret verification (workflow/custom webhooks).
-  if (secret) {
-    const expectedHex = crypto.createHmac('sha256', secret).update(body).digest('hex');
-    const expectedB64 = crypto.createHmac('sha256', secret).update(body).digest('base64');
-    if (timingSafeEqualStr(provided, expectedHex)) return { ok: true, reason: 'hmac-hex' };
-    if (timingSafeEqualStr(provided, expectedB64)) return { ok: true, reason: 'hmac-base64' };
-  }
+  // No shared secret configured — still fail CLOSED, but with a distinct reason so a
+  // prod misconfiguration is obvious in the 401 body/logs (vs a genuine bad signature).
+  if (!secret) return { ok: false, reason: 'no-secret-configured' };
+
+  const expectedHex = crypto.createHmac('sha256', secret).update(body).digest('hex');
+  const expectedB64 = crypto.createHmac('sha256', secret).update(body).digest('base64');
+  if (timingSafeEqualStr(provided, expectedHex)) return { ok: true, reason: 'hmac-hex' };
+  if (timingSafeEqualStr(provided, expectedB64)) return { ok: true, reason: 'hmac-base64' };
 
   return { ok: false, reason: 'signature-mismatch' };
 }

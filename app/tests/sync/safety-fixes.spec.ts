@@ -15,8 +15,17 @@
  *   - self-authored inbound appointment → skip-loop (origin.isSelfAuthored check)
  */
 
-import { test, describe } from 'node:test';
+import { test, describe, after } from 'node:test';
 import assert from 'node:assert/strict';
+
+// writeModeForEntity issues a real (failing) Postgres query against the sentinel
+// DATABASE_URL, which leaves the postgres-js client's socket/retry handles open and
+// keeps the worker alive after the last test. Close the pool so the run exits cleanly
+// without --test-force-exit.
+after(async () => {
+  const { sql } = await import('../../src/db/pg/client.js');
+  await sql.end({ timeout: 5 });
+});
 
 // ---------------------------------------------------------------------------
 // CR-01: fail-closed allowlist

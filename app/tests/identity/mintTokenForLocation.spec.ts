@@ -61,6 +61,8 @@ before(async () => {
         timezone: 'America/New_York',
         name: 'Test Practice',
         token: encryptedHex,
+        // Fresh token — keeps ensureFreshAccessToken off the GHL refresh path (no network).
+        expiresAt: Date.now() + 86400 * 1000,
         pushGHL: true,
         pushAppt: false,
         pushPat: true,
