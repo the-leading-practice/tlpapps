@@ -119,19 +119,39 @@ const createAppointmentService = () => {
 		});
 	};
 
-	const createAppointment = async (appt: GHLAppointmentData, token: string) => {
+	/**
+	 * `ignoreFreeSlotValidation: true` is required on MIRROR writes (EHR is the system
+	 * of record). Our own availability sync writes block-slots for EHR breaks, which
+	 * makes the target slot "unavailable" and GHL rejects the very appointment we are
+	 * mirroring with 400 "The slot you have selected is no longer available."
+	 * Defaults to false so manual/fresh-booking callers keep slot validation.
+	 */
+	type ApptWriteOptions = { ignoreFreeSlotValidation?: boolean };
+
+	const withSlotValidation = (appt: GHLAppointmentData, opts?: ApptWriteOptions) =>
+		opts?.ignoreFreeSlotValidation ? { ...appt, ignoreFreeSlotValidation: true } : appt;
+
+	const createAppointment = async (
+		appt: GHLAppointmentData,
+		token: string,
+		opts?: ApptWriteOptions,
+	) => {
 		return ghlFetch(`${GHL_API_URL}/calendars/events/appointments/`, {
 			method: 'POST',
 			headers: ghlHeaders(token),
-			body: JSON.stringify(appt),
+			body: JSON.stringify(withSlotValidation(appt, opts)),
 		});
 	};
 
-	const updateAppointment = async (appt: GHLAppointmentData, token: string) => {
+	const updateAppointment = async (
+		appt: GHLAppointmentData,
+		token: string,
+		opts?: ApptWriteOptions,
+	) => {
 		return ghlFetch(`${GHL_API_URL}/calendars/events/appointments/${appt.id}`, {
 			method: 'PUT',
 			headers: ghlHeaders(token),
-			body: JSON.stringify(appt),
+			body: JSON.stringify(withSlotValidation(appt, opts)),
 		});
 	};
 
@@ -338,7 +358,10 @@ const createIntegrationService = () => {
 	const createAppointment = async (appt: any, jwt: string) => {
 		const { translateApptTLPtoGHL } = await import('./utils.js');
 		const ghlAppt = translateApptTLPtoGHL(appt, appt.locationId || '', appt.calendarId || '');
-		const resp = await appointment.createAppointment(ghlAppt, jwt);
+		// Mirror path (DrChrono -> GHL): bypass GHL free-slot validation.
+		const resp = await appointment.createAppointment(ghlAppt, jwt, {
+			ignoreFreeSlotValidation: true,
+		});
 
 		if (resp.status >= 200 && resp.status < 300) {
 			return { status: resp.status, data: { ...resp.data, ghlApptId: resp.data?.id } };
@@ -350,7 +373,10 @@ const createIntegrationService = () => {
 	const updateAppointment = async (appt: any, jwt: string) => {
 		const { translateApptTLPtoGHL } = await import('./utils.js');
 		const ghlAppt = translateApptTLPtoGHL(appt, appt.locationId || '', appt.calendarId || '');
-		const resp = await appointment.updateAppointment(ghlAppt, jwt);
+		// Mirror path (DrChrono -> GHL): bypass GHL free-slot validation.
+		const resp = await appointment.updateAppointment(ghlAppt, jwt, {
+			ignoreFreeSlotValidation: true,
+		});
 
 		if (resp.status >= 200 && resp.status < 300) {
 			const { translateApptGHLtoTLP } = await import('./utils.js');

@@ -118,4 +118,18 @@ test('routeFor: ghl appointment cancel => PUT with cancelled status', () => {
   const r = routeFor({ eventId: 'e', entity: 'appointment', verb: 'cancel', id: 'a1', token: 't', body: {} });
   assert.equal(r.method, 'PUT');
   assert.equal((r.body as Record<string, unknown>).appointmentStatus, 'cancelled');
+  assert.equal((r.body as Record<string, unknown>).ignoreFreeSlotValidation, true);
+});
+
+test('routeFor: ghl appointment create/update bypass free-slot validation (mirror write)', () => {
+  const c = routeFor({ eventId: 'e', entity: 'appointment', verb: 'create', token: 't', body: { calendarId: 'c1' } });
+  assert.equal(c.method, 'POST');
+  assert.equal((c.body as Record<string, unknown>).ignoreFreeSlotValidation, true);
+  assert.equal((c.body as Record<string, unknown>).calendarId, 'c1');
+
+  const u = routeFor({ eventId: 'e', entity: 'appointment', verb: 'update', id: 'a1', token: 't', body: { startTime: 's' } });
+  assert.equal(u.method, 'PUT');
+  assert.equal((u.body as Record<string, unknown>).ignoreFreeSlotValidation, true);
+  assert.equal((u.body as Record<string, unknown>).startTime, 's');
+  assert.equal((u.body as Record<string, unknown>).appointmentStatus, undefined);
 });
