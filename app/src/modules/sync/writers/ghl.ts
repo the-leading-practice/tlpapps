@@ -118,18 +118,26 @@ export function routeFor(input: GhlWriteInput): Route {
     // cancel/delete a contact => delete
     return { method: 'DELETE', url: `${base}/contacts/${id}` };
   }
-  // appointment
+  // appointment — these are MIRROR writes (the EHR is the system of record), so GHL
+  // free-slot validation must be bypassed: our own availability sync writes block-slots
+  // for EHR breaks, which otherwise makes GHL 400 with
+  // "The slot you have selected is no longer available."
   if (verb === 'create')
-    return { method: 'POST', url: `${base}/calendars/events/appointments/`, body: input.body };
+    return {
+      method: 'POST',
+      url: `${base}/calendars/events/appointments/`,
+      body: { ...(input.body ?? {}), ignoreFreeSlotValidation: true },
+    };
   if (verb === 'update' || verb === 'cancel')
     // cancel => update appointmentStatus to 'cancelled'
     return {
       method: 'PUT',
       url: `${base}/calendars/events/appointments/${id}`,
-      body:
-        verb === 'cancel'
-          ? { ...(input.body ?? {}), appointmentStatus: 'cancelled' }
-          : input.body,
+      body: {
+        ...(input.body ?? {}),
+        ...(verb === 'cancel' ? { appointmentStatus: 'cancelled' } : {}),
+        ignoreFreeSlotValidation: true,
+      },
     };
   // delete
   return { method: 'DELETE', url: `${base}/calendars/events/${id}` };
